@@ -1,0 +1,998 @@
+/* Dashboard.css - Styles for Student and Staff dashboards */
+
+/* Base Styles */
+.dashboard-container {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  background-color: #f4f7fc;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Sidebar Styling - Common for both */
+.sidebar {
+  width: 70px;
+  background-color: #0438af;
+  color: white;
+  height: 100vh;
+  padding-top: 20px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  transition: width 0.3s ease;
+  overflow: hidden;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.sidebar.active {
+  width: 250px;
+  align-items: flex-start;
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.hamburger {
+  width: 20px;
+  height: 15px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: #333;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.sidebar-toggle-btn.active .hamburger span:nth-child(1) {
+  transform: translateY(7.5px) rotate(45deg);
+}
+
+.sidebar-toggle-btn.active .hamburger span:nth-child(2) {
+  opacity: 0;
+}
+
+.sidebar-toggle-btn.active .hamburger span:nth-child(3) {
+  transform: translateY(-7.5px) rotate(-45deg);
+}
+
+/* Profile Image in Sidebar */
+.sidebar .profile {
+  text-align: center;
+  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+.sidebar .profile img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 10px;
+  border: 2px solid #ffffff;
+}
+
+.sidebar .profile h3 {
+  font-size: 16px;
+  margin: 0;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: none;
+}
+
+.sidebar.active .profile h3 {
+  display: block;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  width: 100%;
+}
+
+.sidebar ul li {
+  padding: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar ul li:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
+
+.sidebar ul li i {
+  font-size: 20px;
+  margin-left: 10px;
+}
+
+.sidebar.active ul li i {
+  margin-left: 20px;
+}
+
+.sidebar ul li span {
+  display: none;
+  margin-left: 10px;
+}
+
+.sidebar.active ul li span {
+  display: inline;
+}
+
+/* Main Content - Common */
+.main-content {
+  flex: 1;
+  padding: 20px;
+  margin-left: 70px;
+  margin-right: 350px; /* Space for full-size chatbot */
+  transition: margin-left 0.3s ease, margin-right 0.3s ease;
+  max-width: calc(100% - 420px);
+}
+
+/* Adjust margins when sidebar active */
+.main-content.active-container {
+  margin-left: 250px;
+  margin-right: 350px;
+  max-width: calc(100% - 600px);
+}
+
+/* Mobile view adjustments */
+@media (max-width: 768px) {
+  .main-content {
+    margin-right: 0; /* No space for chatbot in minimized view */
+    max-width: 100%;
+    margin-left: 60px;
+    padding: 15px;
+  }
+  .main-content.active-container {
+    margin-left: 200px;
+    max-width: calc(100% - 200px);
+  }
+}
+
+.main-content.overlayed {
+  filter: blur(2px);
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 900;
+  display: none;
+}
+
+.overlay.active {
+  display: block;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+/* Search Bar */
+.search-bar {
+  width: 100%;
+  max-width: 600px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #cccccc;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+/* Task Item Styling */
+.task-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.task-item p {
+  margin: 5px 0 15px;
+  color: #333;
+  font-weight: bold;
+  line-height: 1.5;
+  padding-right: 120px;
+  font-size: 20px;
+  font-family: 'Arial', sans-serif;
+  font-weight: bold;
+  vertical-align: super;
+}
+
+.task-item small {
+  display: block;
+  margin-bottom: 15px;
+  color: #666;
+}
+
+.copy-topic-btn {
+  background-color: #0438af;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: absolute;
+  right: 15px;
+  bottom: 15px;
+  width: auto;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copy-topic-btn:hover {
+  background-color: #032a7a;
+}
+
+/* Active task style - now permanent once clicked */
+.task-item.copied {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4CAF50;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.task-item.copied p {
+  color: #2e7d32;
+}
+
+.task-item.copied .copy-topic-btn {
+  background-color: #0438af;
+}
+
+/* Task Form */
+.task-form {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.task-form h3 {
+  margin: 0 0 10px;
+}
+
+/* Goal Item Styling */
+.goal-card {
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
+  border-left: 4px solid #9E9E9E;
+  width: 100%;
+}
+
+.goal-card h3 {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.goal-card p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.goal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.complete-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  background: #0438af;
+  color: white;
+  cursor: pointer;
+}
+
+.complete-btn.completed {
+  background: #4CAF50;
+}
+
+.details-btn {
+  padding: 6px 12px;
+  border: 1px solid #0438af;
+  border-radius: 4px;
+  background: transparent;
+  color: #0438af;
+  cursor: pointer;
+}
+
+/* Add Goal Form */
+.add-goal-form {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.goal-input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.add-goal-btn {
+  background-color: #0438af;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.add-goal-btn:hover {
+  background-color: #032a7a;
+}
+
+.goal-form-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.save-goal-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.save-goal-btn:hover {
+  background-color: #3e8e41;
+}
+
+.cancel-goal-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.cancel-goal-btn:hover {
+  background-color: #d32f2f;
+}
+
+/* Toggleable Containers */
+.toggle-container {
+  display: none;
+  background: white;
+  border-radius: 10px;
+  margin-top: 20px;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+  min-height: calc(100vh - 100px);
+  border: 1px solid #ddd;
+  overflow: hidden;
+}
+
+.toggle-container.active {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main-content.active-container #main-content-section > :not(.toggle-container.active) {
+  display: none;
+}
+
+/* Container Header and Body */
+.container-header {
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  background-color: #0438af;
+  padding: 15px;
+  border-radius: 10px 10px 0 0;
+  text-align: center;
+  width: 100%;
+}
+
+.container-body {
+  padding: 20px;
+  flex: 1;
+  background: #ffffff;
+  border-radius: 0 0 10px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.container-body.scrollable {
+  overflow-y: auto;
+  max-height: calc(100vh - 160px);
+}
+
+.empty-message {
+  background: #f1f1f1;
+  padding: 15px;
+  border-radius: 8px;
+  color: #555;
+  font-size: 16px;
+  display: inline-block;
+  margin-top: 20px;
+}
+
+/* Default Content (Student Dashboard) */
+.default-content {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.profile-content {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  width: 100%;
+}
+
+.profile-content:hover {
+  background: #f8f9fa;
+}
+
+.subjects-grid,
+.assignments-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.assignment-box,
+.lesson-box {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: center;
+  width: 280px;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+/* Quick Stats (Staff Dashboard) */
+.quick-stats {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.stats-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  width: 100%;
+}
+
+.stat-box {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  width: 200px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.stat-box:hover {
+  background: #f8f9fa;
+}
+
+.stat-box i {
+  font-size: 30px;
+  color: #0438af;
+  margin-bottom: 10px;
+}
+
+.stat-box h3 {
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+.stat-box p {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Notifications */
+.notifications {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.notification {
+  background: #f8f9fa;
+  padding: 10px 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #333;
+}
+
+/* Container-specific header colors */
+#goals-container .container-header {
+  background-color: #ff007f;
+}
+#streak-container .container-header {
+  background-color: #ff9800;
+}
+#assignments-container .container-header {
+  background-color: #3f51b5;
+}
+#results-container .container-header {
+  background-color: #1ed5e9;
+}
+#circular-container .container-header {
+  background-color: #4caf50;
+}
+#tasks-container .container-header {
+  background-color: #607d8b;
+}
+#quick-stats-container .container-header {
+  background-color: #2196F3;
+}
+#settings-container .container-header {
+  background-color: #f44336;
+}
+#self-analysis-container .container-header {
+  background-color: #795548;
+}
+
+/* Leaderboard */
+.leaderboard {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.leaderboard h3 {
+  margin-bottom: 10px;
+}
+
+.leaderboard ul {
+  list-style: none;
+  padding: 0;
+}
+
+.leaderboard li {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.leaderboard li:last-child {
+  border-bottom: none;
+}
+
+/* Responsive Design for Laptop (unchanged) */
+@media (max-width: 1200px) {
+  .main-content {
+    margin-right: 0; /* Remove chatbot space on smaller desktops */
+    max-width: calc(100% - 70px);
+    margin-left: 70px;
+  }
+
+  .main-content.active-container {
+    margin-left: 250px;
+    max-width: calc(100% - 250px);
+  }
+
+  .assignment-box,
+  .lesson-box {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .stat-box {
+    width: 100%;
+    max-width: 250px;
+  }
+
+  .toggle-container {
+    height: calc(100vh - 100px);
+  }
+
+  .container-body.scrollable {
+    max-height: calc(100vh - 160px);
+  }
+}
+
+@media (max-width: 992px) {
+  .main-content {
+    margin-left: 60px;
+    margin-right: 0;
+    max-width: calc(100% - 60px);
+    padding: 15px;
+  }
+
+  .toggle-container {
+    height: auto;
+    min-height: calc(100vh - 100px);
+  }
+
+  .container-body.scrollable {
+    max-height: calc(100vh - 140px);
+  }
+}
+
+/* Enhanced Mobile View Adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+    z-index: 1200;
+  }
+
+  .sidebar.active {
+    width: 220px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar ul li {
+    padding: 12px;
+  }
+
+  .sidebar ul li i {
+    margin-left: 8px;
+    font-size: 18px;
+  }
+
+  .sidebar.active ul li i {
+    margin-left: 15px;
+  }
+
+  .sidebar-toggle-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .main-content {
+    margin-left: 60px;
+    margin-right: 0;
+    padding: 10px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .main-content.active-container {
+    margin-left: 0;
+    max-width: 100%;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-bar {
+    width: 100%;
+    max-width: none;
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .task-item {
+    padding: 10px;
+  }
+
+  .task-item p {
+    font-size: 16px;
+    padding-right: 0;
+    line-height: 1.4;
+  }
+
+  .copy-topic-btn {
+    position: static;
+    width: 100%;
+    max-width: none;
+    padding: 8px;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .goal-card {
+    padding: 10px;
+  }
+
+  .goal-card h3 {
+    font-size: 14px;
+  }
+
+  .goal-card p {
+    font-size: 12px;
+  }
+
+  .goal-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .complete-btn,
+  .details-btn {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .add-goal-form {
+    padding: 10px;
+  }
+
+  .goal-input {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .add-goal-btn {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .goal-form-buttons {
+    flex-direction: column;
+  }
+
+  .save-goal-btn,
+  .cancel-goal-btn {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .subjects-grid,
+  .assignments-grid {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .assignment-box,
+  .lesson-box {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px;
+  }
+
+  .stats-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-box {
+    width: 100%;
+    max-width: 100%;
+    padding: 15px;
+  }
+
+  .toggle-container {
+    min-height: auto;
+    height: auto;
+    margin-top: 10px;
+  }
+
+  .container-header {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+  .container-body {
+    padding: 10px;
+  }
+
+  .container-body.scrollable {
+    max-height: none;
+    height: auto;
+    overflow-y: visible;
+  }
+
+  .notifications {
+    bottom: 70px;
+    right: 10px;
+    width: calc(100% - 20px);
+  }
+
+  .notification {
+    font-size: 12px;
+    padding: 8px 12px;
+    max-width: 100%;
+  }
+
+  .leaderboard {
+    padding: 10px;
+  }
+
+  .leaderboard h3 {
+    font-size: 16px;
+  }
+
+  .leaderboard li {
+    font-size: 14px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 50px;
+  }
+
+  .sidebar.active {
+    width: 200px;
+  }
+
+  .sidebar ul li i {
+    margin-left: 5px;
+    font-size: 16px;
+  }
+
+  .sidebar.active ul li i {
+    margin-left: 10px;
+  }
+
+  .sidebar-toggle-btn {
+    width: 35px;
+    height: 35px;
+  }
+
+  .main-content {
+    margin-left: 50px;
+    padding: 8px;
+    max-width: 100%;
+  }
+
+  .main-content.active-container {
+    margin-left: 0;
+    max-width: 100%;
+  }
+
+  .task-item {
+    padding: 8px;
+  }
+
+  .task-item p {
+    font-size: 14px;
+  }
+
+  .task-item small {
+    font-size: 12px;
+  }
+
+  .copy-topic-btn {
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .goal-card {
+    padding: 8px;
+  }
+
+  .goal-card h3 {
+    font-size: 13px;
+  }
+
+  .goal-card p {
+    font-size: 11px;
+  }
+
+  .container-header {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .container-body {
+    padding: 8px;
+  }
+
+  .assignment-box,
+  .lesson-box {
+    padding: 8px;
+  }
+
+  .stat-box {
+    padding: 10px;
+  }
+
+  .stat-box h3 {
+    font-size: 14px;
+  }
+
+  .stat-box p {
+    font-size: 16px;
+  }
+
+  .notifications {
+    bottom: 60px;
+  }
+
+  .notification {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .leaderboard h3 {
+    font-size: 14px;
+  }
+
+  .leaderboard li {
+    font-size: 12px;
+    padding: 6px;
+  }
+}
