@@ -20,8 +20,8 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
 
   useEffect(() => {
     if (copiedTopic) {
-      setInput(copiedTopic); // Update the input field with the copied topic
-      clearCopiedTopic(); // Clear the copied topic after use
+      setInput(copiedTopic);
+      clearCopiedTopic();
     }
   }, [copiedTopic, clearCopiedTopic]);
 
@@ -42,32 +42,40 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const userMessage = {
-      sender: 'user',
-      text: input,
-    };
+    const userMessage = { sender: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     const quickResponse = getQuickResponse(userMessage.text);
     if (quickResponse) {
-      const botMessage = {
-        sender: 'bot',
-        text: quickResponse,
-      };
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((prev) => [...prev, { sender: 'bot', text: quickResponse }]);
       setIsLoading(false);
       return;
     }
 
-    // Placeholder fallback if you ever decide to connect a backend
-    const botMessage = {
-      sender: 'bot',
-      text: 'Sorry, I couldn’t find a specific answer. Please try rephrasing your question.',
-    };
-    setMessages((prev) => [...prev, botMessage]);
-    setIsLoading(false);
+    try {
+      const response = await fetch('https://your-backend-url/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage.text }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
+      } else {
+        throw new Error(data.error || 'Failed to get response');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages((prev) => [
+        ...prev,
+        { sender: 'bot', text: 'Sorry, something went wrong. Please try again.' },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEnter = (e) => {
@@ -79,7 +87,6 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const renderMessageContent = (text) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
-
     return parts.map((part, index) =>
       urlRegex.test(part) ? (
         <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="chat-link">
