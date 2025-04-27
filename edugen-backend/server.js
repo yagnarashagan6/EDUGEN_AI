@@ -1,39 +1,48 @@
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const cors = require('cors');
+const cors = require('cors'); // Add CORS to allow frontend requests
+
 const app = express();
-
-app.use(cors());
+app.use(cors()); // Enable CORS
 app.use(express.json());
-
-const API_KEY = process.env.XAI_API_KEY || 'xai-ZbpK4HRWgZxj9WvqAync7slMp4g6mQvb1SGcgc6ltz8pByl8p3aB0LGsNEFUimhLPbavSsTqciiEjRrg'; // Replace with xAI or OpenAI key
-const API_URL = 'https://api.x.ai/v1/grok'; // Use https://api.openai.com/v1/chat/completions for OpenAI
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
+  if (!message) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
   try {
     const response = await axios.post(
-      API_URL,
+      'https://openrouter.ai/api/v1/chat/completions',
       {
-        prompt: `You are EduGen AI, an assistant for students using the EduGen platform. Answer the following student question concisely and accurately, focusing on educational content or platform features: ${message}`,
-        max_tokens: 150,
+        model: 'mistralai/mistral-7b-instruct:free', // Correct free model ID
+        messages: [
+          {
+            role: 'system',
+            content: 'You are EduGen AI, a helpful chatbot for students. Answer educational queries clearly and concisely, and generate quiz questions when requested.',
+          },
+          { role: 'user', content: message },
+        ],
       },
       {
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app', // Your site URL
+          'X-Title': 'EduGen AI', // Optional: App name
         },
       }
     );
 
-    const aiResponse = response.data.choices[0].text.trim(); // Adjust based on API response format
-    res.json({ response: aiResponse });
+    const botResponse = response.data.choices[0].message.content;
+    res.json({ response: botResponse });
   } catch (error) {
-    console.error('Error calling API:', error);
-    res.status(500).json({ error: 'Failed to get response from AI' });
+    console.error('Error:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Failed to get response from AI model' });
   }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(5000, () => console.log('Server running on port 5000'));
