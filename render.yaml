@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: edugen-backend
+    env: node
+    buildCommand: "npm install"
+    startCommand: "node index.js"
+    branch: main
+    envVars:
+      - key: OPENROUTER_API_KEY
+        value: YOUR_OPENROUTER_API_KEY
