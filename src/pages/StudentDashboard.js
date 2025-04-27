@@ -487,7 +487,6 @@ const StudentDashboard = () => {
           students.push({ id: uid, name, streak, progress });
         }
         transaction.set(leaderboardRef, { students });
-        // Note: Not setting leaderboard state here to avoid overwriting direct fetch
       });
     } catch (err) {
       console.error('Error updating leaderboard:', err);
@@ -546,29 +545,28 @@ const StudentDashboard = () => {
       const userRef = doc(db, 'students', auth.currentUser.uid);
       await updateDoc(userRef, { quizCount: newQuizCount });
 
-      // Generate 3 static sample questions
-      const sampleQuestions = [
-        {
-          text: `What is the primary source of energy for Earth's climate system?`,
-          options: ['The Sun', 'Geothermal heat', 'Ocean currents'],
-          correctAnswer: 'The Sun',
+      // Fetch quiz questions from backend
+      const response = await fetch('http://localhost:5000/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        {
-          text: `Which gas is most abundant in Earth's atmosphere?`,
-          options: ['Oxygen', 'Nitrogen', 'Carbon Dioxide'],
-          correctAnswer: 'Nitrogen',
-        },
-        {
-          text: `What is the chemical symbol for water?`,
-          options: ['H2O', 'CO2', 'O2'],
-          correctAnswer: 'H2O',
-        },
-      ];
-      
-      setQuizQuestions(sampleQuestions);
+        body: JSON.stringify({ topic: currentTopic }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch quiz questions');
+      }
+
+      const quizData = await response.json();
+      if (!Array.isArray(quizData) || quizData.length === 0) {
+        throw new Error('Invalid quiz questions received');
+      }
+
+      setQuizQuestions(quizData);
     } catch (err) {
       console.error('Error starting quiz:', err);
-      setError('Failed to start quiz.');
+      setError('Failed to generate quiz questions.');
       setInQuiz(false);
     }
   };

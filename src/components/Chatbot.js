@@ -6,7 +6,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
-      text: 'Hi! I’m EduGen AI. Ask me anything from your syllabus or type a topic to generate quiz questions.',
+      text: 'Hi! I’m EduGen AI. Ask me anything from your syllabus for a quick, clear answer.',
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,13 +28,13 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
     if (lowerInput.includes('coxco') || lowerInput.includes('agni student portal') || lowerInput.includes('student')) {
-      return 'You can access the Agni Student Portal here: https://coe.act.edu.in/students/';
+      return 'Access the Agni Student Portal: https://coe.act.edu.in/students/';
     }
     if (lowerInput.includes('gamma ai') || lowerInput.includes('presentation ai') || lowerInput.includes('ppt ai')) {
       return 'Try Gamma AI for presentations: https://gamma.app/';
     }
     if (lowerInput.includes('pdf')) {
-      return 'Here’s a useful PDF tool: https://www.ilovepdf.com/';
+      return 'Use this PDF tool: https://www.ilovepdf.com/';
     }
     return null;
   };
@@ -68,10 +68,10 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
         throw new Error(data.error || 'Failed to get response');
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Chatbot Error:', error);
       setMessages((prev) => [
         ...prev,
-        { sender: 'bot', text: 'Sorry, something went wrong. Please try again.' },
+        { sender: 'bot', text: 'Sorry, I couldn’t process that. Try again or contact support.' },
       ]);
     } finally {
       setIsLoading(false);
