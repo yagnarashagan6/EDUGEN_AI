@@ -20,7 +20,7 @@ const Profile = () => {
 
       const passedRole = location.state?.role;
       if (!passedRole || !['student', 'staff'].includes(passedRole)) {
-        navigate('/'); // Redirect if role is invalid
+        navigate('/');
         return;
       }
 
@@ -76,7 +76,6 @@ const Profile = () => {
 
   return (
     <div className="profile-container">
-      <div className="profile-background" />
       <div className="profile-card">
         <h2 className="profile-header">{role === 'student' ? 'Student' : 'Staff'} Profile</h2>
         <img
@@ -93,7 +92,7 @@ const Profile = () => {
           ))}
         </div>
         <button className="profile-button" onClick={goBack}>
-          ← Back to Dashboard
+          Back to Dashboard
         </button>
       </div>
     </div>

@@ -11,11 +11,8 @@
   padding: 10px;
   box-sizing: border-box;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  position: fixed;
-  top: 0;
-  left: 0;
-  opacity: 1;
-  overflow: hidden;
+  position: relative;
+  overflow-y: auto;
 }
 
 .profile-container::before {
@@ -25,55 +22,57 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('whatsapp1.jpg') repeat 0 0;
+  background: url('whatsapp1.jpg') repeat;
   background-size: 400px 400px;
   z-index: 1;
-  animation: animateBackground 20s linear infinite;
+  opacity: 0.7;
+  animation: animateBackground 25s linear infinite;
 }
 
 @keyframes animateBackground {
   0% {
     background-position: 0 0;
     transform: scale(1);
-    opacity: 0.8;
+    opacity: 0.7;
   }
   25% {
     background-position: 25px 50px;
     transform: scale(1.05);
-    opacity: 0.7;
+    opacity: 0.6;
   }
   50% {
     background-position: 50px 100px;
     transform: scale(1);
-    opacity: 0.6;
+    opacity: 0.5;
   }
   75% {
     background-position: 25px 50px;
     transform: scale(1.05);
-    opacity: 0.7;
+    opacity: 0.6;
   }
   100% {
     background-position: 0 0;
     transform: scale(1);
-    opacity: 0.8;
+    opacity: 0.7;
   }
 }
 
 .profile-card {
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 650px;
   padding: 15px;
   text-align: center;
   position: relative;
   z-index: 2;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 .profile-card:hover {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
 }
 
 .profile-header {
@@ -90,12 +89,12 @@
   border-radius: 50%;
   object-fit: cover;
   margin: 0 auto 10px;
-  border: 2px solid #075e54;
+  border: 3px solid #075e54;
   transition: transform 0.3s ease;
 }
 
 .profile-image:hover {
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
 .profile-details {
@@ -112,7 +111,7 @@
   color: #333;
   padding: 12px 16px;
   background: #f9f9f9;
-  border-radius: 5px;
+  border-radius: 6px;
   transition: background 0.2s ease;
 }
 
@@ -138,10 +137,10 @@
   color: #ffffff;
   padding: 8px 16px;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-top: 10px;
   display: inline-flex;
   align-items: center;
@@ -151,7 +150,7 @@
 
 .profile-button:hover {
   background: #128c7e;
-  transform: scale(1.03);
+  transform: scale(1.05);
 }
 
 .profile-button::before {
@@ -170,23 +169,43 @@
 
 @keyframes pulse {
   0% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.5; }
   100% { opacity: 1; }
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 8px;
-  }
-
+@media (max-width: 1024px) {
   .profile-card {
     max-width: 90%;
     padding: 12px;
   }
 
   .profile-header {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
+  }
+
+  .profile-image {
+    width: 85px;
+    height: 85px;
+  }
+
+  .profile-details {
+    padding: 0 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 8px;
+  }
+
+  .profile-card {
+    max-width: 95%;
+    padding: 12px;
+  }
+
+  .profile-header {
+    font-size: 1.35rem;
     margin: 6px 0;
   }
 
@@ -196,14 +215,14 @@
   }
 
   .profile-details {
-    padding: 0 20px;
+    padding: 0 15px;
   }
 
   .profile-field {
     flex-direction: column;
     align-items: flex-start;
     padding: 10px 14px;
-    font-size: 1.05rem;
+    font-size: 1rem;
     margin: 2px 0;
   }
 
@@ -220,40 +239,56 @@
 
   .profile-button {
     width: 100%;
+    max-width: 200px;
     padding: 8px;
     font-size: 0.8rem;
   }
 }
 
 @media (max-width: 480px) {
+  .profile-container {
+    overflow: hidden; /* Remove scroll for mobile view */
+    padding: 0.5rem;
+    height: 100vh; /* Ensure it fits the viewport height */
+  }
+
   .profile-card {
     max-width: 100%;
-    padding: 10px;
+    padding: 0.75rem;
   }
 
   .profile-header {
     font-size: 1.2rem;
-    margin: 5px 0;
   }
 
   .profile-image {
     width: 70px;
     height: 70px;
-    margin-bottom: 8px;
+    margin-bottom: 0.75rem;
   }
 
   .profile-details {
-    padding: 0 15px;
+    padding: 0 0.5rem;
   }
 
   .profile-field {
-    font-size: 1rem;
-    padding: 8px 12px;
-    margin: 1px 0;
+    font-size: 0.9rem;
+    padding: 0.5rem;
   }
 
   .profile-button {
-    padding: 7px;
-    font-size: 0.75rem;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .profile-container::before {
+    background-size: 200px 200px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .profile-container {
+    overflow: hidden; /* Disable scrolling for laptop view */
+    height: 95vh; /* Adjust height if needed */
   }
 }
