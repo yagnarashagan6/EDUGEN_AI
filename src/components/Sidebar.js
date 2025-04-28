@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Sidebar.css';
+import '../styles/Dashboard.css';
 
-const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar }) => {
+const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, setMobileHamburger }) => {
   const navigate = useNavigate();
 
   const redirectToProfile = () => {
@@ -17,7 +18,7 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar }) 
     { id: 'circular-container', icon: 'fas fa-bullhorn', label: 'Circular' },
     { id: 'staff-interaction-container', icon: 'fas fa-users', label: 'Staff Interaction' },
     { id: 'self-analysis-container', icon: 'fas fa-chart-bar', label: 'Self Analysis' },
-    { id: 'settings-container', icon: 'fas fa-cog', label: 'Settings' }, // Added settings for students
+    { id: 'settings-container', icon: 'fas fa-cog', label: 'Settings' },
   ];
 
   const staffItems = [
@@ -31,6 +32,26 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar }) 
   ];
 
   const items = role === 'staff' ? staffItems : studentItems;
+
+  // Hamburger menu JSX for mobile view (passed to parent)
+  const hamburgerButton = (
+    <button
+      className={`sidebar-toggle-btn ${isVisible ? 'active' : ''}`}
+      onClick={toggleSidebar}
+    >
+      <div className="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </button>
+  );
+
+  // Pass hamburger button to parent for mobile view rendering
+  React.useEffect(() => {
+    setMobileHamburger(hamburgerButton);
+    return () => setMobileHamburger(null); // Cleanup on unmount
+  }, [isVisible, setMobileHamburger]);
 
   return (
     <div className={`sidebar ${isVisible ? 'active' : ''}`}>
@@ -47,10 +68,10 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar }) 
         <h3>{userData?.name || 'Loading...'}</h3>
       </div>
       <ul>
+        {/* Hamburger menu item in laptop view */}
         <li
-          onClick={toggleSidebar}
           className={`sidebar-toggle-item ${isVisible ? 'active' : ''}`}
-          style={{ padding: '12px 20px', cursor: 'pointer' }}
+          onClick={toggleSidebar}
         >
           <div className="hamburger">
             <span></span>

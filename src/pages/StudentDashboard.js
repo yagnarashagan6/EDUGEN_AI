@@ -251,6 +251,7 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [activeContainer, setActiveContainer] = useState(null);
+  const [mobileHamburger, setMobileHamburger] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [goals, setGoals] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -615,7 +616,7 @@ const StudentDashboard = () => {
       const description = document.getElementById('goal-description')?.value.trim();
       const priority = document.getElementById('goal-priority')?.value;
       if (!title || !dueDate) {
-        alert('Please fill in at least title and due date');
+        alert('Please fill in at least title、我 and due date');
         return;
       }
       const newGoal = {
@@ -872,9 +873,11 @@ const StudentDashboard = () => {
           toggleContainer={toggleContainer}
           isVisible={sidebarVisible}
           toggleSidebar={toggleSidebar}
+          setMobileHamburger={setMobileHamburger}
         />
         <div className={`main-content ${sidebarVisible ? 'active-container' : ''}`}>
           <div className="header">
+            {mobileHamburger}
             <input
               type="text"
               className="search-bar"

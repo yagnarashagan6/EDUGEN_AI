@@ -38,7 +38,7 @@
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Sidebar Toggle Button */
+/* Sidebar Toggle Button (used in mobile header and sidebar) */
 .sidebar-toggle-btn {
   background: none;
   border: none;
@@ -46,49 +46,58 @@
   padding: 8px;
   width: 40px;
   height: 40px;
-  display: flex;
+  display: none; /* Hidden by default, shown in mobile view */
   align-items: center;
   justify-content: center;
-  z-index: 1100;
   transition: background-color 0.2s ease;
 }
 
 .sidebar-toggle-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.1);
   border-radius: 50%;
 }
 
+/* Improved Hamburger Menu Styling */
 .hamburger {
-  width: 24px;
-  height: 18px;
+  width: 30px; /* Slightly larger for better visibility */
+  height: 20px;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 2px; /* Increased gap for better spacing */
 }
 
 .hamburger span {
   display: block;
   width: 100%;
-  height: 3px;
-  background-color: white;
-  border-radius: 3px;
-  transition: all 0.3s ease;
+  height: 4px; /* Slightly thicker lines */
+  background-color: #0438af; /* Blue for header */
+  border-radius: 4px; /* Rounded edges for a modern look */
+  transition: all 0.3s ease-in-out; /* Smooth transition for animations */
+}
+
+.sidebar .hamburger span {
+  background-color: white; /* White for sidebar */
 }
 
 .sidebar-toggle-btn.active .hamburger span:nth-child(1) {
-  transform: translateY(7.5px) rotate(45deg);
+  transform: translateY(8px) rotate(45deg); /* Adjusted for better alignment */
 }
 
 .sidebar-toggle-btn.active .hamburger span:nth-child(2) {
-  opacity: 0;
+  opacity: 0; /* Hidden middle line */
 }
 
 .sidebar-toggle-btn.active .hamburger span:nth-child(3) {
-  transform: translateY(-7.5px) rotate(-45deg);
+  transform: translateY(-8px) rotate(-45deg); /* Adjusted for better alignment */
 }
 
-/* Profile Image in Sidebar */
+/* Hover Effect for Hamburger */
+.sidebar-toggle-btn:hover .hamburger span {
+  background-color: #032a7a; /* Darker blue on hover */
+}
+
 .sidebar .profile {
   text-align: center;
   padding: 15px 0;
@@ -176,77 +185,122 @@
   display: inline;
 }
 
+/* Sidebar Hamburger Option */
+.sidebar .hamburger-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.sidebar .hamburger-toggle .sidebar-toggle-btn {
+  display: flex; /* Always visible in sidebar */
+  padding: 0;
+  width: 40px; /* Match other sidebar icons */
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar .hamburger-toggle .hamburger {
+  width: 20px; /* Slightly smaller for alignment */
+  height: 16px;
+}
+
+.sidebar .hamburger-toggle span {
+  display: none;
+  margin-left: 10px;
+  font-size: 14px;
+}
+
+.sidebar.active .hamburger-toggle span {
+  display: inline;
+}
+
 /* Main Content - Common */
 .main-content {
   flex: 1;
   padding: 20px;
-  margin-left: 70px;
+  margin-left: 70px; /* Space for collapsed sidebar */
   margin-right: 350px; /* Space for full-size chatbot */
-  transition: margin-left 0.3s ease, margin-right 0.3s ease;
-  max-width: calc(100% - 420px);
+  transition: margin-right 0.3s ease;
+  max-width: calc(100% - 420px); /* Account for sidebar and chatbot */
   box-sizing: border-box;
 }
 
-/* Adjust margins when sidebar active */
+/* No margin adjustment when sidebar is active */
 .main-content.active-container {
-  margin-left: 250px;
+  margin-left: 70px; /* Keep consistent with collapsed sidebar */
   margin-right: 350px;
-  max-width: calc(100% - 600px);
+  max-width: calc(100% - 420px);
 }
 
 /* Mobile view adjustments */
 @media (max-width: 768px) {
-  .main-content {
-    margin-right: 0;
-    max-width: calc(100% - 60px);
-    margin-left: 60px;
-    padding: 15px;
-  }
-  .main-content.active-container {
-    margin-left: 220px;
-    max-width: calc(100% - 220px);
-  }
   .sidebar {
-    width: 60px;
+    width: 250px; /* Full width when active */
+    display: none; /* Hidden by default */
+    z-index: 1200;
   }
+
   .sidebar.active {
-    width: 220px;
+    display: flex; /* Shown when active */
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar .hamburger-toggle {
+    display: none; /* Hide sidebar hamburger in mobile view */
+  }
+
+  .main-content {
+    margin-left: 0; /* No sidebar space by default */
+    margin-right: 0;
+    max-width: 100%;
+    padding: 15px;
+    width: 100%;
+  }
+
+  .main-content.active-container {
+    margin-left: 0; /* No shift in mobile */
+    margin-right: 0;
+    max-width: 100%;
+  }
+
+  .sidebar-toggle-btn {
+    display: flex; /* Visible in mobile view */
+  }
+
+  .header .sidebar-toggle-btn {
+    display: flex; /* Ensure hamburger is visible in mobile header */
+    padding: 6px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .header .hamburger {
+    width: 22px;
+    height: 16px;
   }
 }
 
-.main-content.overlayed {
-  filter: blur(2px);
-}
-
-/* Overlay */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 900;
-  display: none;
-}
-
-.overlay.active {
-  display: block;
-}
-
-/* Header */
+/* Header adjustments for hamburger menu */
 .header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 20px;
   width: 100%;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap; /* Prevent wrapping */
+  box-sizing: border-box;
 }
 
-/* Search Bar */
+.header .sidebar-toggle-btn {
+  order: -1; /* Ensure hamburger is on the left */
+}
+
 .search-bar {
-  width: 100%;
+  flex: 1;
   max-width: 600px;
   padding: 12px;
   border-radius: 8px;
@@ -821,8 +875,8 @@
   }
 
   .main-content.active-container {
-    margin-left: 250px;
-    max-width: calc(100% - 250px);
+    margin-left: 70px;
+    max-width: calc(100% - 70px);
   }
 
   .assignment-box,
@@ -868,16 +922,6 @@
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    width: 60px;
-    z-index: 1200;
-  }
-
-  .sidebar.active {
-    width: 220px;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
-  }
-
   .sidebar ul li {
     padding: 10px 12px;
   }
@@ -891,32 +935,14 @@
     margin-left: 15px;
   }
 
-  .sidebar-toggle-btn {
-    width: 40px;
-    height: 40px;
-  }
-
-  .main-content {
-    margin-left: 60px;
-    margin-right: 0;
-    padding: 10px;
-    max-width: 100%;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .main-content.active-container {
-    margin-left: 220px;
-    max-width: calc(100% - 220px);
-  }
-
   .header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 10px;
   }
 
   .search-bar {
-    width: 100%;
+    flex: 1;
     max-width: none;
     font-size: 14px;
     padding: 10px;
@@ -996,73 +1022,27 @@
 
   .stats-container {
     grid-template-columns: 1fr;
+    gap: 15px;
+    width: 100%;
+    padding: 0 10px;
+    box-sizing: border-box;
   }
 
   .stat-box {
     width: 100%;
     max-width: none;
     padding: 15px;
-  }
-
-  .toggle-container {
-    min-height: auto;
-    margin-top: 10px;
-  }
-
-  .container-header {
-    font-size: 16px;
-    padding: 12px;
-  }
-
-  .container-body {
-    padding: 15px;
-  }
-
-  .container-body.scrollable {
-    max-height: none;
-    overflow-y: visible;
-  }
-
-  .notifications {
-    bottom: 80px;
-    right: 10px;
-    width: calc(100% - 20px);
-    max-width: 100%;
-  }
-
-  .notification {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
-
-  .leaderboard {
-    padding: 12px;
-  }
-
-  .leaderboard h3 {
-    font-size: 16px;
-  }
-
-  .leaderboard li {
-    font-size: 14px;
-    padding: 10px;
-  }
-
-  .chat-toggle-btn {
-    bottom: 15px;
-    right: 15px;
-    width: 45px;
-    height: 45px;
+    box-sizing: border-box;
   }
 }
 
 @media (max-width: 480px) {
   .sidebar {
-    width: 50px;
+    width: 200px;
   }
 
   .sidebar.active {
-    width: 200px;
+    display: flex;
   }
 
   .sidebar ul li i {
@@ -1080,14 +1060,14 @@
   }
 
   .main-content {
-    margin-left: 50px;
+    margin-left: 0;
     padding: 8px;
     max-width: 100%;
   }
 
   .main-content.active-container {
-    margin-left: 200px;
-    max-width: calc(100% - 200px);
+    margin-left: 0;
+    max-width: 100%;
   }
 
   .task-item {
@@ -1116,5 +1096,6 @@
   }
 
   .goal-card p {
-    font-size:ව
-  }  }
+    font-size: 12px;
+  }
+}

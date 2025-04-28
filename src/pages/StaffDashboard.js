@@ -126,6 +126,7 @@ const StaffDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [activeContainer, setActiveContainer] = useState(null);
+  const [mobileHamburger, setMobileHamburger] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [messages, setMessages] = useState([]);
   const [studentStats, setStudentStats] = useState([]);
@@ -400,9 +401,11 @@ const StaffDashboard = () => {
         toggleContainer={toggleContainer}
         isVisible={sidebarVisible}
         toggleSidebar={toggleSidebar}
+        setMobileHamburger={setMobileHamburger}
       />
       <div className={`main-content ${sidebarVisible ? 'active-container' : ''}`}>
         <div className="header">
+        {mobileHamburger} {/* Render hamburger button in header */}
           <input
             type="text"
             className="search-bar"
