@@ -12,12 +12,14 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const [isLoading, setIsLoading] = useState(false);
   const chatBoxRef = useRef(null);
 
+  // Scroll to the bottom of the chat when new messages are added
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
   }, [messages]);
 
+  // Populate input with copied topic
   useEffect(() => {
     if (copiedTopic) {
       setInput(copiedTopic);
@@ -25,6 +27,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
   }, [copiedTopic, clearCopiedTopic]);
 
+  // Quick responses for specific keywords
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
     if (lowerInput.includes('coxco') || lowerInput.includes('agni student portal') || lowerInput.includes('student')) {
@@ -39,6 +42,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     return null;
   };
 
+  // Send message to backend
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -55,7 +59,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
 
     try {
-      const response = await fetch('https://your-backend.vercel.app/api/chat', {
+      const response = await fetch('https://edugen-ai-zeta.vercel.app/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
@@ -78,12 +82,14 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
   };
 
+  // Handle Enter key press
   const handleEnter = (e) => {
     if (e.key === 'Enter' && !isLoading) {
       sendMessage();
     }
   };
 
+  // Render message content with clickable links
   const renderMessageContent = (text) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);

@@ -5,9 +5,11 @@ const cors = require('cors');
 
 const app = express();
 
-// CORS configuration
+// CORS configuration for production and development
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app']
+  origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app'],
+  methods: ['GET', 'POST'],
+  credentials: true,
 }));
 app.use(express.json());
 
@@ -38,7 +40,7 @@ app.post('/api/chat', async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app', // Vercel frontend
+          'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
       }
@@ -80,7 +82,7 @@ app.post('/api/generate-quiz', async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app', // Vercel frontend
+          'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
       }
