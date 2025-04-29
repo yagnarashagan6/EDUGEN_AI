@@ -7,7 +7,7 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app']
+  origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app', 'https://www.edugen-ai-zeta.vercel.app']
 }));
 app.use(express.json());
 
