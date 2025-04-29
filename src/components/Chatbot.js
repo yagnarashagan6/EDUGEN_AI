@@ -55,7 +55,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch('https://your-backend.vercel.app/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
