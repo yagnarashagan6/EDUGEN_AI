@@ -69,13 +69,13 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
       if (response.ok) {
         setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
       } else {
-        throw new Error(data.error || 'Failed to get response');
+        throw new Error(data.error || 'Failed to get response from backend');
       }
     } catch (error) {
-      console.error('Chatbot Error:', error);
+      console.error('Chatbot Error:', error.message);
       setMessages((prev) => [
         ...prev,
-        { sender: 'bot', text: 'Sorry, I couldn’t process that. Try again or contact support.' },
+        { sender: 'bot', text: `Error: ${error.message}. Please try again or contact support.` },
       ]);
     } finally {
       setIsLoading(false);

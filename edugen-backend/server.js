@@ -5,7 +5,7 @@ const cors = require('cors');
 
 const app = express();
 
-// CORS configuration for production and development
+// CORS configuration
 app.use(cors({
   origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app'],
   methods: ['GET', 'POST'],
@@ -13,17 +13,28 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Health check endpoint to verify server is running
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
+
 // Chat API endpoint
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
   // Validate input
   if (!message) {
+    console.error('Chat Error: Message is required');
     return res.status(400).json({ error: 'Message is required' });
   }
 
   try {
-    // Send request to OpenRouter API for chat completion
+    // Log API key presence (without exposing the key)
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY is not set in environment variables');
+    }
+
+    // Send request to OpenRouter API
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -51,7 +62,7 @@ app.post('/api/chat', async (req, res) => {
     res.json({ response: botResponse });
   } catch (error) {
     console.error('Chat Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to get response from AI model' });
+    res.status(500).json({ error: 'Failed to get response from AI model: ' + error.message });
   }
 });
 
@@ -61,11 +72,17 @@ app.post('/api/generate-quiz', async (req, res) => {
 
   // Validate input
   if (!topic) {
+    console.error('Quiz Error: Topic is required');
     return res.status(400).json({ error: 'Topic is required' });
   }
 
   try {
-    // Send request to OpenRouter API to generate quiz
+    // Log API key presence
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY is not set in environment variables');
+    }
+
+    // Send request to OpenRouter API
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -88,12 +105,12 @@ app.post('/api/generate-quiz', async (req, res) => {
       }
     );
 
-    // Parse the response for quiz questions and send it
+    // Parse and send response
     const quizQuestions = JSON.parse(response.data.choices[0].message.content);
     res.json({ questions: quizQuestions });
   } catch (error) {
     console.error('Quiz Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to generate quiz questions' });
+    res.status(500).json({ error: 'Failed to generate quiz questions: ' + error.message });
   }
 });
 
