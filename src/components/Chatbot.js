@@ -12,9 +12,6 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const [isLoading, setIsLoading] = useState(false);
   const chatBoxRef = useRef(null);
 
-  // Use environment variable for API URL
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
@@ -58,7 +55,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
@@ -96,7 +93,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
           {part}
         </a>
       ) : (
-        <span key={index}>{part}</span>
+        part
       )
     );
   };
