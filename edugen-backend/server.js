@@ -1,3 +1,4 @@
+// File: /api/server.js
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
@@ -15,7 +16,7 @@ app.options('*', cors()); // Handle preflight requests
 app.use(express.json());
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   const apiKeySet = !!process.env.OPENROUTER_API_KEY;
   res.status(200).json({
     status: 'OK',
@@ -26,7 +27,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Chat API endpoint
-app.post('/api/chat', async (req, res) => {
+app.post('/chat', async (req, res) => {
   const { message } = req.body;
 
   if (!message) {
@@ -57,7 +58,7 @@ app.post('/api/chat', async (req, res) => {
           'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 30000, // Increased timeout to 30 seconds
+        timeout: 30000,
       }
     );
 
@@ -76,7 +77,7 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Generate quiz API endpoint
-app.post('/api/generate-quiz', async (req, res) => {
+app.post('/generate-quiz', async (req, res) => {
   const { topic } = req.body;
 
   if (!topic) {
@@ -108,7 +109,7 @@ app.post('/api/generate-quiz', async (req, res) => {
           'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 30000, // Increased timeout to 30 seconds
+        timeout: 30000,
       }
     );
 
@@ -136,11 +137,5 @@ app.post('/api/generate-quiz', async (req, res) => {
   }
 });
 
-// Vercel serverless compatibility (export as a serverless function)
+// Export for Vercel serverless
 module.exports = app;
-
-// Start server for local development
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}

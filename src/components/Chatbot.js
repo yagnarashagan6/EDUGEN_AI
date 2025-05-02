@@ -59,17 +59,15 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
 
     try {
-      // Use the Vercel backend URL directly (remove localhost for production)
       const apiUrl = 'https://edugen-ai-zeta.vercel.app/api/chat';
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
-        signal: AbortSignal.timeout(30000), // 30-second timeout
+        signal: AbortSignal.timeout(30000),
       });
 
-      // Check if response is OK and JSON
       if (!response.ok) {
         const text = await response.text();
         throw new Error(`HTTP error: ${response.status} - ${text || 'Unknown error'}`);
