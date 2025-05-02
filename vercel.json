@@ -9,15 +9,5 @@
       "src": "build/**",
       "use": "@vercel/static"
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/chat.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/build/$1"
-    }
   ]
 }
