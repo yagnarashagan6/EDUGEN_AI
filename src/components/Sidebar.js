@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Sidebar.css';
 import '../styles/Dashboard.css';
 
 const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, setMobileHamburger }) => {
   const navigate = useNavigate();
+  const sidebarRef = useRef(null);
 
   const redirectToProfile = () => {
     navigate('/profile', { state: { role } });
@@ -33,6 +34,20 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
 
   const items = role === 'staff' ? staffItems : studentItems;
 
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (isVisible && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        toggleSidebar();
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isVisible, toggleSidebar]);
+
   // Hamburger menu JSX for mobile view (passed to parent)
   const hamburgerButton = (
     <button
@@ -48,13 +63,13 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
   );
 
   // Pass hamburger button to parent for mobile view rendering
-  React.useEffect(() => {
+  useEffect(() => {
     setMobileHamburger(hamburgerButton);
     return () => setMobileHamburger(null); // Cleanup on unmount
   }, [isVisible, setMobileHamburger]);
 
   return (
-    <div className={`sidebar ${isVisible ? 'active' : ''}`}>
+    <div ref={sidebarRef} className={`sidebar ${isVisible ? 'active' : ''}`}>
       <div
         className="profile"
         onClick={redirectToProfile}

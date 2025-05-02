@@ -1,6 +1,6 @@
 /* StaffInteraction.css - Styles for Staff Interaction Container in Student and Staff Dashboards */
 
-/* Initially hide the container */
+/* Main Container */
 #staff-interaction-container {
     display: none; /* Hidden by default */
     width: 100%;
@@ -35,15 +35,15 @@
 #staff-interaction-container .contact-list.full-container {
     display: flex;
     flex-direction: column;
-    height: calc(100% - 60px); /* Adjust height to account for the header and any padding */
+    height: calc(100% - 60px);
     width: 100%;
     background: #ffffff;
-    position: absolute; /* Ensure it covers the space below the cards */
-    top: 60px; /* Position it below the header or cards */
+    position: absolute;
+    top: 60px;
     left: 0;
-    z-index: 5; /* Ensure it appears above other elements */
-    overflow-y: auto; /* Allow scrolling if the list is long */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Optional: Add a shadow for better visibility */
+    z-index: 5;
+    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 #staff-interaction-container .contact-list-header,
@@ -187,7 +187,7 @@
     padding: 15px;
     scrollbar-width: thin;
     scrollbar-color: #075e54 #e0e0e0;
-    min-height: 200px; /* Ensure visibility on smaller screens */
+    min-height: 200px;
 }
 
 #staff-interaction-container .messages-container::-webkit-scrollbar {
@@ -217,61 +217,61 @@
 }
 
 /* Message Bubble */
-#staff-interaction-container .message-bubble {
+.message-bubble {
     max-width: 75%;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-size: 15px;
-    line-height: 1.6;
+    padding: 10px 15px;
+    border-radius: 15px;
+    font-size: 14px;
+    line-height: 1.5;
     position: relative;
     word-wrap: break-word;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-bottom: 10px;
+    display: inline-block;
+    clear: both;
 }
 
-#staff-interaction-container .message-bubble:hover {
-    opacity: 0.85;
+/* Sent Message Bubble (Student) */
+.message-bubble.sent {
+    background: #d1f7c4; /* Light green for sent messages */
+    float: right;
+    text-align: left;
+    border-bottom-right-radius: 5px;
+    border-top-left-radius: 15px;
 }
 
-#staff-interaction-container .message-bubble.sent {
-    background: #FFD8BE;
-    align-self: flex-end;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
+/* Received Message Bubble (Staff) */
+.message-bubble.received {
+    background: #ffffff; /* White for received messages */
+    float: left;
+    text-align: left;
+    border-bottom-left-radius: 5px;
+    border-top-right-radius: 15px;
 }
 
-#staff-interaction-container .message-bubble.received {
-    background: #0ccaba;
-    align-self: flex-start;
-    margin-right: auto;
-    border-bottom-left-radius: 4px;
-}
-
-#staff-interaction-container .staff-name {
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 6px;
-    display: none;
-}
-
+/* Message Content */
 #staff-interaction-container .message-content {
-    word-wrap: break-word;
+    word-break: break-word;
+    color: #333;
 }
 
+/* Message Meta (Time and Status) */
 #staff-interaction-container .message-meta {
     display: flex;
     justify-content: flex-end;
-    margin-top: 6px;
+    margin-top: 5px;
     font-size: 11px;
     color: #666;
+    gap: 4px;
 }
 
 #staff-interaction-container .message-time {
-    margin-right: 6px;
+    order: 1;
 }
 
 #staff-interaction-container .message-status {
     color: #4fc3f7;
+    order: 2;
 }
 
 /* Message Input Area */
@@ -319,6 +319,23 @@
     flex-direction: column;
 }
 
+/* Date Separator */
+.date-separator {
+    text-align: center;
+    margin: 15px auto;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 6px 16px;
+    border-radius: 12px;
+    display: block;
+    width: fit-content;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    position: relative;
+    z-index: 1;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     #staff-interaction-container {
@@ -356,7 +373,7 @@
 
     #staff-interaction-container .contact-list-body {
         padding: 8px;
-        max-height: 300px; /* Limit contact list height on mobile */
+        max-height: 300px;
     }
 
     #staff-interaction-container .contact-avatar {
@@ -399,10 +416,6 @@
         min-height: 100px;
         max-height: calc(100vh - 200px);
         overflow-y: auto;
-    }
-
-    #staff-interaction-container .messages-scrollable {
-        padding: 0;
     }
 
     #staff-interaction-container .message-bubble {
@@ -484,5 +497,10 @@
         padding: 8px;
         min-height: 80px;
         max-height: calc(100vh - 180px);
+    }
+
+    .date-separator {
+        font-size: 11px;
+        padding: 5px 12px;
     }
 }

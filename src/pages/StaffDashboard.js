@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { onSnapshot, doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { signOut } from 'firebase/auth';
 import Sidebar from '../components/Sidebar';
 import Chatbot from '../components/Chatbot';
 import TaskItem from '../components/TaskItem';
@@ -23,11 +24,34 @@ const ChatInterface = ({
   studentList,
   selectedStudentName,
 }) => {
-  const selectStudent = useCallback((student) => {
-    setSelectedStudentId(student.id);
-    setSelectedStudentName(student.name);
-    setShowContactList(false);
-  }, [setSelectedStudentId, setSelectedStudentName, setShowContactList]);
+  const selectStudent = useCallback(
+    (student) => {
+      setSelectedStudentId(student.id);
+      setSelectedStudentName(student.name);
+      setShowContactList(false);
+    },
+    [setSelectedStudentId, setSelectedStudentName, setShowContactList]
+  );
+
+  // Helper function to format dates
+  const formatDate = (date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const messageDate = new Date(date);
+
+    if (messageDate.toDateString() === today.toDateString()) return 'Today';
+    if (messageDate.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return messageDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  // Group messages by date
+  const groupedMessages = messages.reduce((acc, message) => {
+    const date = new Date(message.timestamp).toDateString();
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(message);
+    return acc;
+  }, {});
 
   return (
     <div className="chat-interface">
@@ -76,31 +100,36 @@ const ChatInterface = ({
             )}
           </div>
           <div className="messages-container scrollable">
-            {messages.length === 0 ? (
+            {Object.keys(groupedMessages).length === 0 ? (
               <p className="empty-message">No messages yet. Start the conversation!</p>
             ) : (
-              messages.map((msg, index) => (
-                <div
-                  key={`${msg.timestamp}-${index}`}
-                  className={`message-bubble ${msg.sender === 'staff' ? 'sent' : 'received'}`}
-                  onClick={() => {
-                    if (msg.sender === 'staff' && window.confirm('Delete this message?')) {
-                      deleteMessage(index);
-                    }
-                  }}
-                >
-                  <div className="message-content">{msg.text}</div>
-                  <div className="message-meta">
-                    <span className="message-time">
-                      {new Date(msg.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    {msg.sender === 'staff' && (
-                      <span className="message-status">{msg.read ? '✓✓' : '✓'}</span>
-                    )}
-                  </div>
+              Object.keys(groupedMessages).map((date) => (
+                <div key={date}>
+                  <div className="date-separator">{formatDate(date)}</div>
+                  {groupedMessages[date].map((msg, index) => (
+                    <div
+                      key={`${msg.timestamp}-${index}`}
+                      className={`message-bubble ${msg.sender === 'staff' ? 'sent' : 'received'}`}
+                      onClick={() => {
+                        if (msg.sender === 'staff' && window.confirm('Delete this message?')) {
+                          deleteMessage(index);
+                        }
+                      }}
+                    >
+                      <div className="message-content">{msg.text}</div>
+                      <div className="message-meta">
+                        <span className="message-time">
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {msg.sender === 'staff' && (
+                          <span className="message-status">{msg.read ? '✓✓' : '✓'}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))
             )}
@@ -440,6 +469,17 @@ const StaffDashboard = () => {
     navigate('/staff-form', { state: { isEdit: true, userData } });
   };
 
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/'); // Redirect to the landing page
+    } catch (err) {
+      console.error('Error logging out:', err);
+      setError('Failed to log out.');
+    }
+  };
+
   // Toggle chatbot visibility
   const toggleChatbot = () => {
     setIsChatbotOpen((prev) => !prev);
@@ -687,6 +727,9 @@ const StaffDashboard = () => {
               <h3>Profile Options</h3>
               <button onClick={handleEditProfile} className="add-goal-btn">
                 Edit Profile
+              </button>
+              <button onClick={handleLogout} className="add-goal-btn" style={{ marginTop: '10px' }}>
+                Logout
               </button>
             </div>
           </div>

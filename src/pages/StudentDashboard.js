@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { signOut } from 'firebase/auth';
 import Sidebar from '../components/Sidebar';
 import Chatbot from '../components/Chatbot';
 import TaskItem from '../components/TaskItem';
@@ -20,6 +21,7 @@ import GoalItem from '../components/GoalItem';
 import Quiz from '../components/Quiz';
 import Leaderboard from '../components/Leaderboard';
 import Notification from '../components/Notification';
+import OverdueTaskNotification from '../components/OverdueTaskNotification';
 import '../styles/Dashboard.css';
 import '../styles/Sidebar.css';
 import '../styles/Chat.css';
@@ -53,6 +55,26 @@ const ChatInterface = ({
     },
     [setSelectedStaffId, setSelectedStaffName, setShowContactList]
   );
+
+  // Helper function to format dates
+  const formatDate = (date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const messageDate = new Date(date);
+
+    if (messageDate.toDateString() === today.toDateString()) return 'Today';
+    if (messageDate.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return messageDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  // Group messages by date
+  const groupedMessages = messages.reduce((acc, message) => {
+    const date = new Date(message.timestamp).toDateString();
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(message);
+    return acc;
+  }, {});
 
   return (
     <div className="chat-interface">
@@ -126,31 +148,36 @@ const ChatInterface = ({
             </div>
             <div className="messages-container scrollable">
               {selectedStaffId ? (
-                messages.length === 0 ? (
+                Object.keys(groupedMessages).length === 0 ? (
                   <p className="empty-message">No messages yet. Start the conversation!</p>
                 ) : (
-                  messages.map((msg, index) => (
-                    <div
-                      key={`${msg.timestamp}-${index}`}
-                      className={`message-bubble ${msg.sender === 'student' ? 'sent' : 'received'}`}
-                      onClick={() => {
-                        if (msg.sender === 'student' && window.confirm('Delete this message?')) {
-                          deleteMessage(index);
-                        }
-                      }}
-                    >
-                      <div className="message-content">{msg.text}</div>
-                      <div className="message-meta">
-                        <span className="message-time">
-                          {new Date(msg.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        {msg.sender === 'student' && (
-                          <span className="message-status">{msg.read ? '✓✓' : '✓'}</span>
-                        )}
-                      </div>
+                  Object.keys(groupedMessages).map((date) => (
+                    <div key={date}>
+                      <div className="date-separator">{formatDate(date)}</div>
+                      {groupedMessages[date].map((msg, index) => (
+                        <div
+                          key={`${msg.timestamp}-${index}`}
+                          className={`message-bubble ${msg.sender === 'student' ? 'sent' : 'received'}`}
+                          onClick={() => {
+                            if (msg.sender === 'student' && window.confirm('Delete this message?')) {
+                              deleteMessage(index);
+                            }
+                          }}
+                        >
+                          <div className="message-content">{msg.text}</div>
+                          <div className="message-meta">
+                            <span className="message-time">
+                              {new Date(msg.timestamp).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {msg.sender === 'student' && (
+                              <span className="message-status">{msg.read ? '✓✓' : '✓'}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ))
                 )
@@ -243,40 +270,6 @@ const AssignmentSender = ({ staffList, onSend }) => {
           </button>
         </div>
       )}
-    </div>
-  );
-};
-
-const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
-  const [reason, setReason] = useState('');
-
-  const handleSubmit = () => {
-    if (!reason.trim()) {
-      alert('Please provide a reason.');
-      return;
-    }
-    onSubmitReason(task, reason);
-    onClose();
-  };
-
-  return (
-    <div className="notification bg-gray-100 p-3 rounded shadow mb-2">
-      <p>Task "{task.content}" is overdue by 48 hours!</p>
-      <textarea
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder="Please explain why you couldn't complete the task..."
-        className="goal-input w-full mt-2"
-        style={{ height: '80px' }}
-      ></textarea>
-      <div className="flex justify-between mt-2">
-        <button onClick={handleSubmit} className="bg-blue-500 text-white p-2 rounded">
-          Submit Reason
-        </button>
-        <button onClick={onClose} className="bg-red-500 text-white p-2 rounded">
-          Close
-        </button>
-      </div>
     </div>
   );
 };
@@ -858,7 +851,14 @@ const StudentDashboard = () => {
   const sendOverdueReason = async (task, reason) => {
     try {
       const userId = auth.currentUser?.uid;
-      if (!userId || !task.staffId) return;
+      if (!userId || !task.staffId) {
+        throw new Error('Invalid user ID or staff ID');
+      }
+
+      const staff = staffList.find((s) => s.id === task.staffId);
+      if (!staff) {
+        throw new Error('Staff member not found');
+      }
 
       const chatId = `${task.staffId}_${userId}`;
       const messagesRef = doc(db, 'messages', chatId);
@@ -876,13 +876,20 @@ const StudentDashboard = () => {
 
       await setDoc(messagesRef, { messages: [...existingMessages, newMessage] });
       setOverdueTaskReasons((prev) => ({ ...prev, [task.id]: reason }));
+
+      // Navigate to staff interaction and select the staff
+      setSelectedStaffId(task.staffId);
+      setSelectedStaffName(staff.name);
+      setShowContactList(false);
+      setActiveContainer('staff-interaction-container');
+
       setNotifications((prev) => [
         ...prev,
-        { type: 'overdue', message: `Reason for overdue task "${task.content}" sent to staff.` },
+        { type: 'overdue', message: `Reason for overdue task "${task.content}" sent to ${staff.name}.` },
       ]);
     } catch (err) {
       console.error('Error sending overdue reason:', err);
-      setError('Failed to send overdue reason.');
+      setError(`Failed to send overdue reason: ${err.message}`);
     }
   };
 
@@ -956,6 +963,16 @@ const StudentDashboard = () => {
 
   const handleEditProfile = () => {
     navigate('/student-form', { state: { isEdit: true, userData } });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/'); // Redirect to the landing page
+    } catch (err) {
+      console.error('Error logging out:', err);
+      setError('Failed to log out.');
+    }
   };
 
   const toggleChatbot = () => {
@@ -1329,6 +1346,9 @@ const StudentDashboard = () => {
                 <button onClick={handleEditProfile} className="add-goal-btn">
                   Edit Profile
                 </button>
+                <button onClick={handleLogout} className="add-goal-btn" style={{ marginTop: '10px' }}>
+                  Logout
+                </button>
               </div>
             </div>
           </div>
@@ -1338,7 +1358,7 @@ const StudentDashboard = () => {
                 <OverdueTaskNotification
                   key={index}
                   task={notif.task}
-                  onSubmitReason={sendOverdueReason}
+                  onSubmitAndNavigate={sendOverdueReason}
                   onClose={() =>
                     setNotifications((prev) => prev.filter((_, i) => i !== index))
                   }
