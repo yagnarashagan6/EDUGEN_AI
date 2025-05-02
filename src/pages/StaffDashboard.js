@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { onSnapshot, doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db, storage } from '../firebase';
@@ -10,6 +10,7 @@ import '../styles/Dashboard.css';
 import '../styles/StaffInteraction.css';
 import '../styles/Chat.css';
 
+// ChatInterface component for staff-student messaging
 const ChatInterface = ({
   messages,
   sendMessage,
@@ -33,9 +34,9 @@ const ChatInterface = ({
       {showContactList ? (
         <div className="contact-list full-container">
           <div className="contact-list-header">Students</div>
-          <div className="contact-list-body">
+          <div className="contact-list-body scrollable">
             {studentList.length === 0 ? (
-              <p className="empty-message">Loading students...</p>
+              <p className="empty-message">No students available.</p>
             ) : (
               studentList.map((student) => (
                 <div
@@ -104,18 +105,20 @@ const ChatInterface = ({
               ))
             )}
           </div>
-          <div className="message-input-area">
-            <input
-              type="text"
-              id="message-input"
-              placeholder="Type your message..."
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              className="message-input-field"
-            />
-            <button onClick={sendMessage} className="send-message-button">
-              <i className="fas fa-paper-plane"></i>
-            </button>
-          </div>
+          {selectedStudentName && (
+            <div className="message-input-area">
+              <input
+                type="text"
+                id="message-input"
+                placeholder="Type your message..."
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                className="message-input-field"
+              />
+              <button onClick={sendMessage} className="send-message-button">
+                <i className="fas fa-paper-plane"></i>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -130,21 +133,24 @@ const StaffDashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [messages, setMessages] = useState([]);
   const [studentStats, setStudentStats] = useState([]);
-  const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [selectedStudentName, setSelectedStudentName] = useState('');
   const [showContactList, setShowContactList] = useState(true);
   const [results, setResults] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [circulars, setCirculars] = useState([]);
   const [quickStats, setQuickStats] = useState({
     totalStudents: 0,
     activeStudents: 0,
     overallPerformance: 0,
   });
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
+  const [filterType, setFilterType] = useState(null);
 
+  // Handle window resize for chatbot visibility
   useEffect(() => {
     const handleResize = () => {
       setIsChatbotOpen(window.innerWidth > 768);
@@ -153,245 +159,294 @@ const StaffDashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch initial data (user, tasks, students, assignments, circulars)
   useEffect(() => {
     const fetchUserData = async () => {
-      const user = auth.currentUser;
-      if (!user) {
-        navigate('/staff-login');
-        return;
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          navigate('/staff-login');
+          return;
+        }
+
+        // Fetch staff data
+        const docRef = doc(db, 'staff', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists() || !docSnap.data().formFilled) {
+          navigate('/staff-form');
+          return;
+        }
+        setUserData(docSnap.data());
+
+        // Fetch tasks
+        const tasksRef = doc(db, 'tasks', 'shared');
+        const tasksSnap = await getDoc(tasksRef);
+        setTasks(tasksSnap.exists() ? tasksSnap.data().tasks || [] : []);
+
+        // Fetch students
+        const studentsRef = collection(db, 'students');
+        const snapshot = await getDocs(studentsRef);
+        const students = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          streak: doc.data().streak || 0,
+          progress: doc.data().progress || 0,
+          photoURL: doc.data().photoURL || '/default-student.png',
+        }));
+        setStudentStats(students.sort((a, b) => b.streak - a.streak));
+
+        // Calculate quick stats
+        const totalStudents = students.length;
+        const today = new Date();
+        const activeStudents = students.filter((student) => {
+          const lastLogin = student.lastLogin ? new Date(student.lastLogin) : null;
+          return lastLogin && (today - lastLogin) / (1000 * 60 * 60 * 24) <= 7;
+        }).length;
+        const overallPerformance = students.length
+          ? Math.round(students.reduce((sum, s) => sum + (s.progress || 0), 0) / students.length)
+          : 0;
+        setQuickStats({ totalStudents, activeStudents, overallPerformance });
+
+        // Calculate results
+        const resultsData = students.map((student) => ({
+          id: student.id,
+          name: student.name,
+          completedTasks: tasks.filter((task) => task.completedBy?.includes(student.id)).length,
+          totalTasks: tasks.length,
+        }));
+        setResults(resultsData);
+
+        // Fetch assignments
+        const assignmentsRef = collection(db, 'assignments');
+        const assignmentsSnap = await getDocs(assignmentsRef);
+        const staffAssignments = assignmentsSnap.docs
+          .filter((doc) => doc.data().staffId === user.uid)
+          .map((doc) => ({ id: doc.id, ...doc.data() }));
+        setAssignments(staffAssignments);
+
+        // Fetch circulars
+        const circularsRef = collection(db, 'circulars');
+        const circularsSnap = await getDocs(circularsRef);
+        setCirculars(circularsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data.');
+        setLoading(false);
       }
-
-      const docRef = doc(db, 'staff', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) {
-        setTimeout(() => {
-          getDoc(docRef).then((newSnap) => {
-            if (newSnap.exists() && newSnap.data().formFilled) {
-              setUserData(newSnap.data());
-              setLoading(false);
-            } else {
-              navigate('/staff-form');
-            }
-          });
-        }, 2000);
-        return;
-      }
-      setUserData(docSnap.data());
-      
-      const tasksRef = doc(db, 'tasks', 'shared');
-      const tasksSnap = await getDoc(tasksRef);
-      if (tasksSnap.exists()) setTasks(tasksSnap.data().tasks || []);
-
-      const studentsRef = collection(db, 'students');
-      const snapshot = await getDocs(studentsRef);
-      const students = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        streak: doc.data().streak || 0,
-        progress: doc.data().progress || 0,
-        photoURL: doc.data().photoURL || "/default-student.png",
-      }));
-      setStudentStats(students.sort((a, b) => b.streak - a.streak));
-
-      const totalStudents = students.length;
-      const today = new Date();
-      const activeStudents = students.filter(student => {
-        const lastLogin = student.lastLogin ? new Date(student.lastLogin) : null;
-        return lastLogin && (today - lastLogin) / (1000 * 60 * 60 * 24) <= 7;
-      }).length;
-      const overallPerformance = students.length
-        ? Math.round(students.reduce((sum, s) => sum + (s.progress || 0), 0) / students.length)
-        : 0;
-      setQuickStats({ totalStudents, activeStudents, overallPerformance });
-
-      const resultsData = students.map(student => ({
-        id: student.id,
-        name: student.name,
-        completedTasks: tasks.filter(task => task.completedBy?.includes(student.id)).length,
-        totalTasks: tasks.length,
-      }));
-      setResults(resultsData);
-
-      const assignmentsRef = collection(db, 'assignments');
-      const assignmentsSnap = await getDocs(assignmentsRef);
-      const staffAssignments = assignmentsSnap.docs
-        .filter(doc => doc.data().staffId === user.uid)
-        .map(doc => ({ id: doc.id, ...doc.data() }));
-      setAssignments(staffAssignments);
-
-      setLoading(false);
     };
-    fetchUserData().catch((err) => {
-      console.error('Error fetching dashboard data:', err);
-      navigate('/staff-login');
-    });
+    fetchUserData();
   }, [navigate]);
 
+  // Real-time listener for messages
   useEffect(() => {
     if (!selectedStudentId) return;
     const userId = auth.currentUser?.uid;
     if (!userId) return;
 
     const chatId = `${userId}_${selectedStudentId}`;
-    const messagesRef = doc(db, "messages", chatId);
+    const messagesRef = doc(db, 'messages', chatId);
 
     const unsubscribe = onSnapshot(
       messagesRef,
       async (docSnap) => {
-        if (docSnap.exists()) {
-          const currentMessages = docSnap.data().messages || [];
-          setMessages(currentMessages);
+        try {
+          if (docSnap.exists()) {
+            const currentMessages = docSnap.data().messages || [];
+            setMessages(currentMessages);
 
-          const updatedMessages = currentMessages.map((msg) =>
-            msg.sender === "student" && !msg.read ? { ...msg, read: true } : msg
-          );
+            // Mark student messages as read
+            const updatedMessages = currentMessages.map((msg) =>
+              msg.sender === 'student' && !msg.read ? { ...msg, read: true } : msg
+            );
 
-          if (
-            currentMessages.some(
-              (msg, i) => msg.read !== updatedMessages[i].read
-            )
-          ) {
-            await setDoc(messagesRef, { messages: updatedMessages });
+            if (currentMessages.some((msg, i) => msg.read !== updatedMessages[i].read)) {
+              await setDoc(messagesRef, { messages: updatedMessages });
+            }
+          } else {
+            setMessages([]);
           }
-        } else {
-          setMessages([]);
+        } catch (err) {
+          console.error('Error in message snapshot:', err);
+          setError('Failed to load messages.');
         }
       },
       (err) => {
-        console.error("Error in message snapshot:", err);
+        console.error('Error in message snapshot:', err);
+        setError('Failed to load messages.');
       }
     );
 
     return () => unsubscribe();
   }, [selectedStudentId]);
 
-  const toggleContainer = useCallback((containerId, filterType = null) => {
-    setActiveContainer((prev) => (prev === containerId ? null : containerId));
-    if (filterType) {
-      let filtered;
-      const today = new Date();
-      switch (filterType) {
-        case 'total':
-          filtered = studentStats;
-          break;
-        case 'active':
-          filtered = studentStats.filter(student => {
-            const lastLogin = student.lastLogin ? new Date(student.lastLogin) : null;
-            return lastLogin && (today - lastLogin) / (1000 * 60 * 60 * 24) <= 7;
-          });
-          break;
-        case 'performance':
-          filtered = studentStats.filter(student => student.progress >= 50);
-          break;
-        default:
-          filtered = [];
-      }
-      setFilteredStudents(filtered);
-    } else {
-      setFilteredStudents([]);
+  // Memoize filtered students based on filterType
+  const filteredStudents = useMemo(() => {
+    if (!activeContainer || !filterType) return [];
+    const today = new Date();
+    switch (filterType) {
+      case 'total':
+        return studentStats;
+      case 'active':
+        return studentStats.filter((student) => {
+          const lastLogin = student.lastLogin ? new Date(student.lastLogin) : null;
+          return lastLogin && (today - lastLogin) / (1000 * 60 * 60 * 24) <= 7;
+        });
+      case 'performance':
+        return studentStats.filter((student) => student.progress >= 50);
+      default:
+        return [];
     }
-  }, [studentStats]);
+  }, [filterType, studentStats, activeContainer]);
 
+  // Toggle container visibility and set filter type
+  const toggleContainer = useCallback(
+    (containerId, filterType = null) => {
+      setActiveContainer((prev) => (prev === containerId ? null : containerId));
+      setFilterType(filterType); // Store filterType in state
+    },
+    []
+  );
+
+  // Toggle sidebar visibility
   const toggleSidebar = () => {
     setSidebarVisible((prev) => !prev);
   };
 
+  // Post a new task
   const postTask = async () => {
-    const content = document.getElementById('task-content')?.value.trim();
-    if (!content) {
-      alert('Please enter a topic.');
-      return;
+    try {
+      const content = document.getElementById('task-content')?.value.trim();
+      if (!content) {
+        alert('Please enter a topic.');
+        return;
+      }
+      const newTask = {
+        id: Date.now(),
+        content,
+        date: new Date().toLocaleDateString(),
+        deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        completed: false,
+        completedBy: [],
+        subject: userData?.subject || 'Uncategorized',
+        staffId: auth.currentUser?.uid,
+      };
+      const updatedTasks = [...tasks, newTask];
+      setTasks(updatedTasks);
+      const tasksRef = doc(db, 'tasks', 'shared');
+      await setDoc(tasksRef, { tasks: updatedTasks });
+      document.getElementById('task-content').value = '';
+    } catch (err) {
+      console.error('Error posting task:', err);
+      setError('Failed to post task.');
     }
-    const newTask = {
-      id: Date.now(),
-      content,
-      date: new Date().toLocaleDateString(),
-      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      completed: false,
-      completedBy: [],
-    };
-    const updatedTasks = [...tasks, newTask];
-    setTasks(updatedTasks);
-    const tasksRef = doc(db, 'tasks', 'shared');
-    await setDoc(tasksRef, { tasks: updatedTasks });
-    document.getElementById('task-content').value = '';
   };
 
+  // Delete a task
   const deleteTask = async (taskId) => {
-    if (!window.confirm('Are you sure you want to delete this topic?')) return;
-    const updatedTasks = tasks.filter(task => task.id !== taskId);
-    setTasks(updatedTasks);
-    const tasksRef = doc(db, 'tasks', 'shared');
-    await setDoc(tasksRef, { tasks: updatedTasks });
+    try {
+      if (!window.confirm('Are you sure you want to delete this topic?')) return;
+      const updatedTasks = tasks.filter((task) => task.id !== taskId);
+      setTasks(updatedTasks);
+      const tasksRef = doc(db, 'tasks', 'shared');
+      await setDoc(tasksRef, { tasks: updatedTasks });
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setError('Failed to delete task.');
+    }
   };
 
+  // Send a message to a student
   const sendMessage = useCallback(async () => {
-    const input = document.getElementById("message-input");
-    const text = input?.value.trim();
-    if (!text || !selectedStudentId) return;
-
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
-    const chatId = `${userId}_${selectedStudentId}`;
-    const newMessage = {
-      text,
-      sender: "staff",
-      timestamp: new Date().toISOString(),
-      read: false,
-    };
-
-    const messagesRef = doc(db, "messages", chatId);
-    const messagesSnap = await getDoc(messagesRef);
-    const existingMessages = messagesSnap.exists()
-      ? messagesSnap.data().messages || []
-      : [];
-
-    const updatedMessages = [...existingMessages, newMessage];
-    await setDoc(messagesRef, { messages: updatedMessages });
-    input.value = "";
-  }, [selectedStudentId]);
-
-  const deleteMessage = useCallback(
-    async (index) => {
-      if (!selectedStudentId) return;
+    try {
+      const input = document.getElementById('message-input');
+      const text = input?.value.trim();
+      if (!text || !selectedStudentId) return;
 
       const userId = auth.currentUser?.uid;
       if (!userId) return;
 
       const chatId = `${userId}_${selectedStudentId}`;
-      const updatedMessages = messages.filter((_, i) => i !== index);
-      const messagesRef = doc(db, "messages", chatId);
+      const newMessage = {
+        text,
+        sender: 'staff',
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+
+      const messagesRef = doc(db, 'messages', chatId);
+      const messagesSnap = await getDoc(messagesRef);
+      const existingMessages = messagesSnap.exists()
+        ? messagesSnap.data().messages || []
+        : [];
+
+      const updatedMessages = [...existingMessages, newMessage];
       await setDoc(messagesRef, { messages: updatedMessages });
+      input.value = '';
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message.');
+    }
+  }, [selectedStudentId]);
+
+  // Delete a message
+  const deleteMessage = useCallback(
+    async (index) => {
+      try {
+        if (!selectedStudentId) return;
+
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const chatId = `${userId}_${selectedStudentId}`;
+        const updatedMessages = messages.filter((_, i) => i !== index);
+        const messagesRef = doc(db, 'messages', chatId);
+        await setDoc(messagesRef, { messages: updatedMessages });
+      } catch (err) {
+        console.error('Error deleting message:', err);
+        setError('Failed to delete message.');
+      }
     },
     [selectedStudentId, messages]
   );
 
+  // Upload a circular
   const handleCircularUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+
       const storageRef = ref(storage, `circulars/${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       const circularRef = doc(db, 'circulars', file.name);
-      await setDoc(circularRef, {
+      const circularData = {
         url,
         uploadedAt: new Date().toISOString(),
-        sender: userData.name,
-      });
+        sender: userData?.name || 'Unknown',
+      };
+      await setDoc(circularRef, circularData);
+      setCirculars((prev) => [...prev, { id: file.name, ...circularData }]);
       alert('Circular uploaded successfully!');
+    } catch (err) {
+      console.error('Error uploading circular:', err);
+      setError('Failed to upload circular.');
     }
   };
 
+  // Navigate to edit profile
   const handleEditProfile = () => {
     navigate('/staff-form', { state: { isEdit: true, userData } });
   };
 
+  // Toggle chatbot visibility
   const toggleChatbot = () => {
     setIsChatbotOpen((prev) => !prev);
   };
 
   if (loading) return <div>Loading Dashboard...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="dashboard-container">
@@ -405,7 +460,7 @@ const StaffDashboard = () => {
       />
       <div className={`main-content ${sidebarVisible ? 'active-container' : ''}`}>
         <div className="header">
-        {mobileHamburger} {/* Render hamburger button in header */}
+          {mobileHamburger}
           <input
             type="text"
             className="search-bar"
@@ -461,7 +516,7 @@ const StaffDashboard = () => {
               {tasks.length === 0 ? (
                 <p className="empty-message">No topics posted yet.</p>
               ) : (
-                tasks.map(task => (
+                tasks.map((task) => (
                   <TaskItem
                     key={task.id}
                     task={task}
@@ -494,7 +549,7 @@ const StaffDashboard = () => {
                 <p className="empty-message">No assignments received.</p>
               ) : (
                 <ul>
-                  {assignments.map(assignment => (
+                  {assignments.map((assignment) => (
                     <li key={assignment.id}>
                       <a href={assignment.url} target="_blank" rel="noopener noreferrer">
                         {assignment.name} (from {assignment.studentName})
@@ -516,7 +571,7 @@ const StaffDashboard = () => {
                 <p className="empty-message">No results available.</p>
               ) : (
                 <ul>
-                  {results.map(result => (
+                  {results.map((result) => (
                     <li key={result.id}>
                       {result.name}: {result.completedTasks}/{result.totalTasks} tasks completed
                     </li>
@@ -533,13 +588,36 @@ const StaffDashboard = () => {
             <div className="container-body">
               <input
                 type="file"
+                id="circular-upload"
                 onChange={handleCircularUpload}
                 className="goal-input"
+                style={{ display: 'none' }}
               />
-              <button onClick={() => document.querySelector('input[type="file"]').click()} className="add-goal-btn">
-                Send Circular
+              <button
+                onClick={() => document.getElementById('circular-upload').click()}
+                className="add-goal-btn"
+              >
+                Upload Circular
               </button>
-              <p className="empty-message">No circulars yet.</p>
+              {circulars.length === 0 ? (
+                <p className="empty-message">No circulars uploaded.</p>
+              ) : (
+                <ul>
+                  {circulars.map((circular) => (
+                    <li key={circular.id}>
+                      <a href={circular.url} target="_blank" rel="noopener noreferrer">
+                        {circular.id}
+                      </a>
+                      <span>
+                        {' - Uploaded by '}
+                        {circular.sender}
+                        {' on '}
+                        {new Date(circular.uploadedAt).toLocaleDateString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
           <div
@@ -570,16 +648,8 @@ const StaffDashboard = () => {
               Student Statistics
               <button
                 onClick={() => setActiveContainer(null)}
-                className="back-btn"
-                style={{
-                  float: 'right',
-                  backgroundColor: '#fff',
-                  color: '#0438af',
-                  border: '1px solid #0438af',
-                  borderRadius: '4px',
-                  padding: '5px 10px',
-                  cursor: 'pointer',
-                }}
+                className="add-goal-btn"
+                style={{ float: 'right' }}
               >
                 Back to Dashboard
               </button>
@@ -589,13 +659,13 @@ const StaffDashboard = () => {
                 <p className="empty-message">No students to display.</p>
               ) : (
                 <div className="student-list">
-                  {filteredStudents.map(student => (
+                  {filteredStudents.map((student) => (
                     <div key={student.id} className="student-item">
                       <img
                         src={student.photoURL}
                         alt={student.name}
                         className="student-avatar"
-                        onError={(e) => { e.target.src = "/default-student.png"; }}
+                        onError={(e) => (e.target.src = '/default-student.png')}
                       />
                       <div className="student-info">
                         <h4>{student.name}</h4>
@@ -621,12 +691,10 @@ const StaffDashboard = () => {
             </div>
           </div>
         </div>
+        {error && <div className="error-message">{error}</div>}
       </div>
       {window.innerWidth <= 768 && (
-        <button
-          className="chat-toggle-btn"
-          onClick={toggleChatbot}
-        >
+        <button className="chat-toggle-btn" onClick={toggleChatbot}>
           <i className="fas fa-comment"></i>
         </button>
       )}

@@ -68,6 +68,7 @@ const Profile = () => {
     { label: 'Staff ID', value: userData.staffId },
     { label: 'Department', value: userData.department },
     { label: 'Contact Number', value: userData.contactNumber },
+    { label: 'Subject', value: userData.subject },
   ];
 
   const detailsToShow = role === 'student'

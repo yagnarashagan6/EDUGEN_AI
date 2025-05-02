@@ -179,7 +179,7 @@ const ChatInterface = ({
   );
 };
 
-const AssignmentSender = ({ staffList, onSend, toggleContainer }) => {
+const AssignmentSender = ({ staffList, onSend }) => {
   const [selectedStaffId, setSelectedStaffId] = useState(null);
   const [showStaffList, setShowStaffList] = useState(true);
 
@@ -247,6 +247,40 @@ const AssignmentSender = ({ staffList, onSend, toggleContainer }) => {
   );
 };
 
+const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
+  const [reason, setReason] = useState('');
+
+  const handleSubmit = () => {
+    if (!reason.trim()) {
+      alert('Please provide a reason.');
+      return;
+    }
+    onSubmitReason(task, reason);
+    onClose();
+  };
+
+  return (
+    <div className="notification bg-gray-100 p-3 rounded shadow mb-2">
+      <p>Task "{task.content}" is overdue by 48 hours!</p>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Please explain why you couldn't complete the task..."
+        className="goal-input w-full mt-2"
+        style={{ height: '80px' }}
+      ></textarea>
+      <div className="flex justify-between mt-2">
+        <button onClick={handleSubmit} className="bg-blue-500 text-white p-2 rounded">
+          Submit Reason
+        </button>
+        <button onClick={onClose} className="bg-red-500 text-white p-2 rounded">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
@@ -283,6 +317,8 @@ const StudentDashboard = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [copiedTopic, setCopiedTopic] = useState('');
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
+  const [overdueTaskReasons, setOverdueTaskReasons] = useState({});
+  const [expandedSubjects, setExpandedSubjects] = useState({});
 
   useEffect(() => {
     const handleResize = () => {
@@ -352,16 +388,43 @@ const StudentDashboard = () => {
 
         const tasksRef = doc(db, 'tasks', 'shared');
         const tasksSnap = await getDoc(tasksRef);
-        if (tasksSnap.exists()) setTasks(tasksSnap.data().tasks || []);
+        if (tasksSnap.exists()) {
+          const fetchedTasks = tasksSnap.data().tasks || [];
+          setTasks(fetchedTasks);
+
+          // Check for overdue tasks (48 hours past deadline)
+          const overdueTasks = fetchedTasks
+            .filter((task) => {
+              const deadline = new Date(task.deadline);
+              const now = new Date();
+              const timeDiff = (now - deadline) / (1000 * 60 * 60); // hours
+              return (
+                timeDiff >= 48 &&
+                !task.completedBy?.includes(user.uid) &&
+                !overdueTaskReasons[task.id] // Only show if reason not submitted
+              );
+            })
+            .slice(0, 2);
+          overdueTasks.forEach((task) =>
+            setNotifications((prev) => [
+              ...prev,
+              {
+                id: task.id,
+                type: 'overdue',
+                message: `Task "${task.content}" is overdue by 48 hours!`,
+                task,
+              },
+            ])
+          );
+        }
 
         const goalsRef = doc(db, 'students', user.uid, 'goals', 'list');
         const goalsSnap = await getDoc(goalsRef);
         if (goalsSnap.exists()) setGoals(goalsSnap.data().goals || []);
 
-        // Fetch student data for leaderboard
         const studentsRef = collection(db, 'students');
         const studentsSnap = await getDocs(studentsRef);
-        const students = studentsSnap.docs.map(doc => ({
+        const students = studentsSnap.docs.map((doc) => ({
           id: doc.id,
           name: doc.data().name || 'Unknown',
           streak: doc.data().streak || 0,
@@ -377,22 +440,14 @@ const StudentDashboard = () => {
         const circularsSnap = await getDocs(circularsRef);
         setCirculars(circularsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
 
-        const overdueTasks = tasks
-          .filter(
-            (task) =>
-              new Date(task.deadline) < new Date() && !task.completedBy?.includes(user.uid)
-          )
-          .slice(0, 2);
         const overdueGoals = goals
           .filter((goal) => new Date(goal.dueDate) < new Date() && !goal.completed)
           .slice(0, 2);
-        overdueTasks.forEach((task) =>
-          setNotifications((prev) => [...prev, `Task "${task.content}" is overdue!`])
-        );
         overdueGoals.forEach((goal) =>
-          setNotifications((prev) => [...prev, `Goal "${goal.title}" is overdue!`])
+          setNotifications((prev) => [...prev, { type: 'goal', message: `Goal "${goal.title}" is overdue!` }])
         );
 
+        // Streak calculation
         const lastLogin = docSnap.data().lastLogin
           ? new Date(docSnap.data().lastLogin)
           : null;
@@ -403,16 +458,14 @@ const StudentDashboard = () => {
 
         let newStreak = docSnap.data().streak || 0;
         if (!lastLogin) {
-          newStreak = 1;
-        } else if (lastLogin.toDateString() !== today.toDateString()) {
-          if (lastLogin.toDateString() === yesterday.toDateString()) {
-            newStreak += 1;
-          } else {
-            newStreak = 1;
-          }
+          newStreak = 1; // First login
+        } else if (lastLogin.toDateString() === today.toDateString()) {
+          newStreak = newStreak; // Same day, no change
+        } else if (lastLogin.toDateString() === yesterday.toDateString()) {
+          newStreak += 1; // Consecutive day
+        } else {
+          newStreak = 1; // Missed a day, reset to 1
         }
-
-        console.log('Streak calculation:', { lastLogin, today, newStreak });
 
         if (newStreak !== docSnap.data().streak || !lastLogin) {
           await updateDoc(docRef, {
@@ -431,7 +484,7 @@ const StudentDashboard = () => {
       }
     };
     checkAuthAndFetchData();
-  }, [navigate, progress, quizCount]);
+  }, [navigate, progress, quizCount, overdueTaskReasons]);
 
   useEffect(() => {
     if (!selectedStaffId) return;
@@ -474,7 +527,6 @@ const StudentDashboard = () => {
 
   const updateLeaderboard = async (uid, name, streak, progress) => {
     try {
-      console.log('Updating leaderboard for:', { uid, name, streak, progress });
       const leaderboardRef = doc(db, 'leaderboard', 'class');
       await runTransaction(db, async (transaction) => {
         const leaderboardSnap = await transaction.get(leaderboardRef);
@@ -546,36 +598,50 @@ const StudentDashboard = () => {
       const userRef = doc(db, 'students', auth.currentUser.uid);
       await updateDoc(userRef, { quizCount: newQuizCount });
 
-      // Fetch quiz questions from backend
-      const response = await fetch('http://localhost:5000/api/generate-quiz', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ topic: currentTopic }),
-      });
+      try {
+        const response = await fetch('http://localhost:5000/api/generate-quiz', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ topic: currentTopic }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch quiz questions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch quiz questions');
+        }
+
+        const quizData = await response.json();
+        if (!Array.isArray(quizData) || quizData.length === 0) {
+          throw new Error('Invalid quiz questions received');
+        }
+
+        setQuizQuestions(quizData);
+      } catch (fetchError) {
+        console.warn('Failed to fetch quiz questions, using sample questions:', fetchError);
+        // Set empty questions to trigger sample questions in Quiz.js
+        setQuizQuestions([]);
+        setNotifications((prev) => [
+          ...prev,
+          { type: 'quiz', message: 'Using sample questions due to fetch failure.' },
+        ]);
       }
-
-      const quizData = await response.json();
-      if (!Array.isArray(quizData) || quizData.length === 0) {
-        throw new Error('Invalid quiz questions received');
-      }
-
-      setQuizQuestions(quizData);
     } catch (err) {
       console.error('Error starting quiz:', err);
-      setError('Failed to generate quiz questions.');
-      setInQuiz(false);
+      setError('Failed to update quiz count.');
+      // Keep inQuiz true to allow Quiz.js to use sample questions
+      setQuizQuestions([]);
+      setNotifications((prev) => [
+        ...prev,
+        { type: 'quiz', message: 'Using sample questions due to error.' },
+      ]);
     }
   };
 
   const handleQuizComplete = async (score) => {
     try {
       setInQuiz(false);
-      const percentage = Math.round((score / quizQuestions.length) * 100);
+      const percentage = Math.round((score / 3) * 100); // Always 3 questions
       const newProgress = Math.min(progress + percentage / 5, 100);
       setProgress(newProgress);
 
@@ -599,11 +665,12 @@ const StudentDashboard = () => {
       }
 
       await updateLeaderboard(auth.currentUser.uid, userData.name, streak, newProgress);
-      setNotifications((prev) => [...prev, `Quiz completed! Score: ${percentage}%`]);
+      setNotifications((prev) => [...prev, { type: 'quiz', message: `Quiz completed! Score: ${percentage}%` }]);
       setActiveContainer('tasks-container');
     } catch (err) {
       console.error('Error completing quiz:', err);
       setError('Failed to complete quiz.');
+      setActiveContainer('tasks-container');
     }
   };
 
@@ -616,7 +683,7 @@ const StudentDashboard = () => {
       const description = document.getElementById('goal-description')?.value.trim();
       const priority = document.getElementById('goal-priority')?.value;
       if (!title || !dueDate) {
-        alert('Please fill in at least title、我 and due date');
+        alert('Please fill in at least title and due date');
         return;
       }
       const newGoal = {
@@ -634,7 +701,7 @@ const StudentDashboard = () => {
       const goalsRef = doc(db, 'students', auth.currentUser.uid, 'goals', 'list');
       await setDoc(goalsRef, { goals: updatedGoals });
       toggleGoalForm();
-      setNotifications((prev) => [...prev, `Goal "${title}" set for ${dueDate}`]);
+      setNotifications((prev) => [...prev, { type: 'goal', message: `Goal "${title}" set for ${dueDate}` }]);
     } catch (err) {
       console.error('Error adding goal:', err);
       setError('Failed to add goal.');
@@ -710,7 +777,7 @@ const StudentDashboard = () => {
         ]);
         setNotifications((prev) => [
           ...prev,
-          `Assignment "${file.name}" uploaded successfully!`,
+          { type: 'assignment', message: `Assignment "${file.name}" uploaded successfully!` },
         ]);
       }
     } catch (err) {
@@ -735,7 +802,7 @@ const StudentDashboard = () => {
       });
       setNotifications((prev) => [
         ...prev,
-        `Assignment "${assignment.name}" sent to staff!`,
+        { type: 'assignment', message: `Assignment "${assignment.name}" sent to staff!` },
       ]);
       setSendingAssignment(null);
     } catch (err) {
@@ -760,7 +827,7 @@ const StudentDashboard = () => {
         setAssignments((prev) => prev.filter((assignment) => assignment.id !== assignmentId));
         setNotifications((prev) => [
           ...prev,
-          `Assignment "${assignmentId}" deleted successfully!`,
+          { type: 'assignment', message: `Assignment "${assignmentId}" deleted successfully!` },
         ]);
       }
     } catch (err) {
@@ -780,11 +847,42 @@ const StudentDashboard = () => {
         feedback: feedbackText,
         submittedAt: new Date().toISOString(),
       });
-      setNotifications((prev) => [...prev, 'Feedback submitted successfully!']);
+      setNotifications((prev) => [...prev, { type: 'feedback', message: 'Feedback submitted successfully!' }]);
       setFeedbackText('');
     } catch (err) {
       console.error('Error submitting feedback:', err);
       setError('Failed to submit feedback.');
+    }
+  };
+
+  const sendOverdueReason = async (task, reason) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId || !task.staffId) return;
+
+      const chatId = `${task.staffId}_${userId}`;
+      const messagesRef = doc(db, 'messages', chatId);
+      const messagesSnap = await getDoc(messagesRef);
+      const existingMessages = messagesSnap.exists()
+        ? messagesSnap.data().messages || []
+        : [];
+
+      const newMessage = {
+        text: `Reason for not completing task "${task.content}": ${reason}`,
+        sender: 'student',
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+
+      await setDoc(messagesRef, { messages: [...existingMessages, newMessage] });
+      setOverdueTaskReasons((prev) => ({ ...prev, [task.id]: reason }));
+      setNotifications((prev) => [
+        ...prev,
+        { type: 'overdue', message: `Reason for overdue task "${task.content}" sent to staff.` },
+      ]);
+    } catch (err) {
+      console.error('Error sending overdue reason:', err);
+      setError('Failed to send overdue reason.');
     }
   };
 
@@ -864,6 +962,23 @@ const StudentDashboard = () => {
     setIsChatbotOpen((prev) => !prev);
   };
 
+  const toggleSubject = (subject) => {
+    setExpandedSubjects((prev) => ({
+      ...prev,
+      [subject]: !prev[subject],
+    }));
+  };
+
+  // Group tasks by subject
+  const tasksBySubject = tasks.reduce((acc, task) => {
+    const subject = task.subject || 'Uncategorized';
+    if (!acc[subject]) {
+      acc[subject] = [];
+    }
+    acc[subject].push(task);
+    return acc;
+  }, {});
+
   return (
     <ErrorBoundary>
       <div className="dashboard-container">
@@ -927,7 +1042,6 @@ const StudentDashboard = () => {
                       questions={quizQuestions}
                       topic={currentTopic}
                       onComplete={handleQuizComplete}
-                      timerDuration={10}
                     />
                   </div>
                 ) : (
@@ -937,20 +1051,39 @@ const StudentDashboard = () => {
                         Start Quiz (Attempts: {quizCount})
                       </button>
                     )}
-                    {tasks.length === 0 ? (
+                    {Object.keys(tasksBySubject).length === 0 ? (
                       <p className="empty-message">No tasks posted yet.</p>
                     ) : (
-                      tasks.map((task) => (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          role="student"
-                          onCopy={copyTopicAndAskAI}
-                          onStartQuiz={() => {
-                            setCurrentTopic(task.content);
-                            setQuizReady(true);
-                          }}
-                        />
+                      Object.keys(tasksBySubject).map((subject) => (
+                        <div key={subject} className="subject-section">
+                          <div
+                            className="subject-header"
+                            onClick={() => toggleSubject(subject)}
+                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          >
+                            <i
+                              className={`fas fa-chevron-${expandedSubjects[subject] ? 'down' : 'right'}`}
+                              style={{ marginRight: '8px' }}
+                            ></i>
+                            <h3>{subject}</h3>
+                          </div>
+                          {expandedSubjects[subject] && (
+                            <div className="subject-tasks">
+                              {tasksBySubject[subject].map((task) => (
+                                <TaskItem
+                                  key={task.id}
+                                  task={task}
+                                  role="student"
+                                  onCopy={copyTopicAndAskAI}
+                                  onStartQuiz={() => {
+                                    setCurrentTopic(task.content);
+                                    setQuizReady(true);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))
                     )}
                   </>
@@ -1201,13 +1334,24 @@ const StudentDashboard = () => {
           </div>
           <div className="notifications">
             {notifications.map((notif, index) => (
-              <Notification
-                key={index}
-                message={notif}
-                onClose={() =>
-                  setNotifications((prev) => prev.filter((_, i) => i !== index))
-                }
-              />
+              notif.type === 'overdue' ? (
+                <OverdueTaskNotification
+                  key={index}
+                  task={notif.task}
+                  onSubmitReason={sendOverdueReason}
+                  onClose={() =>
+                    setNotifications((prev) => prev.filter((_, i) => i !== index))
+                  }
+                />
+              ) : (
+                <Notification
+                  key={index}
+                  message={notif.message}
+                  onClose={() =>
+                    setNotifications((prev) => prev.filter((_, i) => i !== index))
+                  }
+                />
+              )
             ))}
           </div>
         </div>

@@ -13,6 +13,7 @@ const StaffForm = () => {
     staffId: userData.staffId || '',
     name: userData.name || '',
     department: userData.department || '',
+    subject: userData.subject || '',
     dob: userData.dob || '',
     gender: userData.gender || '',
     contactNumber: userData.contactNumber || '',
@@ -126,6 +127,18 @@ const StaffForm = () => {
               />
             </div>
             <div>
+              <label>Subject:</label>
+              <input
+                type="text"
+                id="subject"
+                value={formData.subject}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <div>
               <label>Date of Birth:</label>
               <input
                 type="date"
@@ -135,8 +148,6 @@ const StaffForm = () => {
                 required
               />
             </div>
-          </div>
-          <div className="form-group">
             <div>
               <label>Gender:</label>
               <select
@@ -151,6 +162,8 @@ const StaffForm = () => {
                 <option value="Other">Other</option>
               </select>
             </div>
+          </div>
+          <div className="form-group">
             <div>
               <label>Contact Number:</label>
               <input
@@ -162,8 +175,6 @@ const StaffForm = () => {
                 required
               />
             </div>
-          </div>
-          <div className="form-group">
             <div>
               <label>Email ID:</label>
               <input

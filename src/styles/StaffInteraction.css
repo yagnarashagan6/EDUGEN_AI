@@ -35,9 +35,15 @@
 #staff-interaction-container .contact-list.full-container {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: calc(100% - 60px); /* Adjust height to account for the header and any padding */
     width: 100%;
     background: #ffffff;
+    position: absolute; /* Ensure it covers the space below the cards */
+    top: 60px; /* Position it below the header or cards */
+    left: 0;
+    z-index: 5; /* Ensure it appears above other elements */
+    overflow-y: auto; /* Allow scrolling if the list is long */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Optional: Add a shadow for better visibility */
 }
 
 #staff-interaction-container .contact-list-header,

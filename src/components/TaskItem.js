@@ -12,7 +12,7 @@ const TaskItem = ({ task, role, onDelete, onCopy }) => {
 
   return (
     <div className={`task-item ${copied ? 'copied' : ''}`}>
-      <p>{task.content}</p>
+      <p>{task.content} <small>({task.subject || 'No Subject'})</small></p>
       <small>Posted on: {task.date}</small>
 
       {role === 'student' ? (
