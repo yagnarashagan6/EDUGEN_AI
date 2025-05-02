@@ -1,44 +1,25 @@
-// File: /api/server.js
-require('dotenv').config();
-const express = require('express');
 const axios = require('axios');
-const cors = require('cors');
 
-const app = express();
+module.exports = async (req, res) => {
+  // Ensure the request method is POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
-// CORS configuration with preflight handling
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  credentials: true,
-}));
-app.options('*', cors()); // Handle preflight requests
-app.use(express.json());
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  const apiKeySet = !!process.env.OPENROUTER_API_KEY;
-  res.status(200).json({
-    status: 'OK',
-    message: 'Server is running',
-    apiKeySet: apiKeySet,
-    environment: process.env.NODE_ENV || 'development',
-  });
-});
-
-// Chat API endpoint
-app.post('/chat', async (req, res) => {
+  // Extract the message from the request body
   const { message } = req.body;
-
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  // Check for the OpenRouter API key in environment variables
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
     return res.status(500).json({ error: 'OPENROUTER_API_KEY is not set' });
   }
 
   try {
+    // Call the OpenRouter API
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -53,20 +34,22 @@ app.post('/chat', async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 30000,
+        timeout: 30000, // 30-second timeout
       }
     );
 
+    // Validate the response structure
     const choices = response.data?.choices;
     if (!choices || !choices[0]?.message?.content) {
       return res.status(500).json({ error: 'Invalid response format from OpenRouter API' });
     }
 
+    // Return the AI's response
     res.status(200).json({ response: choices[0].message.content });
   } catch (error) {
     console.error('Chat Error:', error.response?.data || error.message);
@@ -74,68 +57,4 @@ app.post('/chat', async (req, res) => {
     const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
     res.status(statusCode).json({ error: `OpenRouter API error: ${errorMessage}` });
   }
-});
-
-// Generate quiz API endpoint
-app.post('/generate-quiz', async (req, res) => {
-  const { topic } = req.body;
-
-  if (!topic) {
-    return res.status(400).json({ error: 'Topic is required' });
-  }
-
-  if (!process.env.OPENROUTER_API_KEY) {
-    return res.status(500).json({ error: 'OPENROUTER_API_KEY is not set' });
-  }
-
-  try {
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are EduGen AI. Generate exactly 3 multiple-choice quiz questions based on the given topic. Each question must have a text, 3 options, and a correctAnswer. Format the response as a JSON array of objects, e.g., [{ "text": "Question", "options": ["A", "B", "C"], "correctAnswer": "A" }, ...].',
-          },
-          { role: 'user', content: `Generate a quiz on the topic: ${topic}` },
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
-          'X-Title': 'EduGen AI',
-        },
-        timeout: 30000,
-      }
-    );
-
-    const choices = response.data?.choices;
-    if (!choices || !choices[0]?.message?.content) {
-      return res.status(500).json({ error: 'Invalid response format from OpenRouter API' });
-    }
-
-    let quizQuestions;
-    try {
-      quizQuestions = JSON.parse(choices[0].message.content);
-      if (!Array.isArray(quizQuestions) || quizQuestions.length !== 3) {
-        return res.status(500).json({ error: 'Quiz response is not a valid array of 3 questions' });
-      }
-    } catch (jsonError) {
-      return res.status(500).json({ error: 'Quiz response could not be parsed as JSON' });
-    }
-
-    res.status(200).json({ questions: quizQuestions });
-  } catch (error) {
-    console.error('Quiz Error:', error.response?.data || error.message);
-    const statusCode = error.response?.status || 500;
-    const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
-    res.status(statusCode).json({ error: `OpenRouter API error: ${errorMessage}` });
-  }
-});
-
-// Export for Vercel serverless
-module.exports = app;
+};
