@@ -12,7 +12,7 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   const [isLoading, setIsLoading] = useState(false);
   const chatBoxRef = useRef(null);
 
-  // Scroll to the bottom of the chat when new messages are added
+  // Scroll to the bottom of the chat
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
@@ -59,24 +59,29 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
 
     try {
-      const response = await fetch('https://edugen-ai-zeta.vercel.app/api/chat', {
+      const apiUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:5000/api/chat'
+        : 'https://edugen-ai-zeta.vercel.app/api/chat';
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
       });
 
-      const data = await response.json();
-      if (response.ok) {
-        setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
-      } else {
-        throw new Error(data.error || 'Failed to get response from backend');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error: ${response.status}`);
       }
+
+      const data = await response.json();
+      setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
     } catch (error) {
-      console.error('Chatbot Error:', error.message);
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'bot', text: `Error: ${error.message}. Please try again or contact support.` },
-      ]);
+      console.error('Chatbot Error:', error);
+      const errorMessage = error.message.includes('Failed to fetch')
+        ? 'Cannot connect to the server. Ensure the backend is running on http://localhost:5000.'
+        : `Error: ${error.message}. Please try again or contact support.`;
+      setMessages((prev) => [...prev, { sender: 'bot', text: errorMessage }]);
     } finally {
       setIsLoading(false);
     }
