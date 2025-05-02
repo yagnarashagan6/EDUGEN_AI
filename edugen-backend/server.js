@@ -5,12 +5,13 @@ const cors = require('cors');
 
 const app = express();
 
-// CORS configuration
+// CORS configuration with preflight handling
 app.use(cors({
   origin: ['http://localhost:3000', 'https://edugen-ai-zeta.vercel.app'],
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
 }));
+app.options('*', cors()); // Handle preflight requests
 app.use(express.json());
 
 // Health check endpoint
@@ -33,7 +34,7 @@ app.post('/api/chat', async (req, res) => {
   }
 
   if (!process.env.OPENROUTER_API_KEY) {
-    return res.status(500).json({ error: 'OPENROUTER_API_KEY is not set in environment variables' });
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY is not set' });
   }
 
   try {
@@ -56,23 +57,21 @@ app.post('/api/chat', async (req, res) => {
           'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 15000,
+        timeout: 30000, // Increased timeout to 30 seconds
       }
     );
 
     const choices = response.data?.choices;
-    const botResponse = choices?.[0]?.message?.content;
-
-    if (!botResponse) {
+    if (!choices || !choices[0]?.message?.content) {
       return res.status(500).json({ error: 'Invalid response format from OpenRouter API' });
     }
 
-    res.json({ response: botResponse });
-
+    res.status(200).json({ response: choices[0].message.content });
   } catch (error) {
     console.error('Chat Error:', error.response?.data || error.message);
+    const statusCode = error.response?.status || 500;
     const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
-    res.status(500).json({ error: `OpenRouter API error: ${errorMessage}` });
+    res.status(statusCode).json({ error: `OpenRouter API error: ${errorMessage}` });
   }
 });
 
@@ -85,7 +84,7 @@ app.post('/api/generate-quiz', async (req, res) => {
   }
 
   if (!process.env.OPENROUTER_API_KEY) {
-    return res.status(500).json({ error: 'OPENROUTER_API_KEY is not set in environment variables' });
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY is not set' });
   }
 
   try {
@@ -109,33 +108,39 @@ app.post('/api/generate-quiz', async (req, res) => {
           'HTTP-Referer': 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 15000,
+        timeout: 30000, // Increased timeout to 30 seconds
       }
     );
 
     const choices = response.data?.choices;
-    const content = choices?.[0]?.message?.content;
-
-    if (!content) {
+    if (!choices || !choices[0]?.message?.content) {
       return res.status(500).json({ error: 'Invalid response format from OpenRouter API' });
     }
 
     let quizQuestions;
     try {
-      quizQuestions = JSON.parse(content);
+      quizQuestions = JSON.parse(choices[0].message.content);
+      if (!Array.isArray(quizQuestions) || quizQuestions.length !== 3) {
+        return res.status(500).json({ error: 'Quiz response is not a valid array of 3 questions' });
+      }
     } catch (jsonError) {
       return res.status(500).json({ error: 'Quiz response could not be parsed as JSON' });
     }
 
-    res.json({ questions: quizQuestions });
-
+    res.status(200).json({ questions: quizQuestions });
   } catch (error) {
     console.error('Quiz Error:', error.response?.data || error.message);
+    const statusCode = error.response?.status || 500;
     const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
-    res.status(500).json({ error: `OpenRouter API error: ${errorMessage}` });
+    res.status(statusCode).json({ error: `OpenRouter API error: ${errorMessage}` });
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Vercel serverless compatibility (export as a serverless function)
+module.exports = app;
+
+// Start server for local development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}

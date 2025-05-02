@@ -59,27 +59,32 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
     }
 
     try {
-      const apiUrl = process.env.NODE_ENV === 'development'
-        ? 'http://localhost:5000/api/chat'
-        : 'https://edugen-ai-zeta.vercel.app/api/chat';
+      // Use the Vercel backend URL directly (remove localhost for production)
+      const apiUrl = 'https://edugen-ai-zeta.vercel.app/api/chat';
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
+        signal: AbortSignal.timeout(30000), // 30-second timeout
       });
 
+      // Check if response is OK and JSON
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error: ${response.status}`);
+        const text = await response.text();
+        throw new Error(`HTTP error: ${response.status} - ${text || 'Unknown error'}`);
       }
 
       const data = await response.json();
+      if (!data.response) {
+        throw new Error('Invalid response format from server');
+      }
+
       setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
     } catch (error) {
       console.error('Chatbot Error:', error);
       const errorMessage = error.message.includes('Failed to fetch')
-        ? 'Cannot connect to the server. Ensure the backend is running on http://localhost:5000.'
+        ? 'Cannot connect to the server. Please check your internet connection or try again later.'
         : `Error: ${error.message}. Please try again or contact support.`;
       setMessages((prev) => [...prev, { sender: 'bot', text: errorMessage }]);
     } finally {
