@@ -45,7 +45,7 @@ app.post('/api/chat', async (req, res) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'meta-llama/llama-3.1-8b-instruct:free', // Fallback to a reliable free model
+        model: 'meta-llama/llama-4-maverick:free', // Updated model
         messages: [
           {
             role: 'system',
@@ -58,7 +58,7 @@ app.post('/api/chat', async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'http://localhost:3000', // Use localhost for local testing
+          'HTTP-Referer': process.env.NODE_ENV === 'production' ? 'https://edugen-ai-zeta.vercel.app' : 'http://localhost:3000',
           'X-Title': 'EduGen AI',
         },
         timeout: 15000, // 15-second timeout
@@ -102,7 +102,7 @@ app.post('/api/generate-quiz', async (req, res) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'meta-llama/llama-3.1-8b-instruct:free', // Fallback model
+        model: 'meta-llama/llama-4-maverick:free', // Updated model
         messages: [
           {
             role: 'system',
@@ -115,7 +115,7 @@ app.post('/api/generate-quiz', async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'http://localhost:3000',
+          'HTTP-Referer': process.env.NODE_ENV === 'production' ? 'https://edugen-ai-zeta.vercel.app' : 'http://localhost:3000',
           'X-Title': 'EduGen AI',
         },
         timeout: 15000, // 15-second timeout
