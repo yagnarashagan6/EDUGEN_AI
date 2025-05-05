@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   doc,
@@ -56,7 +56,6 @@ const ChatInterface = ({
     [setSelectedStaffId, setSelectedStaffName, setShowContactList]
   );
 
-  // Helper function to format dates
   const formatDate = (date) => {
     const today = new Date();
     const yesterday = new Date(today);
@@ -68,7 +67,6 @@ const ChatInterface = ({
     return messageDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   };
 
-  // Group messages by date
   const groupedMessages = messages.reduce((acc, message) => {
     const date = new Date(message.timestamp).toDateString();
     if (!acc[date]) acc[date] = [];
@@ -96,14 +94,6 @@ const ChatInterface = ({
                       src="/default-staff.png"
                       alt="Staff"
                       className="contact-avatar"
-                      onLoad={(e) => {
-                        if (staff.photoURL) {
-                          const img = new Image();
-                          img.src = staff.photoURL;
-                          img.onload = () => (e.target.src = staff.photoURL);
-                          img.onerror = () => (e.target.src = '/default-staff.png');
-                        }
-                      }}
                     />
                     <div className="contact-info">
                       <h4>{staff.name}</h4>
@@ -278,7 +268,6 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [activeContainer, setActiveContainer] = useState(null);
-  const [mobileHamburger, setMobileHamburger] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [goals, setGoals] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -300,7 +289,6 @@ const StudentDashboard = () => {
   });
   const [error, setError] = useState(null);
   const [quizCount, setQuizCount] = useState(0);
-  const [chatbotInput, setChatbotInput] = useState('');
   const [staffList, setStaffList] = useState([]);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
   const [selectedStaffName, setSelectedStaffName] = useState('');
@@ -312,40 +300,31 @@ const StudentDashboard = () => {
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
   const [overdueTaskReasons, setOverdueTaskReasons] = useState({});
   const [expandedSubjects, setExpandedSubjects] = useState({});
+  const [mobileHamburger, setMobileHamburger] = useState(
+    <button className="mobile-hamburger" onClick={() => setSidebarVisible(true)}>
+      <i className="fas fa-bars"></i>
+    </button>
+  );
+
+  // Chatbot state
+  const [chatbotMessages, setChatbotMessages] = useState([
+    {
+      sender: 'bot',
+      text: 'Hi! I’m EduGen AI. Ask me anything from your syllabus for a quick, clear answer.',
+    },
+  ]);
+  const [chatbotInput, setChatbotInput] = useState('');
+  const [chatbotLoading, setChatbotLoading] = useState(false);
+  const chatBoxRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsChatbotOpen(window.innerWidth > 768);
+      setIsChatbotOpen(window.innerWidth > 768 && activeContainer !== 'chatbot-container');
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const staffRef = collection(db, 'staff');
-    const unsubscribe = onSnapshot(
-      staffRef,
-      (snapshot) => {
-        try {
-          const staffData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            photoURL: doc.data().photoURL || '/default-staff.png',
-          }));
-          setStaffList(staffData);
-        } catch (err) {
-          console.error('Error fetching staff list:', err);
-          setError('Failed to load staff list.');
-        }
-      },
-      (err) => {
-        console.error('Error in staff snapshot:', err);
-        setError('Failed to load staff list.');
-      }
-    );
-    return () => unsubscribe();
-  }, []);
+  }, [activeContainer]);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -385,16 +364,15 @@ const StudentDashboard = () => {
           const fetchedTasks = tasksSnap.data().tasks || [];
           setTasks(fetchedTasks);
 
-          // Check for overdue tasks (48 hours past deadline)
           const overdueTasks = fetchedTasks
             .filter((task) => {
               const deadline = new Date(task.deadline);
               const now = new Date();
-              const timeDiff = (now - deadline) / (1000 * 60 * 60); // hours
+              const timeDiff = (now - deadline) / (1000 * 60 * 60);
               return (
                 timeDiff >= 48 &&
                 !task.completedBy?.includes(user.uid) &&
-                !overdueTaskReasons[task.id] // Only show if reason not submitted
+                !overdueTaskReasons[task.id]
               );
             })
             .slice(0, 2);
@@ -440,7 +418,6 @@ const StudentDashboard = () => {
           setNotifications((prev) => [...prev, { type: 'goal', message: `Goal "${goal.title}" is overdue!` }])
         );
 
-        // Streak calculation
         const lastLogin = docSnap.data().lastLogin
           ? new Date(docSnap.data().lastLogin)
           : null;
@@ -451,13 +428,13 @@ const StudentDashboard = () => {
 
         let newStreak = docSnap.data().streak || 0;
         if (!lastLogin) {
-          newStreak = 1; // First login
+          newStreak = 1;
         } else if (lastLogin.toDateString() === today.toDateString()) {
-          newStreak = newStreak; // Same day, no change
+          newStreak = newStreak;
         } else if (lastLogin.toDateString() === yesterday.toDateString()) {
-          newStreak += 1; // Consecutive day
+          newStreak += 1;
         } else {
-          newStreak = 1; // Missed a day, reset to 1
+          newStreak = 1;
         }
 
         if (newStreak !== docSnap.data().streak || !lastLogin) {
@@ -478,6 +455,31 @@ const StudentDashboard = () => {
     };
     checkAuthAndFetchData();
   }, [navigate, progress, quizCount, overdueTaskReasons]);
+
+  useEffect(() => {
+    const staffRef = collection(db, 'staff');
+    const unsubscribe = onSnapshot(
+      staffRef,
+      (snapshot) => {
+        try {
+          const staffData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            photoURL: doc.data().photoURL || '/default-staff.png',
+          }));
+          setStaffList(staffData);
+        } catch (err) {
+          console.error('Error fetching staff list:', err);
+          setError('Failed to load staff list.');
+        }
+      },
+      (err) => {
+        console.error('Error in staff snapshot:', err);
+        setError('Failed to load staff list.');
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!selectedStaffId) return;
@@ -566,8 +568,10 @@ const StudentDashboard = () => {
   const toggleContainer = (containerId) => {
     if (activeContainer === containerId) {
       setActiveContainer(null);
+      setIsChatbotOpen(window.innerWidth > 768);
     } else {
       setActiveContainer(containerId);
+      setIsChatbotOpen(window.innerWidth > 768 && containerId !== 'chatbot-container');
     }
   };
 
@@ -577,9 +581,11 @@ const StudentDashboard = () => {
 
   const copyTopicAndAskAI = (topic) => {
     setCopiedTopic(topic);
+    setChatbotInput(topic);
     setIsChatbotOpen(true);
     setQuizReady(true);
     setCurrentTopic(topic);
+    setActiveContainer('chatbot-container');
   };
 
   const startQuiz = async () => {
@@ -612,7 +618,6 @@ const StudentDashboard = () => {
         setQuizQuestions(quizData);
       } catch (fetchError) {
         console.warn('Failed to fetch quiz questions, using sample questions:', fetchError);
-        // Set empty questions to trigger sample questions in Quiz.js
         setQuizQuestions([]);
         setNotifications((prev) => [
           ...prev,
@@ -622,7 +627,6 @@ const StudentDashboard = () => {
     } catch (err) {
       console.error('Error starting quiz:', err);
       setError('Failed to update quiz count.');
-      // Keep inQuiz true to allow Quiz.js to use sample questions
       setQuizQuestions([]);
       setNotifications((prev) => [
         ...prev,
@@ -634,7 +638,7 @@ const StudentDashboard = () => {
   const handleQuizComplete = async (score) => {
     try {
       setInQuiz(false);
-      const percentage = Math.round((score / 3) * 100); // Always 3 questions
+      const percentage = Math.round((score / 3) * 100);
       const newProgress = Math.min(progress + percentage / 5, 100);
       setProgress(newProgress);
 
@@ -877,7 +881,6 @@ const StudentDashboard = () => {
       await setDoc(messagesRef, { messages: [...existingMessages, newMessage] });
       setOverdueTaskReasons((prev) => ({ ...prev, [task.id]: reason }));
 
-      // Navigate to staff interaction and select the staff
       setSelectedStaffId(task.staffId);
       setSelectedStaffName(staff.name);
       setShowContactList(false);
@@ -968,7 +971,7 @@ const StudentDashboard = () => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigate('/'); // Redirect to the landing page
+      navigate('/');
     } catch (err) {
       console.error('Error logging out:', err);
       setError('Failed to log out.');
@@ -976,7 +979,12 @@ const StudentDashboard = () => {
   };
 
   const toggleChatbot = () => {
-    setIsChatbotOpen((prev) => !prev);
+    if (activeContainer === 'chatbot-container') {
+      setActiveContainer(null);
+      setIsChatbotOpen(window.innerWidth > 768);
+    } else {
+      setIsChatbotOpen((prev) => !prev);
+    }
   };
 
   const toggleSubject = (subject) => {
@@ -986,7 +994,79 @@ const StudentDashboard = () => {
     }));
   };
 
-  // Group tasks by subject
+  const getQuickResponse = (question) => {
+    const lowerInput = question.toLowerCase();
+    if (lowerInput.includes('coxco') || lowerInput.includes('agni student portal') || lowerInput.includes('student')) {
+      return 'Access the Agni Student Portal: https://coe.act.edu.in/students/';
+    }
+    if (lowerInput.includes('gamma ai') || lowerInput.includes('presentation ai') || lowerInput.includes('ppt ai')) {
+      return 'Try Gamma AI for presentations: https://gamma.app/';
+    }
+    if (lowerInput.includes('pdf')) {
+      return 'Use this PDF tool: https://www.ilovepdf.com/';
+    }
+    return null;
+  };
+
+  const sendChatbotMessage = async () => {
+    if (!chatbotInput.trim()) return;
+
+    const userMessage = { sender: 'user', text: chatbotInput };
+    setChatbotMessages((prev) => [...prev, userMessage]);
+    setChatbotInput('');
+    setChatbotLoading(true);
+
+    const quickResponse = getQuickResponse(userMessage.text);
+    if (quickResponse) {
+      setChatbotMessages((prev) => [...prev, { sender: 'bot', text: quickResponse }]);
+      setChatbotLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage.text }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unknown server error');
+
+      setChatbotMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
+    } catch (err) {
+      console.error('Chatbot error:', err.message);
+      setChatbotMessages((prev) => [
+        ...prev,
+        {
+          sender: 'bot',
+          text: `Error: ${err.message}. Please try again or contact support.`,
+        },
+      ]);
+    } finally {
+      setChatbotLoading(false);
+    }
+  };
+
+  const handleChatbotEnter = (e) => {
+    if (e.key === 'Enter' && !chatbotLoading) {
+      sendChatbotMessage();
+    }
+  };
+
+  useEffect(() => {
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+    }
+  }, [chatbotMessages]);
+
+  useEffect(() => {
+    if (copiedTopic) {
+      setChatbotInput(copiedTopic);
+      setCopiedTopic('');
+    }
+  }, [copiedTopic]);
+
   const tasksBySubject = tasks.reduce((acc, task) => {
     const subject = task.subject || 'Uncategorized';
     if (!acc[subject]) {
@@ -1006,6 +1086,8 @@ const StudentDashboard = () => {
           isVisible={sidebarVisible}
           toggleSidebar={toggleSidebar}
           setMobileHamburger={setMobileHamburger}
+          copiedTopic={copiedTopic}
+          clearCopiedTopic={() => setCopiedTopic('')}
         />
         <div className={`main-content ${sidebarVisible ? 'active-container' : ''}`}>
           <div className="header">
@@ -1052,59 +1134,37 @@ const StudentDashboard = () => {
               className={`toggle-container ${activeContainer === 'tasks-container' ? 'active' : ''}`}
             >
               <div className="container-header">Posted Tasks</div>
-              <div className="container-body">
-                {inQuiz ? (
-                  <div className="quiz-wrapper" style={{ width: '100%', height: '100%' }}>
-                    <Quiz
-                      questions={quizQuestions}
-                      topic={currentTopic}
-                      onComplete={handleQuizComplete}
-                    />
+              <div className="subjects-grid">
+                {Object.keys(tasksBySubject).map((subject) => (
+                  <div
+                    key={subject}
+                    className={`subject-card ${expandedSubjects[subject] ? 'active' : ''}`}
+                    onClick={() => toggleSubject(subject)}
+                  >
+                    <h3>{subject}</h3>
                   </div>
-                ) : (
-                  <>
-                    {quizReady && (
-                      <button onClick={startQuiz} className="quiz-btn">
-                        Start Quiz (Attempts: {quizCount})
-                      </button>
-                    )}
-                    {Object.keys(tasksBySubject).length === 0 ? (
-                      <p className="empty-message">No tasks posted yet.</p>
-                    ) : (
-                      Object.keys(tasksBySubject).map((subject) => (
-                        <div key={subject} className="subject-section">
-                          <div
-                            className="subject-header"
-                            onClick={() => toggleSubject(subject)}
-                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                          >
-                            <i
-                              className={`fas fa-chevron-${expandedSubjects[subject] ? 'down' : 'right'}`}
-                              style={{ marginRight: '8px' }}
-                            ></i>
-                            <h3>{subject}</h3>
-                          </div>
-                          {expandedSubjects[subject] && (
-                            <div className="subject-tasks">
-                              {tasksBySubject[subject].map((task) => (
-                                <TaskItem
-                                  key={task.id}
-                                  task={task}
-                                  role="student"
-                                  onCopy={copyTopicAndAskAI}
-                                  onStartQuiz={() => {
-                                    setCurrentTopic(task.content);
-                                    setQuizReady(true);
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </>
-                )}
+                ))}
+              </div>
+              <div className="container-body">
+                {Object.keys(tasksBySubject).map((subject) => (
+                  expandedSubjects[subject] && (
+                    <div key={subject} className="subject-tasks">
+                      <h3>{subject}</h3>
+                      {tasksBySubject[subject].map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          role="student"
+                          onCopy={copyTopicAndAskAI}
+                          onStartQuiz={() => {
+                            setCurrentTopic(task.content);
+                            setQuizReady(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )
+                ))}
               </div>
             </div>
             <div
@@ -1253,13 +1313,11 @@ const StudentDashboard = () => {
                     {circulars.map((circular) => (
                       <li key={circular.id}>
                         <a href={circular.url} target="_blank" rel="noopener noreferrer">
-                          {circular.id}
+                          {circular.helptitle}
                         </a>
                         <span>
                           {' - Sent by '}
-                          {circular.sender}
-                          {' on '}
-                          {new Date(circular.uploadedAt).toLocaleDateString()}
+                          <strong>{circular.sender}</strong>
                         </span>
                       </li>
                     ))}
@@ -1351,6 +1409,49 @@ const StudentDashboard = () => {
                 </button>
               </div>
             </div>
+            <div
+              id="chatbot-container"
+              className={`toggle-container ${activeContainer === 'chatbot-container' ? 'active' : ''}`}
+            >
+              <div className="container-header">EduGen AI Chatbot</div>
+              <div className="container-body">
+                <Chatbot
+                  isMinimized={false}
+                  isVisible={true}
+                  toggleChatbot={() => {}}
+                  messages={chatbotMessages}
+                  setMessages={setChatbotMessages}
+                  input={chatbotInput}
+                  setInput={setChatbotInput}
+                  isLoading={chatbotLoading}
+                  setIsLoading={setChatbotLoading}
+                  sendMessage={sendChatbotMessage}
+                  handleEnter={handleChatbotEnter}
+                  chatBoxRef={chatBoxRef}
+                />
+              </div>
+            </div>
+            {inQuiz && (
+              <Quiz
+                questions={quizQuestions}
+                onComplete={handleQuizComplete}
+                topic={currentTopic}
+              />
+            )}
+            {quizReady && (
+              <div className="quiz-prompt">
+                <p>Start a quiz on {currentTopic}?</p>
+                <button onClick={startQuiz}>Start Quiz</button>
+                <button
+                  onClick={() => {
+                    setQuizReady(false);
+                    setCurrentTopic('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
           <div className="notifications">
             {notifications.map((notif, index) => (
@@ -1375,18 +1476,27 @@ const StudentDashboard = () => {
             ))}
           </div>
         </div>
-        {window.innerWidth <= 768 && (
+        {window.innerWidth <= 768 && activeContainer !== 'chatbot-container' && (
           <button className="chat-toggle-btn" onClick={toggleChatbot}>
             <i className="fas fa-comment"></i>
           </button>
         )}
-        <Chatbot
-          isMinimized={window.innerWidth <= 768}
-          isVisible={isChatbotOpen}
-          toggleChatbot={toggleChatbot}
-          copiedTopic={copiedTopic}
-          clearCopiedTopic={() => setCopiedTopic('')}
-        />
+        {activeContainer !== 'chatbot-container' && (
+          <Chatbot
+            isMinimized={window.innerWidth <= 768}
+            isVisible={isChatbotOpen}
+            toggleChatbot={toggleChatbot}
+            messages={chatbotMessages}
+            setMessages={setChatbotMessages}
+            input={chatbotInput}
+            setInput={setChatbotInput}
+            isLoading={chatbotLoading}
+            setIsLoading={setChatbotLoading}
+            sendMessage={sendChatbotMessage}
+            handleEnter={handleChatbotEnter}
+            chatBoxRef={chatBoxRef}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );

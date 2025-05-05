@@ -378,3 +378,24 @@
     right: 10px;
   }
 }
+
+.chat-container.sidebar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: none;
+  box-shadow: none;
+}
+
+.chat-container.sidebar .chat-header {
+  background-color: #f4f4f4;
+  border-bottom: 1px solid #ddd;
+}
+
+.chat-container.sidebar .chat-box {
+  height: calc(100% - 100px); /* Adjust height for sidebar */
+}
+
+.chat-container.sidebar .chat-input {
+  border-top: 1px solid #ddd;
+}

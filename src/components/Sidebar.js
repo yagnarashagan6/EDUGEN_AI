@@ -1,9 +1,18 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Sidebar.css';
 import '../styles/Dashboard.css';
 
-const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, setMobileHamburger }) => {
+const Sidebar = ({ 
+  userData, 
+  role, 
+  toggleContainer, 
+  isVisible, 
+  toggleSidebar, 
+  setMobileHamburger, 
+  copiedTopic, 
+  clearCopiedTopic 
+}) => {
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
 
@@ -19,6 +28,7 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
     { id: 'circular-container', icon: 'fas fa-bullhorn', label: 'Circular' },
     { id: 'staff-interaction-container', icon: 'fas fa-users', label: 'Staff Interaction' },
     { id: 'self-analysis-container', icon: 'fas fa-chart-bar', label: 'Self Analysis' },
+    { id: 'chatbot-container', icon: 'fas fa-comment', label: 'Chatbot', mobileOnly: true },
     { id: 'settings-container', icon: 'fas fa-cog', label: 'Settings' },
   ];
 
@@ -34,7 +44,6 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
 
   const items = role === 'staff' ? staffItems : studentItems;
 
-  // Close sidebar when clicking outside
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (isVisible && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
@@ -48,7 +57,6 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
     };
   }, [isVisible, toggleSidebar]);
 
-  // Hamburger menu JSX for mobile view (passed to parent)
   const hamburgerButton = (
     <button
       className={`sidebar-toggle-btn ${isVisible ? 'active' : ''}`}
@@ -62,10 +70,9 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
     </button>
   );
 
-  // Pass hamburger button to parent for mobile view rendering
   useEffect(() => {
     setMobileHamburger(hamburgerButton);
-    return () => setMobileHamburger(null); // Cleanup on unmount
+    return () => setMobileHamburger(null);
   }, [isVisible, setMobileHamburger]);
 
   return (
@@ -83,7 +90,6 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
         <h3>{userData?.name || 'Loading...'}</h3>
       </div>
       <ul>
-        {/* Hamburger menu item in laptop view */}
         <li
           className={`sidebar-toggle-item ${isVisible ? 'active' : ''}`}
           onClick={toggleSidebar}
@@ -96,7 +102,15 @@ const Sidebar = ({ userData, role, toggleContainer, isVisible, toggleSidebar, se
           <span>Menu</span>
         </li>
         {items.map((item) => (
-          <li key={item.id} onClick={() => toggleContainer(item.id)}>
+          <li
+            key={item.id}
+            onClick={() => {
+              toggleContainer(item.id);
+              toggleSidebar(); // Close sidebar on mobile after selection
+            }}
+            className={item.mobileOnly ? 'mobile-only' : ''}
+            style={item.id === 'chatbot-container' && window.innerWidth > 768 ? { display: 'none' } : {}}
+          >
             <i className={item.icon}></i> <span>{item.label}</span>
           </li>
         ))}

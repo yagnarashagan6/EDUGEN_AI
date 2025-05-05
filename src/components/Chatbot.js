@@ -45,50 +45,44 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   // Send message to backend
   const sendMessage = async () => {
     if (!input.trim()) return;
-
+  
     const userMessage = { sender: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-
+  
     const quickResponse = getQuickResponse(userMessage.text);
     if (quickResponse) {
       setMessages((prev) => [...prev, { sender: 'bot', text: quickResponse }]);
       setIsLoading(false);
       return;
     }
-
+  
     try {
-      const apiUrl = 'https://edugen-ai-zeta.vercel.app/api/chat';
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
-        signal: AbortSignal.timeout(30000),
       });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`HTTP error: ${response.status} - ${text || 'Unknown error'}`);
-      }
-
+  
       const data = await response.json();
-      if (!data.response) {
-        throw new Error('Invalid response format from server');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Unknown server error');
+  
       setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
-    } catch (error) {
-      console.error('Chatbot Error:', error);
-      const errorMessage = error.message.includes('Failed to fetch')
-        ? 'Cannot connect to the server. Please check your internet connection or try again later.'
-        : `Error: ${error.message}. Please try again or contact support.`;
-      setMessages((prev) => [...prev, { sender: 'bot', text: errorMessage }]);
+    } catch (err) {
+      console.error('Chatbot error:', err.message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: 'bot',
+          text: `Error: ${err.message}. Please try again or contact support.`,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   // Handle Enter key press
   const handleEnter = (e) => {
