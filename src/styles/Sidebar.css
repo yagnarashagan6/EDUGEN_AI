@@ -70,96 +70,6 @@
   display: inline;
 }
 
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  .sidebar-toggle-item {
-    display: none; /* Hide hamburger in sidebar for mobile */
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar ul li {
-    padding: 10px 15px;
-    font-size: 14px;
-  }
-
-  .sidebar ul li i {
-    margin-right: 10px;
-    font-size: 16px;
-  }
-}
-/* Sidebar.css - Styles specific to Sidebar component */
-
-/* Sidebar Base Styles */
-.sidebar ul li {
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  color: #fff;
-  font-size: 16px;
-}
-
-.sidebar ul li:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.sidebar ul li i {
-  margin-right: 12px;
-  font-size: 18px;
-  color: #fff;
-}
-
-/* Hamburger Menu Item in Sidebar (Laptop View) */
-.sidebar-toggle-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  cursor: pointer;
-  color: #fff;
-  font-size: 16px;
-}
-
-.sidebar-toggle-item .hamburger {
-  width: 20px;
-  height: 15px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  margin-right: 12px;
-}
-
-.sidebar-toggle-item .hamburger span {
-  display: block;
-  width: 100%;
-  height: 2px;
-  background-color: #fff; /* White for sidebar */
-  border-radius: 2px;
-  transition: all 0.3s ease;
-}
-
-.sidebar-toggle-item.active .hamburger span:nth-child(1) {
-  transform: translateY(6.5px) rotate(45deg);
-}
-
-.sidebar-toggle-item.active .hamburger span:nth-child(2) {
-  opacity: 0;
-}
-
-.sidebar-toggle-item.active .hamburger span:nth-child(3) {
-  transform: translateY(-6.5px) rotate(-45deg);
-}
-
-.sidebar-toggle-item span {
-  display: none;
-}
-
-.sidebar.active .sidebar-toggle-item span {
-  display: inline;
-}
-
 /* Sidebar Base */
 .sidebar {
   width: 70px;
@@ -261,4 +171,45 @@
     height: 220px;
     bottom: 45px;
   }
+}
+
+.sidebar ul li[title] {
+  position: relative;
+}
+
+.sidebar ul li[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  z-index: 10;
+  margin-left: 10px;
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.sidebar ul li[title]:hover::before {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: rgba(0, 0, 0, 0.8);
+  margin-left: 5px;
+}
+
+/* Highlight active sidebar option */
+.sidebar ul li.active-option {
+  background-color: rgba(255, 255, 255, 0.3); /* Slightly lighter background */
+  color: #ffffff; /* Ensure text remains visible */
+  font-weight: bold; /* Optional: Make the text bold */
+  border-left: 4px solid #ffffff; /* Optional: Add a left border for emphasis */
 }

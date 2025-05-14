@@ -16,6 +16,9 @@ const Sidebar = ({
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
 
+  // State to track the active option
+  const [activeOption, setActiveOption] = useState('');
+
   const redirectToProfile = () => {
     navigate('/profile', { state: { role } });
   };
@@ -93,6 +96,7 @@ const Sidebar = ({
         <li
           className={`sidebar-toggle-item ${isVisible ? 'active' : ''}`}
           onClick={toggleSidebar}
+          title="Menu" // Add tooltip for the toggle item
         >
           <div className="hamburger">
             <span></span>
@@ -107,9 +111,13 @@ const Sidebar = ({
             onClick={() => {
               toggleContainer(item.id);
               toggleSidebar(); // Close sidebar on mobile after selection
+              setActiveOption(item.id); // Set the active option
             }}
-            className={item.mobileOnly ? 'mobile-only' : ''}
+            className={`${item.mobileOnly ? 'mobile-only' : ''} ${
+              activeOption === item.id ? 'active-option' : ''
+            }`}
             style={item.id === 'chatbot-container' && window.innerWidth > 768 ? { display: 'none' } : {}}
+            title={window.innerWidth > 768 ? item.label : ''} // Add tooltip only for laptop view
           >
             <i className={item.icon}></i> <span>{item.label}</span>
           </li>

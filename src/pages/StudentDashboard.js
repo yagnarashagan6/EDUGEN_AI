@@ -15,13 +15,14 @@ import { auth, db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { signOut } from 'firebase/auth';
 import Sidebar from '../components/Sidebar';
-import Chatbot from '../components/Chatbot';
 import TaskItem from '../components/TaskItem';
 import GoalItem from '../components/GoalItem';
 import Quiz from '../components/Quiz';
 import Leaderboard from '../components/Leaderboard';
 import Notification from '../components/Notification';
 import OverdueTaskNotification from '../components/OverdueTaskNotification';
+import Chatbot from '../components/Chatbot';
+import GuideModal from '../components/GuideModal'; 
 import '../styles/Dashboard.css';
 import '../styles/Sidebar.css';
 import '../styles/Chat.css';
@@ -306,17 +307,6 @@ const StudentDashboard = () => {
     </button>
   );
 
-  // Chatbot state
-  const [chatbotMessages, setChatbotMessages] = useState([
-    {
-      sender: 'bot',
-      text: 'Hi! I’m EduGen AI. Ask me anything from your syllabus for a quick, clear answer.',
-    },
-  ]);
-  const [chatbotInput, setChatbotInput] = useState('');
-  const [chatbotLoading, setChatbotLoading] = useState(false);
-  const chatBoxRef = useRef(null);
-
   useEffect(() => {
     const handleResize = () => {
       setIsChatbotOpen(window.innerWidth > 768 && activeContainer !== 'chatbot-container');
@@ -399,7 +389,7 @@ const StudentDashboard = () => {
           id: doc.id,
           name: doc.data().name || 'Unknown',
           streak: doc.data().streak || 0,
-          progress: doc.data().progress || 0,
+          photoURL: doc.data().photoURL || '/default-student.png',
         }));
         setLeaderboard(students);
 
@@ -581,7 +571,6 @@ const StudentDashboard = () => {
 
   const copyTopicAndAskAI = (topic) => {
     setCopiedTopic(topic);
-    setChatbotInput(topic);
     setIsChatbotOpen(true);
     setQuizReady(true);
     setCurrentTopic(topic);
@@ -591,8 +580,10 @@ const StudentDashboard = () => {
   const startQuiz = async () => {
     setInQuiz(true);
     setQuizReady(false);
+    setActiveContainer('tasks-container'); // Navigate to the task container
     const newQuizCount = quizCount + 1;
     setQuizCount(newQuizCount);
+
     try {
       const userRef = doc(db, 'students', auth.currentUser.uid);
       await updateDoc(userRef, { quizCount: newQuizCount });
@@ -618,7 +609,7 @@ const StudentDashboard = () => {
         setQuizQuestions(quizData);
       } catch (fetchError) {
         console.warn('Failed to fetch quiz questions, using sample questions:', fetchError);
-        setQuizQuestions([]);
+        setQuizQuestions([]); // Use sample questions if fetching fails
         setNotifications((prev) => [
           ...prev,
           { type: 'quiz', message: 'Using sample questions due to fetch failure.' },
@@ -627,7 +618,7 @@ const StudentDashboard = () => {
     } catch (err) {
       console.error('Error starting quiz:', err);
       setError('Failed to update quiz count.');
-      setQuizQuestions([]);
+      setQuizQuestions([]); // Use sample questions if an error occurs
       setNotifications((prev) => [
         ...prev,
         { type: 'quiz', message: 'Using sample questions due to error.' },
@@ -978,94 +969,12 @@ const StudentDashboard = () => {
     }
   };
 
-  const toggleChatbot = () => {
-    if (activeContainer === 'chatbot-container') {
-      setActiveContainer(null);
-      setIsChatbotOpen(window.innerWidth > 768);
-    } else {
-      setIsChatbotOpen((prev) => !prev);
-    }
-  };
-
   const toggleSubject = (subject) => {
     setExpandedSubjects((prev) => ({
       ...prev,
       [subject]: !prev[subject],
     }));
   };
-
-  const getQuickResponse = (question) => {
-    const lowerInput = question.toLowerCase();
-    if (lowerInput.includes('coxco') || lowerInput.includes('agni student portal') || lowerInput.includes('student')) {
-      return 'Access the Agni Student Portal: https://coe.act.edu.in/students/';
-    }
-    if (lowerInput.includes('gamma ai') || lowerInput.includes('presentation ai') || lowerInput.includes('ppt ai')) {
-      return 'Try Gamma AI for presentations: https://gamma.app/';
-    }
-    if (lowerInput.includes('pdf')) {
-      return 'Use this PDF tool: https://www.ilovepdf.com/';
-    }
-    return null;
-  };
-
-  const sendChatbotMessage = async () => {
-    if (!chatbotInput.trim()) return;
-
-    const userMessage = { sender: 'user', text: chatbotInput };
-    setChatbotMessages((prev) => [...prev, userMessage]);
-    setChatbotInput('');
-    setChatbotLoading(true);
-
-    const quickResponse = getQuickResponse(userMessage.text);
-    if (quickResponse) {
-      setChatbotMessages((prev) => [...prev, { sender: 'bot', text: quickResponse }]);
-      setChatbotLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.text }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Unknown server error');
-
-      setChatbotMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
-    } catch (err) {
-      console.error('Chatbot error:', err.message);
-      setChatbotMessages((prev) => [
-        ...prev,
-        {
-          sender: 'bot',
-          text: `Error: ${err.message}. Please try again or contact support.`,
-        },
-      ]);
-    } finally {
-      setChatbotLoading(false);
-    }
-  };
-
-  const handleChatbotEnter = (e) => {
-    if (e.key === 'Enter' && !chatbotLoading) {
-      sendChatbotMessage();
-    }
-  };
-
-  useEffect(() => {
-    if (chatBoxRef.current) {
-      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-    }
-  }, [chatbotMessages]);
-
-  useEffect(() => {
-    if (copiedTopic) {
-      setChatbotInput(copiedTopic);
-      setCopiedTopic('');
-    }
-  }, [copiedTopic]);
 
   const tasksBySubject = tasks.reduce((acc, task) => {
     const subject = task.subject || 'Uncategorized';
@@ -1075,6 +984,8 @@ const StudentDashboard = () => {
     acc[subject].push(task);
     return acc;
   }, {});
+
+  const [selectedSubject, setSelectedSubject] = useState(null);
 
   return (
     <ErrorBoundary>
@@ -1099,7 +1010,7 @@ const StudentDashboard = () => {
             />
           </div>
           <div id="main-content-section">
-            {!activeContainer && (
+            {!activeContainer && !inQuiz && ( // Ensure quiz is not rendered in the default content
               <div id="default-content" className="default-content">
                 <div
                   className="profile-content"
@@ -1133,38 +1044,63 @@ const StudentDashboard = () => {
               id="tasks-container"
               className={`toggle-container ${activeContainer === 'tasks-container' ? 'active' : ''}`}
             >
-              <div className="container-header">Posted Tasks</div>
-              <div className="subjects-grid">
-                {Object.keys(tasksBySubject).map((subject) => (
-                  <div
-                    key={subject}
-                    className={`subject-card ${expandedSubjects[subject] ? 'active' : ''}`}
-                    onClick={() => toggleSubject(subject)}
-                  >
-                    <h3>{subject}</h3>
-                  </div>
-                ))}
+              <div className="container-header">
+                {selectedSubject ? (
+                  <span>{selectedSubject}</span>
+                ) : (
+                  'Posted Tasks'
+                )}
               </div>
               <div className="container-body">
-                {Object.keys(tasksBySubject).map((subject) => (
-                  expandedSubjects[subject] && (
-                    <div key={subject} className="subject-tasks">
-                      <h3>{subject}</h3>
-                      {tasksBySubject[subject].map((task) => (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          role="student"
-                          onCopy={copyTopicAndAskAI}
-                          onStartQuiz={() => {
+                {inQuiz && activeContainer === 'tasks-container' ? ( // Ensure quiz is rendered only in the tasks-container
+                  <Quiz
+                    questions={quizQuestions}
+                    onComplete={handleQuizComplete}
+                    topic={currentTopic}
+                  />
+                ) : selectedSubject ? (
+                  <div className="subject-tasks">
+                    <h3>Topics in {selectedSubject}</h3>
+                    {tasksBySubject[selectedSubject]?.map((task) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        role="student"
+                        onCopy={copyTopicAndAskAI}
+                        onStartQuiz={() => {
+                          if (!inQuiz) { // Prevent starting a new quiz if one is already active
                             setCurrentTopic(task.content);
-                            setQuizReady(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )
-                ))}
+                            startQuiz();
+                          } else {
+                            alert('A quiz is already in progress. Please complete it before starting a new one.');
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="subjects-grid">
+                    {Object.keys(tasksBySubject).map((subject) => (
+                      <div
+                        key={subject}
+                        className={`subject-card ${expandedSubjects[subject] ? 'active' : ''}`}
+                        onClick={() => setSelectedSubject(subject)}
+                      >
+                        <h3>{subject}</h3>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!inQuiz && selectedSubject && (
+                  <div className="back-container">
+                    <button
+                      className="back-btn"
+                      onClick={() => setSelectedSubject(null)}
+                    >
+                      Back
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <div
@@ -1188,7 +1124,7 @@ const StudentDashboard = () => {
                     placeholder="Goal title"
                     className="goal-input"
                   />
-                  <select id="goal-type" className="goal-input">
+                    <select id="goal-type" className="goal-input">
                     <option value="assignment">Assignment</option>
                     <option value="test">Test</option>
                     <option value="quiz">Quiz</option>
@@ -1413,21 +1349,15 @@ const StudentDashboard = () => {
               id="chatbot-container"
               className={`toggle-container ${activeContainer === 'chatbot-container' ? 'active' : ''}`}
             >
-              <div className="container-header">EduGen AI Chatbot</div>
+              <div className="container-header">
+                EduGen AI Chatbot
+              </div>
               <div className="container-body">
                 <Chatbot
-                  isMinimized={false}
                   isVisible={true}
-                  toggleChatbot={() => {}}
-                  messages={chatbotMessages}
-                  setMessages={setChatbotMessages}
-                  input={chatbotInput}
-                  setInput={setChatbotInput}
-                  isLoading={chatbotLoading}
-                  setIsLoading={setChatbotLoading}
-                  sendMessage={sendChatbotMessage}
-                  handleEnter={handleChatbotEnter}
-                  chatBoxRef={chatBoxRef}
+                  copiedTopic={copiedTopic}
+                  clearCopiedTopic={() => setCopiedTopic('')}
+                  isInContainer={true}
                 />
               </div>
             </div>
@@ -1475,28 +1405,15 @@ const StudentDashboard = () => {
               )
             ))}
           </div>
+          {window.innerWidth > 768 && (
+            <Chatbot
+              isVisible={isChatbotOpen}
+              copiedTopic={copiedTopic}
+              clearCopiedTopic={() => setCopiedTopic('')}
+              isInContainer={false}
+            />
+          )}
         </div>
-        {window.innerWidth <= 768 && activeContainer !== 'chatbot-container' && (
-          <button className="chat-toggle-btn" onClick={toggleChatbot}>
-            <i className="fas fa-comment"></i>
-          </button>
-        )}
-        {activeContainer !== 'chatbot-container' && (
-          <Chatbot
-            isMinimized={window.innerWidth <= 768}
-            isVisible={isChatbotOpen}
-            toggleChatbot={toggleChatbot}
-            messages={chatbotMessages}
-            setMessages={setChatbotMessages}
-            input={chatbotInput}
-            setInput={setChatbotInput}
-            isLoading={chatbotLoading}
-            setIsLoading={setChatbotLoading}
-            sendMessage={sendChatbotMessage}
-            handleEnter={handleChatbotEnter}
-            chatBoxRef={chatBoxRef}
-          />
-        )}
       </div>
     </ErrorBoundary>
   );

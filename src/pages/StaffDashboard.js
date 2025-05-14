@@ -7,11 +7,12 @@ import { signOut } from 'firebase/auth';
 import Sidebar from '../components/Sidebar';
 import Chatbot from '../components/Chatbot';
 import TaskItem from '../components/TaskItem';
+import GuideModal from '../components/GuideModal'; // Import the new modal
 import '../styles/Dashboard.css';
 import '../styles/StaffInteraction.css';
 import '../styles/Chat.css';
 
-// ChatInterface component for staff-student messaging
+// ChatInterface component (unchanged)
 const ChatInterface = ({
   messages,
   sendMessage,
@@ -33,7 +34,6 @@ const ChatInterface = ({
     [setSelectedStudentId, setSelectedStudentName, setShowContactList]
   );
 
-  // Helper function to format dates
   const formatDate = (date) => {
     const today = new Date();
     const yesterday = new Date(today);
@@ -45,7 +45,6 @@ const ChatInterface = ({
     return messageDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   };
 
-  // Group messages by date
   const groupedMessages = messages.reduce((acc, message) => {
     const date = new Date(message.timestamp).toDateString();
     if (!acc[date]) acc[date] = [];
@@ -178,6 +177,16 @@ const StaffDashboard = () => {
   });
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
   const [filterType, setFilterType] = useState(null);
+  const [showGuide, setShowGuide] = useState(false); // State for guide modal
+
+  // Check if guide should be shown on mount
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('hasSeenStaffGuide');
+    if (!hasSeenGuide) {
+      setShowGuide(true);
+      localStorage.setItem('hasSeenStaffGuide', 'true');
+    }
+  }, []);
 
   // Handle window resize for chatbot visibility
   useEffect(() => {
@@ -198,7 +207,6 @@ const StaffDashboard = () => {
           return;
         }
 
-        // Fetch staff data
         const docRef = doc(db, 'staff', user.uid);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists() || !docSnap.data().formFilled) {
@@ -207,12 +215,10 @@ const StaffDashboard = () => {
         }
         setUserData(docSnap.data());
 
-        // Fetch tasks
         const tasksRef = doc(db, 'tasks', 'shared');
         const tasksSnap = await getDoc(tasksRef);
         setTasks(tasksSnap.exists() ? tasksSnap.data().tasks || [] : []);
 
-        // Fetch students
         const studentsRef = collection(db, 'students');
         const snapshot = await getDocs(studentsRef);
         const students = snapshot.docs.map((doc) => ({
@@ -224,7 +230,6 @@ const StaffDashboard = () => {
         }));
         setStudentStats(students.sort((a, b) => b.streak - a.streak));
 
-        // Calculate quick stats
         const totalStudents = students.length;
         const today = new Date();
         const activeStudents = students.filter((student) => {
@@ -236,7 +241,6 @@ const StaffDashboard = () => {
           : 0;
         setQuickStats({ totalStudents, activeStudents, overallPerformance });
 
-        // Calculate results
         const resultsData = students.map((student) => ({
           id: student.id,
           name: student.name,
@@ -245,7 +249,6 @@ const StaffDashboard = () => {
         }));
         setResults(resultsData);
 
-        // Fetch assignments
         const assignmentsRef = collection(db, 'assignments');
         const assignmentsSnap = await getDocs(assignmentsRef);
         const staffAssignments = assignmentsSnap.docs
@@ -253,7 +256,6 @@ const StaffDashboard = () => {
           .map((doc) => ({ id: doc.id, ...doc.data() }));
         setAssignments(staffAssignments);
 
-        // Fetch circulars
         const circularsRef = collection(db, 'circulars');
         const circularsSnap = await getDocs(circularsRef);
         setCirculars(circularsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
@@ -285,7 +287,6 @@ const StaffDashboard = () => {
             const currentMessages = docSnap.data().messages || [];
             setMessages(currentMessages);
 
-            // Mark student messages as read
             const updatedMessages = currentMessages.map((msg) =>
               msg.sender === 'student' && !msg.read ? { ...msg, read: true } : msg
             );
@@ -310,7 +311,6 @@ const StaffDashboard = () => {
     return () => unsubscribe();
   }, [selectedStudentId]);
 
-  // Memoize filtered students based on filterType
   const filteredStudents = useMemo(() => {
     if (!activeContainer || !filterType) return [];
     const today = new Date();
@@ -329,21 +329,18 @@ const StaffDashboard = () => {
     }
   }, [filterType, studentStats, activeContainer]);
 
-  // Toggle container visibility and set filter type
   const toggleContainer = useCallback(
     (containerId, filterType = null) => {
       setActiveContainer((prev) => (prev === containerId ? null : containerId));
-      setFilterType(filterType); // Store filterType in state
+      setFilterType(filterType);
     },
     []
   );
 
-  // Toggle sidebar visibility
   const toggleSidebar = () => {
     setSidebarVisible((prev) => !prev);
   };
 
-  // Post a new task
   const postTask = async () => {
     try {
       const content = document.getElementById('task-content')?.value.trim();
@@ -372,7 +369,6 @@ const StaffDashboard = () => {
     }
   };
 
-  // Delete a task
   const deleteTask = async (taskId) => {
     try {
       if (!window.confirm('Are you sure you want to delete this topic?')) return;
@@ -386,7 +382,6 @@ const StaffDashboard = () => {
     }
   };
 
-  // Send a message to a student
   const sendMessage = useCallback(async () => {
     try {
       const input = document.getElementById('message-input');
@@ -419,7 +414,6 @@ const StaffDashboard = () => {
     }
   }, [selectedStudentId]);
 
-  // Delete a message
   const deleteMessage = useCallback(
     async (index) => {
       try {
@@ -440,7 +434,6 @@ const StaffDashboard = () => {
     [selectedStudentId, messages]
   );
 
-  // Upload a circular
   const handleCircularUpload = async (e) => {
     try {
       const file = e.target.files[0];
@@ -464,23 +457,20 @@ const StaffDashboard = () => {
     }
   };
 
-  // Navigate to edit profile
   const handleEditProfile = () => {
     navigate('/staff-form', { state: { isEdit: true, userData } });
   };
 
-  // Handle logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigate('/'); // Redirect to the landing page
+      navigate('/');
     } catch (err) {
       console.error('Error logging out:', err);
       setError('Failed to log out.');
     }
   };
 
-  // Toggle chatbot visibility
   const toggleChatbot = () => {
     setIsChatbotOpen((prev) => !prev);
   };
@@ -490,6 +480,11 @@ const StaffDashboard = () => {
 
   return (
     <div className="dashboard-container">
+      <GuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+        role="staff"
+      />
       <Sidebar
         userData={userData}
         role="staff"

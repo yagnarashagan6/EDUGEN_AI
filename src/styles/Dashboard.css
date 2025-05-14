@@ -38,7 +38,7 @@
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Sidebar Toggle Button (used in mobile header and sidebar) */
+/* Sidebar Toggle Button */
 .sidebar-toggle-btn {
   background: none;
   border: none;
@@ -46,7 +46,7 @@
   padding: 8px;
   width: 40px;
   height: 40px;
-  display: none; /* Hidden by default, shown in mobile view */
+  display: none;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s ease;
@@ -57,45 +57,44 @@
   border-radius: 50%;
 }
 
-/* Improved Hamburger Menu Styling */
+/* Hamburger Menu Styling */
 .hamburger {
-  width: 30px; /* Slightly larger for better visibility */
+  width: 30px;
   height: 20px;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 2px; /* Increased gap for better spacing */
+  gap: 2px;
 }
 
 .hamburger span {
   display: block;
   width: 100%;
-  height: 4px; /* Slightly thicker lines */
-  background-color: #0438af; /* Blue for header */
-  border-radius: 4px; /* Rounded edges for a modern look */
-  transition: all 0.3s ease-in-out; /* Smooth transition for animations */
+  height: 4px;
+  background-color: #0438af;
+  border-radius: 4px;
+  transition: all 0.3s ease-in-out;
 }
 
 .sidebar .hamburger span {
-  background-color: white; /* White for sidebar */
+  background-color: white;
 }
 
 .sidebar-toggle-btn.active .hamburger span:nth-child(1) {
-  transform: translateY(8px) rotate(45deg); /* Adjusted for better alignment */
+  transform: translateY(8px) rotate(45deg);
 }
 
 .sidebar-toggle-btn.active .hamburger span:nth-child(2) {
-  opacity: 0; /* Hidden middle line */
+  opacity: 0;
 }
 
 .sidebar-toggle-btn.active .hamburger span:nth-child(3) {
-  transform: translateY(-8px) rotate(-45deg); /* Adjusted for better alignment */
+  transform: translateY(-8px) rotate(-45deg);
 }
 
-/* Hover Effect for Hamburger */
 .sidebar-toggle-btn:hover .hamburger span {
-  background-color: #032a7a; /* Darker blue on hover */
+  background-color: #032a7a;
 }
 
 .sidebar .profile {
@@ -194,16 +193,16 @@
 }
 
 .sidebar .hamburger-toggle .sidebar-toggle-btn {
-  display: flex; /* Always visible in sidebar */
+  display: flex;
   padding: 0;
-  width: 40px; /* Match other sidebar icons */
+  width: 40px;
   height: 40px;
   align-items: center;
   justify-content: center;
 }
 
 .sidebar .hamburger-toggle .hamburger {
-  width: 20px; /* Slightly smaller for alignment */
+  width: 20px;
   height: 16px;
 }
 
@@ -217,43 +216,41 @@
   display: inline;
 }
 
-/* Main Content - Common */
+/* Main Content */
 .main-content {
   flex: 1;
   padding: 20px;
-  margin-left: 70px; /* Space for collapsed sidebar */
-  margin-right: 350px; /* Space for full-size chatbot */
-  transition: margin-right 0.3s ease;
-  max-width: calc(100% - 420px); /* Account for sidebar and chatbot */
+  margin-left: 70px;
+  max-width: calc(100% - 420px);
+  transition: margin-left 0.3s ease;
   box-sizing: border-box;
 }
 
-/* No margin adjustment when sidebar is active */
+/* Adjust main content when sidebar is active */
 .main-content.active-container {
-  margin-left: 70px; /* Keep consistent with collapsed sidebar */
-  margin-right: 350px;
-  max-width: calc(100% - 420px);
+  margin-left: 250px;
+  max-width: calc(100% - 600px);
 }
 
 /* Mobile view adjustments */
 @media (max-width: 768px) {
   .sidebar {
-    width: 250px; /* Full width when active */
-    display: none; /* Hidden by default */
+    width: 250px;
+    display: none;
     z-index: 1200;
   }
 
   .sidebar.active {
-    display: flex; /* Shown when active */
+    display: flex;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
   }
 
   .sidebar .hamburger-toggle {
-    display: none; /* Hide sidebar hamburger in mobile view */
+    display: none;
   }
 
   .main-content {
-    margin-left: 0; /* No sidebar space by default */
+    margin-left: 0;
     margin-right: 0;
     max-width: 100%;
     padding: 15px;
@@ -261,17 +258,17 @@
   }
 
   .main-content.active-container {
-    margin-left: 0; /* No shift in mobile */
+    margin-left: 0;
     margin-right: 0;
     max-width: 100%;
   }
 
   .sidebar-toggle-btn {
-    display: flex; /* Visible in mobile view */
+    display: flex;
   }
 
   .header .sidebar-toggle-btn {
-    display: flex; /* Ensure hamburger is visible in mobile header */
+    display: flex;
     padding: 6px;
     width: 36px;
     height: 36px;
@@ -283,7 +280,7 @@
   }
 }
 
-/* Header adjustments for hamburger menu */
+/* Header adjustments */
 .header {
   display: flex;
   align-items: center;
@@ -291,12 +288,12 @@
   gap: 10px;
   margin-bottom: 20px;
   width: 100%;
-  flex-wrap: nowrap; /* Prevent wrapping */
+  flex-wrap: nowrap;
   box-sizing: border-box;
 }
 
 .header .sidebar-toggle-btn {
-  order: -1; /* Ensure hamburger is on the left */
+  order: -1;
 }
 
 .search-bar {
@@ -642,11 +639,24 @@
   border-radius: 0 0 10px 10px;
   width: 100%;
   box-sizing: border-box;
-}
-
-.container-body.scrollable {
   overflow-y: auto;
   max-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.container-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.container-body::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
+}
+
+.container-body::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
 }
 
 .empty-message {
@@ -816,6 +826,9 @@
 #self-analysis-container .container-header {
   background-color: #795548;
 }
+#chatbot-container .container-header {
+  background-color: #0438af;
+}
 
 /* Leaderboard */
 .leaderboard {
@@ -877,39 +890,6 @@
 .chat-toggle-btn:focus {
   outline: none;
   box-shadow: 0 0 5px rgba(4, 56, 175, 0.5);
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .main-content {
-    margin-right: 0;
-    max-width: calc(100% - 70px);
-    margin-left: 70px;
-  }
-
-  .main-content.active-container {
-    margin-left: 70px;
-    max-width: calc(100% - 70px);
-  }
-
-  .assignment-box,
-  .lesson-box {
-    width: 100%;
-    max-width: 300px;
-  }
-
-  .stat-box {
-    width: 100%;
-    max-width: 250px;
-  }
-
-  .toggle-container {
-    min-height: calc(100vh - 100px);
-  }
-
-  .container-body.scrollable {
-    max-height: calc(100vh - 160px);
-  }
 }
 
 @media (max-width: 992px) {
@@ -1113,47 +1093,71 @@
   }
 }
 
-.subjects-row {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0;
-  overflow-x: auto;
-}
-
-.subject-item {
-  padding: 10px 15px;
-  background-color: #f0f0f0;
-  border-radius: 5px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 0.3s;
-}
-
-.subject-item.active {
-  background-color: #007bff;
-  color: #fff;
-}
-
-.subject-item:hover {
-  background-color: #0056b3;
-  color: #fff;
-}
-
-.subject-tasks {
-  margin-top: 15px;
-}
-
-.retry-button {
-  margin-top: 10px;
-  padding: 8px 16px;
-  background-color: #4CAF50;
+/* Smaller Back Button */
+.back-btn.small {
+  background-color: #0438af;
   color: white;
   border: none;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
+  margin-right: 10px;
+  font-size: 12px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
-.retry-button:hover {
-  background-color: #45a049;
+
+.back-btn.small:hover {
+  background-color: #032a7a;
+  transform: scale(1.05);
+}
+
+.back-btn.small:focus {
+  outline: none;
+  box-shadow: 0 0 5px rgba(4, 56, 175, 0.5);
+}
+
+/* Scrollable task lists per subject */
+.tasks-scrollable {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.tasks-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tasks-scrollable::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
+}
+
+.tasks-scrollable::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+.back-btn {
+  background-color: #0438af;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.back-btn:hover {
+  background-color: #032a7a;
+  transform: scale(1.05);
+}
+
+.back-btn:focus {
+  outline: none;
+  box-shadow: 0 0 5px rgba(4, 56, 175, 0.5);
 }
 
 /* Subjects Table */
@@ -1220,3 +1224,57 @@
   color: #666;
 }
 
+.back-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.back-btn {
+  background-color: #0438af;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.back-btn:hover {
+  background-color: #032a7a;
+  transform: scale(1.05);
+}
+
+.back-btn:focus {
+  outline: none;
+  box-shadow: 0 0 5px rgba(4, 56, 175, 0.5);
+}
+
+/* Quiz Prompt Styling */
+.quiz-prompt {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 20px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-prompt button {
+  margin: 5px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.quiz-prompt button:hover {
+  background-color: #ddd;
+}

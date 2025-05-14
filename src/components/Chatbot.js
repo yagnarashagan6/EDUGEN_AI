@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../styles/Chat.css';
 
-const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopiedTopic }) => {
+const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([
     {
@@ -45,29 +45,29 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   // Send message to backend
   const sendMessage = async () => {
     if (!input.trim()) return;
-  
+
     const userMessage = { sender: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-  
+
     const quickResponse = getQuickResponse(userMessage.text);
     if (quickResponse) {
       setMessages((prev) => [...prev, { sender: 'bot', text: quickResponse }]);
       setIsLoading(false);
       return;
     }
-  
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
       });
-  
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unknown server error');
-  
+
       setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
     } catch (err) {
       console.error('Chatbot error:', err.message);
@@ -82,7 +82,6 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
       setIsLoading(false);
     }
   };
-  
 
   // Handle Enter key press
   const handleEnter = (e) => {
@@ -109,8 +108,8 @@ const Chatbot = ({ isMinimized, toggleChatbot, isVisible, copiedTopic, clearCopi
   return (
     <>
       {isVisible && (
-        <div className={`chat-container ${isMinimized ? 'mini' : ''}`}>
-          <div className="chat-header">EduGen AI Chatbot</div>
+        <div className={`chat-container ${isInContainer ? 'sidebar' : ''}`}>
+          {!isInContainer && <div className="chat-header">EduGen AI Chatbot</div>}
           <div className="chat-box" ref={chatBoxRef}>
             {messages.map((msg, index) => (
               <div
