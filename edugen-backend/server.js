@@ -21,20 +21,21 @@ app.get('/api/health', (req, res) => {
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
   if (!message) {
-    console.error('No message provided');
+    console.error('No message provided in request body');
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.error('OPENROUTER_API_KEY is not set');
-    return res.status(500).json({ error: 'Server configuration error: API key missing' });
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error('OPENROUTER_API_KEY is not set in environment variables');
+    return res.status(500).json({ error: 'Server configuration error: API key is missing' });
   }
 
   try {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'google/gemma-2-9b-it:free', // Known free model as of May 2025
+        model: 'meta-llama/llama-3.1-8b-instruct:free', // Updated to a more reliable free model
         messages: [
           {
             role: 'system',
@@ -45,7 +46,7 @@ app.post('/api/chat', async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': process.env.SITE_URL || 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
@@ -56,20 +57,31 @@ app.post('/api/chat', async (req, res) => {
 
     const botMessage = response.data.choices?.[0]?.message?.content;
     if (!botMessage) {
-      console.error('No content in response:', response.data);
+      console.error('No content in API response:', response.data);
       return res.status(500).json({ error: 'No response content from AI' });
     }
 
     res.json({ response: botMessage });
   } catch (err) {
-    console.error('API error:', {
+    console.error('API error details:', {
       message: err.message,
       status: err.response?.status,
       data: err.response?.data,
       code: err.code,
     });
-    const errorMessage = err.response?.data?.error?.message || err.message;
-    res.status(500).json({ error: `OpenRouter API error: ${errorMessage}` });
+
+    let errorMessage = 'Failed to get a response from the AI service. Please try again later.';
+    if (err.response?.status === 401) {
+      errorMessage = 'Authentication error: Invalid API key. Please contact support.';
+    } else if (err.response?.status === 429) {
+      errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+    } else if (err.code === 'ECONNABORTED') {
+      errorMessage = 'Request timed out. Please try again.';
+    } else if (err.response?.data?.error?.message) {
+      errorMessage = `OpenRouter API error: ${err.response.data.error.message}`;
+    }
+
+    res.status(500).json({ error: errorMessage });
   }
 });
 
