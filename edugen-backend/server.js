@@ -12,7 +12,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Health check
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
 });
@@ -34,8 +34,7 @@ app.post('/api/chat', async (req, res) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'meta-llama/llama-3.3-8b-instruct:free', // ✅ correct
- // Updated to a known free model
+        model: 'google/gemma-2-9b-it:free', // Known free model as of May 2025
         messages: [
           {
             role: 'system',
@@ -51,7 +50,7 @@ app.post('/api/chat', async (req, res) => {
           'HTTP-Referer': process.env.SITE_URL || 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 30000, // Increased to 30s
+        timeout: 30000, // 30s timeout
       }
     );
 

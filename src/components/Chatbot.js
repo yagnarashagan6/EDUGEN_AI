@@ -66,15 +66,18 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-      const response = await fetch(
-        'https://edugen-ai-zeta.vercel.app/api/chat',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMessage.text }),
-          signal: controller.signal,
-        }
-      );
+      // Use dynamic API endpoint based on environment
+      const apiUrl =
+        window.location.hostname === 'localhost'
+          ? 'http://localhost:5000/api/chat'
+          : 'https://edugen-ai-zeta.vercel.app/api/chat';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage.text }),
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
 
