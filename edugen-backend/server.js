@@ -20,13 +20,21 @@ app.get('/api/health', (req, res) => {
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
-  if (!message) return res.status(400).json({ error: 'Message is required' });
+  if (!message) {
+    console.error('No message provided');
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.error('OPENROUTER_API_KEY is not set');
+    return res.status(500).json({ error: 'Server configuration error: API key missing' });
+  }
 
   try {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'meta-llama/llama-4-maverick:free',
+        model: 'mistralai/mixtral-8x7b-instruct:free', // Updated to a known free model
         messages: [
           {
             role: 'system',
@@ -39,24 +47,29 @@ app.post('/api/chat', async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NODE_ENV === 'production'
-            ? 'https://edugen-ai-zeta.vercel.app'
-            : 'http://localhost:3000',
+          'HTTP-Referer': process.env.SITE_URL || 'https://edugen-ai-zeta.vercel.app',
           'X-Title': 'EduGen AI',
         },
-        timeout: 15000,
+        timeout: 30000, // Increased to 30s
       }
     );
 
     const botMessage = response.data.choices?.[0]?.message?.content;
-    if (!botMessage) throw new Error('No response from AI');
+    if (!botMessage) {
+      console.error('No content in response:', response.data);
+      return res.status(500).json({ error: 'No response content from AI' });
+    }
 
     res.json({ response: botMessage });
   } catch (err) {
-    console.error('API error:', err.message);
-    res.status(500).json({
-      error: `OpenRouter API error: ${err.response?.data?.error?.message || err.message}`,
+    console.error('API error:', {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data,
+      code: err.code,
     });
+    const errorMessage = err.response?.data?.error?.message || err.message;
+    res.status(500).json({ error: `OpenRouter API error: ${errorMessage}` });
   }
 });
 

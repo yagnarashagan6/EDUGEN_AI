@@ -6,13 +6,13 @@
       "use": "@vercel/node"
     },
     {
-      "src": "build/**",
+      "src": "../build/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/chat",
+      "src": "/api/(.*)",
       "dest": "/server.js"
     },
     {

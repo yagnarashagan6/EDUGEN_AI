@@ -59,23 +59,49 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     }
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text }),
+        signal: controller.signal,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Unknown server error');
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json().catch((err) => {
+        throw new Error('Invalid JSON response from server');
+      });
+
+      if (!data.response) {
+        throw new Error('No response content from server');
+      }
 
       setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
     } catch (err) {
-      console.error('Chatbot error:', err.message);
+      console.error('Chatbot error:', {
+        message: err.message,
+        name: err.name,
+        stack: err.stack,
+      });
+      let userErrorMessage = 'Something went wrong. Please try again or contact support.';
+      if (err.name === 'AbortError') {
+        userErrorMessage = 'Request timed out. Please try again.';
+      } else if (err.message.includes('Invalid JSON')) {
+        userErrorMessage = 'Server returned invalid data. Please try again or contact support.';
+      }
       setMessages((prev) => [
         ...prev,
         {
           sender: 'bot',
-          text: `Error: ${err.message}. Please try again or contact support.`,
+          text: userErrorMessage,
         },
       ]);
     } finally {
@@ -136,7 +162,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
                 disabled={isLoading}
               />
               <button
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 className="send-btn"
                 disabled={isLoading || !input.trim()}
               >
