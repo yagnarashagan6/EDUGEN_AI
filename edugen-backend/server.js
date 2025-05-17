@@ -34,7 +34,8 @@ app.post('/api/chat', async (req, res) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'mistralai/mixtral-8x7b-instruct:free', // Updated to a known free model
+        model: 'meta-llama/llama-3.3-8b-instruct:free', // ✅ correct
+ // Updated to a known free model
         messages: [
           {
             role: 'system',
