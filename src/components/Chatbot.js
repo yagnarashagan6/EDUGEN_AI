@@ -12,14 +12,12 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   const [isLoading, setIsLoading] = useState(false);
   const chatBoxRef = useRef(null);
 
-  // Scroll to the bottom of the chat
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Populate input with copied topic
   useEffect(() => {
     if (copiedTopic) {
       setInput(copiedTopic);
@@ -27,13 +25,20 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     }
   }, [copiedTopic, clearCopiedTopic]);
 
-  // Quick responses for specific keywords
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
-    if (lowerInput.includes('coxco') || lowerInput.includes('agni student portal') || lowerInput.includes('student')) {
+    if (
+      lowerInput.includes('coxco') ||
+      lowerInput.includes('agni student portal') ||
+      lowerInput.includes('student')
+    ) {
       return 'Access the Agni Student Portal: https://coe.act.edu.in/students/';
     }
-    if (lowerInput.includes('gamma ai') || lowerInput.includes('presentation ai') || lowerInput.includes('ppt ai')) {
+    if (
+      lowerInput.includes('gamma ai') ||
+      lowerInput.includes('presentation ai') ||
+      lowerInput.includes('ppt ai')
+    ) {
       return 'Try Gamma AI for presentations: https://gamma.app/';
     }
     if (lowerInput.includes('pdf')) {
@@ -42,7 +47,6 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     return null;
   };
 
-  // Send message to backend
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -62,13 +66,15 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-      // Send the message to the backend
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.text }),
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        'https://edugen-ai-zeta.vercel.app/api/chat',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMessage.text }),
+          signal: controller.signal,
+        }
+      );
 
       clearTimeout(timeoutId);
 
@@ -77,7 +83,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
         throw new Error(text || `Server error: ${response.status}`);
       }
 
-      const data = await response.json().catch((err) => {
+      const data = await response.json().catch(() => {
         throw new Error('Invalid JSON response from server');
       });
 
@@ -98,26 +104,18 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       } else if (err.message.includes('Invalid JSON')) {
         userErrorMessage = 'Server returned invalid data. Please try again or contact support.';
       }
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: 'bot',
-          text: userErrorMessage,
-        },
-      ]);
+      setMessages((prev) => [...prev, { sender: 'bot', text: userErrorMessage }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Enter key press
   const handleEnter = (e) => {
     if (e.key === 'Enter' && !isLoading) {
       sendMessage();
     }
   };
 
-  // Render message content with clickable links
   const renderMessageContent = (text) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
