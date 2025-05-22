@@ -12,14 +12,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Use OpenRouter configuration
+    // Debug: Check if API key is loaded
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error('OpenRouter API key is missing');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const configuration = new Configuration({
       apiKey: process.env.OPENROUTER_API_KEY,
       basePath: "https://openrouter.ai/api/v1",
       baseOptions: {
         headers: {
-          "HTTP-Referer": "https://edugen-ai-zeta.vercel.app", // Your website URL
-          "X-Title": "EduGen AI", // Your app name
+          "HTTP-Referer": "https://edugen-ai-zeta.vercel.app",
+          "X-Title": "EduGen AI",
         },
       },
     });
@@ -27,9 +32,12 @@ export default async function handler(req, res) {
     const openai = new OpenAIApi(configuration);
 
     const completion = await openai.createChatCompletion({
-      model: "meta-llama/llama-3.1-8b-instruct:free", // You can change this to any model supported by OpenRouter
+      model: "meta-llama/llama-3.1-8b-instruct:free",
       messages: [
-        { role: "system", content: "You are EduGen AI, a helpful assistant for students. Provide clear, concise answers to educational questions." },
+        { 
+          role: "system", 
+          content: "You are EduGen AI, a helpful assistant for students. Provide clear, concise answers to educational questions." 
+        },
         { role: "user", content: message }
       ],
       temperature: 0.7,
@@ -39,10 +47,15 @@ export default async function handler(req, res) {
     res.status(200).json({ response });
 
   } catch (error) {
-    console.error('OpenRouter API error:', error);
+    console.error('OpenRouter API error:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
+    
     res.status(500).json({ 
       error: 'Failed to get response from AI',
-      details: error.message 
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 }
