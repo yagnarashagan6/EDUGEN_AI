@@ -1,17 +1,29 @@
 // server.js
 console.log("Running Node.js version:", process.version);
+
 import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import cors from 'cors';
 
 dotenv.config();
 
 const app = express();
+
+// Enable CORS for your frontend domain(s)
+app.use(cors({
+  origin: ['https://edugen-ai-zeta.vercel.app', 'http://localhost:3000'],
+  methods: ['POST', 'GET', 'OPTIONS'],
+}));
+
 app.use(express.json());
 
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
+    if (typeof message !== 'string') {
+      return res.status(400).json({ error: 'Invalid message format' });
+    }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -29,7 +41,6 @@ app.post('/api/chat', async (req, res) => {
         ],
         temperature: 0.7
       }),
-      // Timeout set to 2 minutes for long replies
       timeout: 120000
     });
 

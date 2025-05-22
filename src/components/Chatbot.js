@@ -63,21 +63,22 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // ⏳ 2 min timeout
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
 
     try {
-      const apiUrl = process.env.NODE_ENV === 'development'
-        ? 'http://localhost:3000/api/chat'
-        : '/api/chat';
+      // Use the deployed backend URL directly:
+      const apiUrl = 'https://edugen-backend-zbjr.onrender.com/api/chat';
 
-      const response = await fetch("https://edugen-backend-zbjr.onrender.com/api/chat", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({ message: userMessage }) // adjust `userMessage` to match your code
-});
+      console.log('Sending to backend:', userMessage.text);
 
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        signal: controller.signal,
+        body: JSON.stringify({ message: userMessage.text })  // <-- Send only the text string here
+      });
 
       clearTimeout(timeoutId);
 
