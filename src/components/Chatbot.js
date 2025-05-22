@@ -66,10 +66,11 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-      // Use dynamic API endpoint based on environment
-      const apiUrl = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000/api/chat'  // Assuming Next.js default port
-      : '/api/chat';
+      // ✅ FIX: Use full backend URL for production
+      const apiUrl =
+        process.env.NODE_ENV === 'development'
+          ? 'http://localhost:8080/api/chat'
+          : 'https://edugen-backend.onrender.com/api/chat';
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -85,10 +86,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
         throw new Error(text || `Server error: ${response.status}`);
       }
 
-      const data = await response.json().catch(() => {
-        throw new Error('Invalid JSON response from server');
-      });
-
+      const data = await response.json();
       if (!data.response) {
         throw new Error('No response content from server');
       }
@@ -163,7 +161,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
                 disabled={isLoading}
               />
               <button
-                onClick={() => sendMessage()}
+                onClick={sendMessage}
                 className="send-btn"
                 disabled={isLoading || !input.trim()}
               >
