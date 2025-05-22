@@ -36,6 +36,12 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("Chat API Error:", error.message);
-    res.status(500).json({ error: 'Failed to get response from AI', details: error.message });
+    res.status(500).json({
+      error: 'Failed to get response from AI',
+      message: error.message,
+      stack: error.stack,
+      info: error.response ? await error.response.text() : 'No response body'
+    });
+    
   }
 }
