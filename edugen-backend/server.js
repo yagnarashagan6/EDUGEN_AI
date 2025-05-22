@@ -1,3 +1,4 @@
+// server.js
 import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
@@ -26,7 +27,9 @@ app.post('/api/chat', async (req, res) => {
           { role: "user", content: message }
         ],
         temperature: 0.7
-      })
+      }),
+      // Timeout set to 2 minutes for long replies
+      timeout: 120000
     });
 
     if (!response.ok) {
@@ -47,11 +50,12 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Optional: handle all other routes for sanity check
+// Fallback for any other routes
 app.all('*', (req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
+// Use Render's dynamic port
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`EduGen backend listening on port ${PORT}`);
