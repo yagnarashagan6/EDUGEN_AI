@@ -1,9 +1,13 @@
-// /api/chat.js
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+import express from 'express';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+
+app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
 
@@ -38,10 +42,17 @@ export default async function handler(req, res) {
     console.error("Chat API Error:", error.message);
     res.status(500).json({
       error: 'Failed to get response from AI',
-      message: error.message,
-      stack: error.stack,
-      info: error.response ? await error.response.text() : 'No response body'
+      message: error.message
     });
-    
   }
-}
+});
+
+// Optional: handle all other routes for sanity check
+app.all('*', (req, res) => {
+  res.status(404).json({ error: 'Not Found' });
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`EduGen backend listening on port ${PORT}`);
+});
