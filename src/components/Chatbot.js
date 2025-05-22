@@ -70,12 +70,14 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
         ? 'http://localhost:3000/api/chat'
         : '/api/chat';
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.text }),
-        signal: controller.signal,
-      });
+      const response = await fetch("https://edugen-backend-zbjr.onrender.com/api/chat", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ message: userMessage }) // adjust `userMessage` to match your code
+});
+
 
       clearTimeout(timeoutId);
 
