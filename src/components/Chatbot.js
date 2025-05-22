@@ -62,15 +62,13 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       return;
     }
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // ⏳ 2 min timeout
 
-      // ✅ FIX: Use full backend URL for production
-      const apiUrl =
-        process.env.NODE_ENV === 'development'
-          ? 'http://localhost:8080/api/chat'
-          : 'https://edugen-backend.onrender.com/api/chat';
+    try {
+      const apiUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000/api/chat'
+        : '/api/chat';
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -87,22 +85,19 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       }
 
       const data = await response.json();
+
       if (!data.response) {
         throw new Error('No response content from server');
       }
 
       setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
     } catch (err) {
-      console.error('Chatbot error:', {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      });
-      let userErrorMessage = 'Something went wrong. Please try again or contact support.';
+      console.error('Chatbot error:', err.message);
+      let userErrorMessage = 'Something went wrong. Please try again.';
       if (err.name === 'AbortError') {
-        userErrorMessage = 'Request timed out. Please try again.';
+        userErrorMessage = 'The AI is taking too long to respond. Please wait a bit and try again.';
       } else if (err.message.includes('Invalid JSON')) {
-        userErrorMessage = 'Server returned invalid data. Please try again or contact support.';
+        userErrorMessage = 'Server returned invalid data.';
       }
       setMessages((prev) => [...prev, { sender: 'bot', text: userErrorMessage }]);
     } finally {
@@ -146,7 +141,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
             ))}
             {isLoading && (
               <div className="chatbot-message loading">
-                <div className="message-content">Typing...</div>
+                <div className="message-content">EduGen AI is thinking... (this may take up to 2 mins)</div>
               </div>
             )}
           </div>
