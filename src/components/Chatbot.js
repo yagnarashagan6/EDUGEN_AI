@@ -68,7 +68,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
 
       // Use dynamic API endpoint based on environment
       const apiUrl =
-        window.location.hostname === 'localhost'
+        window.location.hostname === 'development'
           ? 'http://localhost:5000/api/chat'
           : 'https://edugen-ai-zeta.vercel.app/api/chat';
 
