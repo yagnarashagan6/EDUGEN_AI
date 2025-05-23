@@ -577,54 +577,79 @@ const StudentDashboard = () => {
     setActiveContainer('chatbot-container');
   };
 
-  const startQuiz = async () => {
-    setInQuiz(true);
-    setQuizReady(false);
-    setActiveContainer('tasks-container'); // Navigate to the task container
-    const newQuizCount = quizCount + 1;
-    setQuizCount(newQuizCount);
+const startQuiz = async () => {
+  setInQuiz(true);
+  setQuizReady(false);
+  setActiveContainer('tasks-container');
+  const newQuizCount = quizCount + 1;
+  setQuizCount(newQuizCount);
 
-    try {
-      const userRef = doc(db, 'students', auth.currentUser.uid);
-      await updateDoc(userRef, { quizCount: newQuizCount });
+  if (!currentTopic) {
+    console.error('No topic provided for quiz generation');
+    setNotifications((prev) => [
+      ...prev,
+      { type: 'quiz', message: 'Error: No topic selected. Please try again.' },
+    ]);
+    setInQuiz(false);
+    return;
+  }
 
-      try {
-        const response = await fetch('http://localhost:5000/api/generate-quiz', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ topic: currentTopic }),
-        });
+  try {
+    setNotifications((prev) => [
+      ...prev,
+      { type: 'quiz', message: `Generating quiz for ${currentTopic}...` },
+    ]);
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch quiz questions');
-        }
+    const userRef = doc(db, 'students', auth.currentUser.uid);
+    await updateDoc(userRef, { quizCount: newQuizCount });
 
-        const quizData = await response.json();
-        if (!Array.isArray(quizData) || quizData.length === 0) {
-          throw new Error('Invalid quiz questions received');
-        }
+    const payload = { topic: currentTopic };
+    console.log('Sending quiz request with payload:', payload);
 
-        setQuizQuestions(quizData);
-      } catch (fetchError) {
-        console.warn('Failed to fetch quiz questions, using sample questions:', fetchError);
-        setQuizQuestions([]); // Use sample questions if fetching fails
-        setNotifications((prev) => [
-          ...prev,
-          { type: 'quiz', message: 'Using sample questions due to fetch failure.' },
-        ]);
-      }
-    } catch (err) {
-      console.error('Error starting quiz:', err);
-      setError('Failed to update quiz count.');
-      setQuizQuestions([]); // Use sample questions if an error occurs
-      setNotifications((prev) => [
-        ...prev,
-        { type: 'quiz', message: 'Using sample questions due to error.' },
-      ]);
+    const response = await fetch('http://localhost:5000/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.questions) {
+      throw new Error(result.error || 'Failed to fetch quiz');
     }
-  };
+
+    setQuizQuestions(result.questions);
+    setNotifications((prev) => [
+      ...prev,
+      { type: 'quiz', message: `Quiz on ${currentTopic} loaded successfully!` },
+    ]);
+  } catch (err) {
+    console.error('Error fetching quiz:', err);
+    const fallbackQuestions = [
+      {
+        text: `What is a fundamental concept of ${currentTopic}?`,
+        options: ['Concept A', 'Concept B', 'Concept C', 'Concept D'],
+        correctAnswer: 'Concept A',
+      },
+      {
+        text: `Which area is closely related to ${currentTopic}?`,
+        options: ['Area A', 'Area B', 'Area C', 'Area D'],
+        correctAnswer: 'Area B',
+      },
+      {
+        text: `What is a common application of ${currentTopic}?`,
+        options: ['Application A', 'Application B', 'Application C', 'Application D'],
+        correctAnswer: 'Application C',
+      },
+    ];
+
+    setQuizQuestions(fallbackQuestions);
+    setNotifications((prev) => [
+      ...prev,
+      { type: 'quiz', message: `Failed to load quiz for ${currentTopic}. Using placeholder questions.` },
+    ]);
+  }
+};
 
   const handleQuizComplete = async (score) => {
     try {
@@ -655,6 +680,7 @@ const StudentDashboard = () => {
       await updateLeaderboard(auth.currentUser.uid, userData.name, streak, newProgress);
       setNotifications((prev) => [...prev, { type: 'quiz', message: `Quiz completed! Score: ${percentage}%` }]);
       setActiveContainer('tasks-container');
+      setCurrentTopic(''); // Reset topic after quiz completion
     } catch (err) {
       console.error('Error completing quiz:', err);
       setError('Failed to complete quiz.');
@@ -1010,7 +1036,7 @@ const StudentDashboard = () => {
             />
           </div>
           <div id="main-content-section">
-            {!activeContainer && !inQuiz && ( // Ensure quiz is not rendered in the default content
+            {!activeContainer && !inQuiz && (
               <div id="default-content" className="default-content">
                 <div
                   className="profile-content"
@@ -1052,11 +1078,11 @@ const StudentDashboard = () => {
                 )}
               </div>
               <div className="container-body">
-                {inQuiz && activeContainer === 'tasks-container' ? ( // Ensure quiz is rendered only in the tasks-container
+                {inQuiz && activeContainer === 'tasks-container' ? (
                   <Quiz
-                    questions={quizQuestions}
-                    onComplete={handleQuizComplete}
                     topic={currentTopic}
+                    questions={quizQuestions}
+                    handleQuizComplete={handleQuizComplete}
                   />
                 ) : selectedSubject ? (
                   <div className="subject-tasks">
@@ -1068,9 +1094,9 @@ const StudentDashboard = () => {
                         role="student"
                         onCopy={copyTopicAndAskAI}
                         onStartQuiz={() => {
-                          if (!inQuiz) { // Prevent starting a new quiz if one is already active
+                          if (!inQuiz) {
                             setCurrentTopic(task.content);
-                            startQuiz();
+                            setQuizReady(true);
                           } else {
                             alert('A quiz is already in progress. Please complete it before starting a new one.');
                           }
@@ -1124,7 +1150,7 @@ const StudentDashboard = () => {
                     placeholder="Goal title"
                     className="goal-input"
                   />
-                    <select id="goal-type" className="goal-input">
+                  <select id="goal-type" className="goal-input">
                     <option value="assignment">Assignment</option>
                     <option value="test">Test</option>
                     <option value="quiz">Quiz</option>
@@ -1361,13 +1387,6 @@ const StudentDashboard = () => {
                 />
               </div>
             </div>
-            {inQuiz && (
-              <Quiz
-                questions={quizQuestions}
-                onComplete={handleQuizComplete}
-                topic={currentTopic}
-              />
-            )}
             {quizReady && (
               <div className="quiz-prompt">
                 <p>Start a quiz on {currentTopic}?</p>

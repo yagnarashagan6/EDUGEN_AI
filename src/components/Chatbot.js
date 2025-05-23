@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { marked } from 'marked'; // ✅ Import marked
 import '../styles/Chat.css';
 
 const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false }) => {
@@ -63,21 +64,18 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     try {
-      // Use the deployed backend URL directly:
       const apiUrl = 'https://edugen-backend-zbjr.onrender.com/api/chat';
 
-      console.log('Sending to backend:', userMessage.text);
-
       const response = await fetch(apiUrl, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json"
+          'Content-Type': 'application/json',
         },
         signal: controller.signal,
-        body: JSON.stringify({ message: userMessage.text })  // <-- Send only the text string here
+        body: JSON.stringify({ message: userMessage.text }),
       });
 
       clearTimeout(timeoutId);
@@ -114,18 +112,9 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     }
   };
 
+  // ✅ UPDATED: Use marked to parse Markdown and render it as HTML
   const renderMessageContent = (text) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = text.split(urlRegex);
-    return parts.map((part, index) =>
-      urlRegex.test(part) ? (
-        <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="chat-link">
-          {part}
-        </a>
-      ) : (
-        part
-      )
-    );
+    return <div dangerouslySetInnerHTML={{ __html: marked.parse(text) }} />;
   };
 
   return (
