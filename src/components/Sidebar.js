@@ -3,21 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import '../styles/Sidebar.css';
 import '../styles/Dashboard.css';
 
-const Sidebar = ({ 
-  userData, 
-  role, 
-  toggleContainer, 
-  isVisible, 
-  toggleSidebar, 
-  setMobileHamburger, 
-  copiedTopic, 
-  clearCopiedTopic 
+const Sidebar = ({
+  userData,
+  role,
+  toggleContainer,
+  isVisible,
+  toggleSidebar,
+  setMobileHamburger,
+  copiedTopic,
+  clearCopiedTopic,
+  activeContainer, // Added to sync with StudentDashboard's activeContainer
 }) => {
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
 
-  // State to track the active option
-  const [activeOption, setActiveOption] = useState('');
+  // State to track the active option (synced with activeContainer)
+  const [activeOption, setActiveOption] = useState(activeContainer || '');
+
+  // Sync activeOption with activeContainer prop
+  useEffect(() => {
+    setActiveOption(activeContainer || '');
+  }, [activeContainer]);
 
   const redirectToProfile = () => {
     navigate('/profile', { state: { role } });
@@ -32,6 +38,7 @@ const Sidebar = ({
     { id: 'staff-interaction-container', icon: 'fas fa-users', label: 'Staff Interaction' },
     { id: 'self-analysis-container', icon: 'fas fa-chart-bar', label: 'Self Analysis' },
     { id: 'chatbot-container', icon: 'fas fa-comment', label: 'Chatbot', mobileOnly: true },
+    { id: 'notes-container', icon: 'fas fa-sticky-note', label: 'Notes' },
     { id: 'settings-container', icon: 'fas fa-cog', label: 'Settings' },
   ];
 
@@ -96,7 +103,7 @@ const Sidebar = ({
         <li
           className={`sidebar-toggle-item ${isVisible ? 'active' : ''}`}
           onClick={toggleSidebar}
-          title="Menu" // Add tooltip for the toggle item
+          title="Menu"
         >
           <div className="hamburger">
             <span></span>
@@ -111,13 +118,13 @@ const Sidebar = ({
             onClick={() => {
               toggleContainer(item.id);
               toggleSidebar(); // Close sidebar on mobile after selection
-              setActiveOption(item.id); // Set the active option
+              setActiveOption(item.id); // Update active option
             }}
             className={`${item.mobileOnly ? 'mobile-only' : ''} ${
               activeOption === item.id ? 'active-option' : ''
             }`}
             style={item.id === 'chatbot-container' && window.innerWidth > 768 ? { display: 'none' } : {}}
-            title={window.innerWidth > 768 ? item.label : ''} // Add tooltip only for laptop view
+            title={window.innerWidth > 768 ? item.label : ''}
           >
             <i className={item.icon}></i> <span>{item.label}</span>
           </li>

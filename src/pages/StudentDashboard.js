@@ -22,10 +22,12 @@ import Leaderboard from '../components/Leaderboard';
 import Notification from '../components/Notification';
 import OverdueTaskNotification from '../components/OverdueTaskNotification';
 import Chatbot from '../components/Chatbot';
-import GuideModal from '../components/GuideModal'; 
+import GuideModal from '../components/GuideModal';
+import Notes from '../components/Notes'; // Import the Notes component
 import '../styles/Dashboard.css';
 import '../styles/Sidebar.css';
 import '../styles/Chat.css';
+import '../styles/Notes.css'; // Import Notes CSS
 
 const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
@@ -1048,12 +1050,13 @@ const StudentDashboard = () => {
                     <b>{Math.round(progress)}%</b> of your weekly targets.
                   </p>
                 </div>
-                <h3>Your Subjects</h3>
-                <div className="subjects-grid assignments">
-                  <div className="assignment-box">Cyber Security</div>
-                  <div className="assignment-box">Embedded System & IOT</div>
-                  <div className="assignment-box">Software Testing</div>
-                </div>
+<h3>Your Subjects</h3>
+<div className="subjects-grid assignments">
+  <div className="assignment-box" style={{ backgroundColor: '#c5cae9' }}>Cyber Security</div>
+  <div className="assignment-box" style={{ backgroundColor: '#e0f7fa' }}>Embedded System & IOT</div>
+  <div className="assignment-box" style={{ backgroundColor: '#dcedc8' }}>Software Testing</div>
+</div>
+
                 <h3>Your Assignments</h3>
                 <div className="assignments-grid lessons">
                   <div className="lesson-box" style={{ backgroundColor: '#ffd700' }}>
@@ -1388,6 +1391,12 @@ const StudentDashboard = () => {
                 />
               </div>
             </div>
+            <div
+              id="notes-container"
+              className={`toggle-container ${activeContainer === 'notes-container' ? 'active' : ''}`}
+            >
+              <Notes toggleContainer={toggleContainer} />
+            </div>
             {quizReady && (
               <div className="quiz-prompt">
                 <p>Start a quiz on {currentTopic}?</p>
@@ -1438,6 +1447,7 @@ const StudentDashboard = () => {
       </div>
     </ErrorBoundary>
   );
+  
 };
 
 export default StudentDashboard;

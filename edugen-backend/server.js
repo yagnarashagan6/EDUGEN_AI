@@ -22,20 +22,10 @@ app.post('/api/chat', async (req, res) => {
         "X-Title": "EduGen AI"
       },
       body: JSON.stringify({
-        model: "google/gemma-3n-e4b-it:free",
+        model: "meta-llama/llama-3.1-8b-instruct:free",
         messages: [
-          {
-            role: "system",
-            content: `You are EduGen AI, an academic assistant for engineering students. Format all your answers in structured Markdown style using:
-- **Headings** (e.g., **Definition**, **Key Concepts**, **Best Practices**)
-- **Bullet points**
-- **Short sentences**
-Avoid long paragraphs. Be clear, brief, and educational.`,
-          },
-          {
-            role: "user",
-            content: message,
-          }
+          { role: "system", content: "You are EduGen AI, a helpful assistant for students. Provide clear, concise answers to educational questions." },
+          { role: "user", content: message }
         ],
         temperature: 0.7
       }),
