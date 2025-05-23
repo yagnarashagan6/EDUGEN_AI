@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { marked } from 'marked'; // ✅ Import marked
+import { marked } from 'marked';
 import '../styles/Chat.css';
 
-const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false }) => {
+const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false, isQuizActive = false }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([
     {
@@ -11,7 +11,10 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPdfOption, setShowPdfOption] = useState(null);
+  const [isPdfView, setIsPdfView] = useState(false);
   const chatBoxRef = useRef(null);
+  const longPressTimeout = useRef(null);
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -25,6 +28,18 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       clearCopiedTopic();
     }
   }, [copiedTopic, clearCopiedTopic]);
+
+  useEffect(() => {
+    const handleBackButton = () => {
+      if (isPdfView) {
+        setIsPdfView(false);
+        setShowPdfOption(null);
+      }
+    };
+
+    window.addEventListener('popstate', handleBackButton);
+    return () => window.removeEventListener('popstate', handleBackButton);
+  }, [isPdfView]);
 
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
@@ -112,53 +127,94 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     }
   };
 
-  // ✅ UPDATED: Use marked to parse Markdown and render it as HTML
+  const handleLongPressStart = (index) => {
+    longPressTimeout.current = setTimeout(() => {
+      setShowPdfOption(index);
+    }, 500); // 500ms for long press
+  };
+
+  const handleLongPressEnd = () => {
+    clearTimeout(longPressTimeout.current);
+  };
+
+  const handlePdfView = () => {
+    setIsPdfView(true);
+    setShowPdfOption(null);
+    window.history.pushState({}, '');
+  };
+
   const renderMessageContent = (text) => {
     return <div dangerouslySetInnerHTML={{ __html: marked.parse(text) }} />;
   };
 
+  if (!isVisible || isQuizActive) {
+    return null;
+  }
+
+  if (isPdfView) {
+    return (
+      <div className="pdf-view-container">
+        <div className="pdf-view-content">
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`pdf-message ${msg.sender === 'user' ? 'pdf-user-message' : 'pdf-chatbot-message'}`}
+            >
+              <div className="pdf-message-content">{renderMessageContent(msg.text)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      {isVisible && (
-        <div className={`chat-container ${isInContainer ? 'sidebar' : ''}`}>
-          {!isInContainer && <div className="chat-header">EduGen AI Chatbot</div>}
-          <div className="chat-box" ref={chatBoxRef}>
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={msg.sender === 'user' ? 'user-message' : 'chatbot-message'}
-              >
-                <div className="message-content">{renderMessageContent(msg.text)}</div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="chatbot-message loading">
-                <div className="message-content">EduGen AI is thinking... (this may take up to 2 mins)</div>
+    <div className={`chat-container ${isInContainer ? 'sidebar' : ''}`}>
+      {!isInContainer && <div className="chat-header">EduGen AI Chatbot</div>}
+      <div className="chat-box" ref={chatBoxRef}>
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={msg.sender === 'user' ? 'user-message' : 'chatbot-message'}
+            onMouseDown={() => handleLongPressStart(index)}
+            onMouseUp={handleLongPressEnd}
+            onTouchStart={() => handleLongPressStart(index)}
+            onTouchEnd={handleLongPressEnd}
+          >
+            <div className="message-content">{renderMessageContent(msg.text)}</div>
+            {showPdfOption === index && (
+              <div className="pdf-option" onClick={handlePdfView}>
+                PDF View
               </div>
             )}
           </div>
-          <div className="chat-input">
-            <div className="input-wrapper">
-              <input
-                type="text"
-                placeholder="Ask EduGen AI..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleEnter}
-                disabled={isLoading}
-              />
-              <button
-                onClick={sendMessage}
-                className="send-btn"
-                disabled={isLoading || !input.trim()}
-              >
-                <i className="fas fa-paper-plane"></i>
-              </button>
-            </div>
+        ))}
+        {isLoading && (
+          <div className="chatbot-message loading">
+            <div className="message-content">EduGen AI is thinking... (this may take up to 2 mins)</div>
           </div>
+        )}
+      </div>
+      <div className="chat-input">
+        <div className="input-wrapper">
+          <input
+            type="text"
+            placeholder="Ask EduGen AI..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleEnter}
+            disabled={isLoading}
+          />
+          <button
+            onClick={sendMessage}
+            className="send-btn"
+            disabled={isLoading || !input.trim()}
+          >
+            <i className="fas fa-paper-plane"></i>
+          </button>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 };
 

@@ -33,6 +33,7 @@
   border: 1px solid #ddd;
   transform: translateX(0);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  overflow: hidden; /* Ensure no overflow in mini view */
 }
 
 /* Minimized chat container hidden by default */
@@ -85,6 +86,7 @@
   text-align: center;
   font-weight: bold;
   font-size: 16px;
+  flex-shrink: 0;
 }
 
 .chat-container.mini .chat-header {
@@ -101,27 +103,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: calc(100% - 64px - 60px); /* Subtract header (44px + padding) and input (40px + padding) heights */
+  box-sizing: border-box;
 }
 
 .chat-container.mini .chat-box {
   padding: 8px;
   max-height: 200px;
-}
-
-.bubble {
-  max-width: 70%;
-  padding: 8px 12px;
-  border-radius: 16px;
-  margin: 8px 0;
-  font-size: 12px;
-  line-height: 1.4;
-  word-wrap: break-word;
-}
-
-.chat-container.mini .bubble {
-  max-width: 80%;
-  font-size: 10px;
-  padding: 6px 10px;
+  overflow-y: auto; /* Ensure scrollable in mini view */
 }
 
 /* Sent message bubble (user) */
@@ -136,32 +125,93 @@
   max-width: 70%;
   word-wrap: break-word;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
-/* Received message bubble (chatbot) */
+/* Received message (chatbot) */
 .chatbot-message {
-  background-color: #f1f1f1;
-  color: #333;
+  color: #000; /* Black text color for chatbot messages */
   align-self: flex-start;
   text-align: left;
-  border-radius: 16px 16px 16px 0;
   padding: 10px 15px;
   margin: 8px 0;
   max-width: 70%;
   word-wrap: break-word;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
-/* Hover effect for both bubbles */
-.user-message:hover,
-.chatbot-message:hover {
+/* Hover effect for user messages */
+.user-message:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .chatbot-message.loading {
-  background-color: #e0e0e0;
   font-style: italic;
   color: #666;
+}
+
+/* PDF option styling */
+.pdf-option {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0438af;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 10;
+}
+
+.pdf-option:hover {
+  background: #032a8a;
+}
+
+/* PDF view styling */
+.pdf-view-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: white;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.pdf-view-content {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-message {
+  margin: 10px 0;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.pdf-user-message {
+  text-align: right;
+  color: #333;
+}
+
+.pdf-chatbot-message {
+  text-align: left;
+  color: #333;
+}
+
+.pdf-message-content {
+  font-size: 16px;
+  line-height: 1.5;
+  word-wrap: break-word;
 }
 
 /* Chat input container */
@@ -175,6 +225,7 @@
   bottom: 0;
   width: 100%;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 /* Input wrapper for proper alignment */
@@ -201,7 +252,7 @@
 .send-btn {
   position: absolute;
   right: 10px;
-  top: 12%;
+  top: 50%;
   transform: translateY(-50%);
   background: #0438af;
   color: white;
@@ -250,6 +301,7 @@
   border: none;
   box-shadow: none;
   border-radius: 0;
+  overflow: hidden; /* Ensure no overflow in sidebar view */
 }
 
 .chat-container.sidebar .chat-header {
@@ -258,13 +310,18 @@
 }
 
 .chat-container.sidebar .chat-box {
-  height: calc(100% - 100px);
+  height: calc(100% - 64px - 60px); /* Adjust for header (44px + padding) and input (40px + padding) */
   max-height: none;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .chat-container.sidebar .chat-input {
   border-top: 1px solid #ddd;
   padding: 10px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 /* Responsive adjustments */
@@ -277,6 +334,7 @@
   /* Show mini chat when active */
   .chat-container.mini.active {
     display: flex;
+    overflow: hidden; /* Prevent overflow in mini view */
   }
 
   /* Always show toggle button in minimized view */
@@ -292,9 +350,18 @@
   .chat-box {
     padding: 8px;
     gap: 6px;
+    height: calc(100% - 56px - 52px); /* Adjusted for smaller header (32px + padding) and input (36px + padding) */
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 
-  .bubble {
+  .user-message {
+    max-width: 80%;
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  .chatbot-message {
     max-width: 80%;
     font-size: 10px;
     padding: 6px 10px;
@@ -323,16 +390,35 @@
     font-size: 16px;
   }
 
+  .pdf-option {
+    font-size: 10px;
+    padding: 4px 8px;
+    bottom: -25px;
+  }
+
+  .pdf-view-content {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .pdf-message-content {
+    font-size: 14px;
+  }
+
   /* Sidebar container for mobile */
   .chat-container.sidebar {
-    height: calc(100vh - 140px); /* Adjust for header and padding */
+    height: 100%; /* Full height */
     position: relative;
     width: 100%;
+    overflow: hidden; /* Prevent overflow */
   }
 
   .chat-container.sidebar .chat-box {
-    max-height: calc(100vh - 240px); /* Ensure space for input and header */
+    height: calc(100% - 56px - 52px); /* Adjust for header (32px + padding) and input (36px + padding) */
+    max-height: none;
     padding: 8px;
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 
   .chat-container.sidebar .chat-input {
@@ -363,11 +449,15 @@
     height: 250px;
     bottom: 50px;
     right: 8px;
+    overflow: hidden; /* Prevent overflow */
   }
 
   .chat-container.mini .chat-box {
     max-height: 160px;
+    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
     padding: 6px;
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 
   .chat-container.mini .chat-header {
@@ -375,7 +465,12 @@
     padding: 6px;
   }
 
-  .chat-container.mini .bubble {
+  .chat-container.mini .user-message {
+    font-size: 9px;
+    padding: 5px 8px;
+  }
+
+  .chat-container.mini .chatbot-message {
     font-size: 9px;
     padding: 5px 8px;
   }
@@ -403,14 +498,33 @@
     font-size: 14px;
   }
 
+  .pdf-option {
+    font-size: 9px;
+    padding: 3px 6px;
+    bottom: -20px;
+  }
+
+  .pdf-view-content {
+    margin: 5px;
+    padding: 8px;
+  }
+
+  .pdf-message-content {
+    font-size: 12px;
+  }
+
   /* Sidebar container for smaller screens */
   .chat-container.sidebar {
-    height: calc(100vh - 120px);
+    height: 100%;
+    overflow: hidden;
   }
 
   .chat-container.sidebar .chat-box {
-    max-height: calc(100vh - 220px);
+    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
+    max-height: none;
     padding: 6px;
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 
   .chat-container.sidebar .chat-input {
@@ -436,11 +550,15 @@
     width: 200px;
     height: 220px;
     bottom: 45px;
+    overflow: hidden;
   }
 
   .chat-container.mini .chat-box {
     max-height: 140px;
+    height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
     padding: 5px;
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 
   .chat-container.mini .chat-header {
@@ -448,7 +566,12 @@
     padding: 5px;
   }
 
-  .chat-container.mini .bubble {
+  .chat-container.mini .user-message {
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+
+  .chat-container.mini .chatbot-message {
     font-size: 8px;
     padding: 4px 6px;
   }
@@ -478,14 +601,33 @@
     right: 10px;
   }
 
+  .pdf-option {
+    font-size: 8px;
+    padding: 2px 5px;
+    bottom: -18px;
+  }
+
+  .pdf-view-content {
+    margin: 3px;
+    padding: 6px;
+  }
+
+  .pdf-message-content {
+    font-size: 11px;
+  }
+
   /* Sidebar container for very small screens */
   .chat-container.sidebar {
-    height: calc(100vh - 110px);
+    height: 100%;
+    overflow: hidden;
   }
 
   .chat-container.sidebar .chat-box {
-    max-height: calc(100vh - 210px);
+    height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
+    max-height: none;
     padding: 5px;
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 
   .chat-container.sidebar .chat-input {

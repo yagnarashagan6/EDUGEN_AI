@@ -22,7 +22,7 @@ app.post('/api/chat', async (req, res) => {
         "X-Title": "EduGen AI"
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.1-8b-instruct:free",
+        model: "google/gemma-3n-e4b-it:free",
         messages: [
           {
             role: "system",

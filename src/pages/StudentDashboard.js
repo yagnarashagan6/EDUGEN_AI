@@ -309,12 +309,12 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsChatbotOpen(window.innerWidth > 768 && activeContainer !== 'chatbot-container');
+      setIsChatbotOpen(window.innerWidth > 768 && activeContainer !== 'chatbot-container' && !inQuiz);
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeContainer]);
+  }, [activeContainer, inQuiz]);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
@@ -558,10 +558,10 @@ const StudentDashboard = () => {
   const toggleContainer = (containerId) => {
     if (activeContainer === containerId) {
       setActiveContainer(null);
-      setIsChatbotOpen(window.innerWidth > 768);
+      setIsChatbotOpen(window.innerWidth > 768 && !inQuiz);
     } else {
       setActiveContainer(containerId);
-      setIsChatbotOpen(window.innerWidth > 768 && containerId !== 'chatbot-container');
+      setIsChatbotOpen(window.innerWidth > 768 && containerId !== 'chatbot-container' && !inQuiz);
     }
   };
 
@@ -577,79 +577,79 @@ const StudentDashboard = () => {
     setActiveContainer('chatbot-container');
   };
 
-const startQuiz = async () => {
-  setInQuiz(true);
-  setQuizReady(false);
-  setActiveContainer('tasks-container');
-  const newQuizCount = quizCount + 1;
-  setQuizCount(newQuizCount);
+  const startQuiz = async () => {
+    setInQuiz(true);
+    setQuizReady(false);
+    setActiveContainer('tasks-container');
+    const newQuizCount = quizCount + 1;
+    setQuizCount(newQuizCount);
 
-  if (!currentTopic) {
-    console.error('No topic provided for quiz generation');
-    setNotifications((prev) => [
-      ...prev,
-      { type: 'quiz', message: 'Error: No topic selected. Please try again.' },
-    ]);
-    setInQuiz(false);
-    return;
-  }
-
-  try {
-    setNotifications((prev) => [
-      ...prev,
-      { type: 'quiz', message: `Generating quiz for ${currentTopic}...` },
-    ]);
-
-    const userRef = doc(db, 'students', auth.currentUser.uid);
-    await updateDoc(userRef, { quizCount: newQuizCount });
-
-    const payload = { topic: currentTopic };
-    console.log('Sending quiz request with payload:', payload);
-
-    const response = await fetch('http://localhost:5000/generate-quiz', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.questions) {
-      throw new Error(result.error || 'Failed to fetch quiz');
+    if (!currentTopic) {
+      console.error('No topic provided for quiz generation');
+      setNotifications((prev) => [
+        ...prev,
+        { type: 'quiz', message: 'Error: No topic selected. Please try again.' },
+      ]);
+      setInQuiz(false);
+      return;
     }
 
-    setQuizQuestions(result.questions);
-    setNotifications((prev) => [
-      ...prev,
-      { type: 'quiz', message: `Quiz on ${currentTopic} loaded successfully!` },
-    ]);
-  } catch (err) {
-    console.error('Error fetching quiz:', err);
-    const fallbackQuestions = [
-      {
-        text: `What is a fundamental concept of ${currentTopic}?`,
-        options: ['Concept A', 'Concept B', 'Concept C', 'Concept D'],
-        correctAnswer: 'Concept A',
-      },
-      {
-        text: `Which area is closely related to ${currentTopic}?`,
-        options: ['Area A', 'Area B', 'Area C', 'Area D'],
-        correctAnswer: 'Area B',
-      },
-      {
-        text: `What is a common application of ${currentTopic}?`,
-        options: ['Application A', 'Application B', 'Application C', 'Application D'],
-        correctAnswer: 'Application C',
-      },
-    ];
+    try {
+      setNotifications((prev) => [
+        ...prev,
+        { type: 'quiz', message: `Generating quiz for ${currentTopic}...` },
+      ]);
 
-    setQuizQuestions(fallbackQuestions);
-    setNotifications((prev) => [
-      ...prev,
-      { type: 'quiz', message: `Failed to load quiz for ${currentTopic}. Using placeholder questions.` },
-    ]);
-  }
-};
+      const userRef = doc(db, 'students', auth.currentUser.uid);
+      await updateDoc(userRef, { quizCount: newQuizCount });
+
+      const payload = { topic: currentTopic };
+      console.log('Sending quiz request with payload:', payload);
+
+      const response = await fetch('http://localhost:5000/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.questions) {
+        throw new Error(result.error || 'Failed to fetch quiz');
+      }
+
+      setQuizQuestions(result.questions);
+      setNotifications((prev) => [
+        ...prev,
+        { type: 'quiz', message: `Quiz on ${currentTopic} loaded successfully!` },
+      ]);
+    } catch (err) {
+      console.error('Error fetching quiz:', err);
+      const fallbackQuestions = [
+        {
+          text: `What is a fundamental concept of ${currentTopic}?`,
+          options: ['Concept A', 'Concept B', 'Concept C', 'Concept D'],
+          correctAnswer: 'Concept A',
+        },
+        {
+          text: `Which area is closely related to ${currentTopic}?`,
+          options: ['Area A', 'Area B', 'Area C', 'Area D'],
+          correctAnswer: 'Area B',
+        },
+        {
+          text: `What is a common application of ${currentTopic}?`,
+          options: ['Application A', 'Application B', 'Application C', 'Application D'],
+          correctAnswer: 'Application C',
+        },
+      ];
+
+      setQuizQuestions(fallbackQuestions);
+      setNotifications((prev) => [
+        ...prev,
+        { type: 'quiz', message: `Failed to load quiz for ${currentTopic}. Using placeholder questions.` },
+      ]);
+    }
+  };
 
   const handleQuizComplete = async (score) => {
     try {
@@ -680,7 +680,7 @@ const startQuiz = async () => {
       await updateLeaderboard(auth.currentUser.uid, userData.name, streak, newProgress);
       setNotifications((prev) => [...prev, { type: 'quiz', message: `Quiz completed! Score: ${percentage}%` }]);
       setActiveContainer('tasks-container');
-      setCurrentTopic(''); // Reset topic after quiz completion
+      setCurrentTopic('');
     } catch (err) {
       console.error('Error completing quiz:', err);
       setError('Failed to complete quiz.');
@@ -1026,7 +1026,7 @@ const startQuiz = async () => {
           copiedTopic={copiedTopic}
           clearCopiedTopic={() => setCopiedTopic('')}
         />
-        <div className={`main-content ${sidebarVisible ? 'active-container' : ''}`}>
+        <div className={`main-content ${sidebarVisible ? 'active-container' : ''}${inQuiz ? 'quiz-active' : ''}`}>
           <div className="header">
             {mobileHamburger}
             <input
@@ -1384,6 +1384,7 @@ const startQuiz = async () => {
                   copiedTopic={copiedTopic}
                   clearCopiedTopic={() => setCopiedTopic('')}
                   isInContainer={true}
+                  isQuizActive={inQuiz}
                 />
               </div>
             </div>
@@ -1426,10 +1427,11 @@ const startQuiz = async () => {
           </div>
           {window.innerWidth > 768 && (
             <Chatbot
-              isVisible={isChatbotOpen}
+              isVisible={isChatbotOpen && !inQuiz}
               copiedTopic={copiedTopic}
               clearCopiedTopic={() => setCopiedTopic('')}
               isInContainer={false}
+              isQuizActive={inQuiz}
             />
           )}
         </div>
