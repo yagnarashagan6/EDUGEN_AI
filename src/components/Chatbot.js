@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import '../styles/Chat.css';
-import html2pdf from 'html2pdf.js'; // Import html2pdf.js
+import html2pdf from 'html2pdf.js';
 
 const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false, isQuizActive = false }) => {
   const [input, setInput] = useState('');
@@ -12,11 +12,12 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showOptionsForMessage, setShowOptionsForMessage] = useState(null); // Changed from showPdfOption
+  const [showOptionsForMessage, setShowOptionsForMessage] = useState(null);
   const [isPdfView, setIsPdfView] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const chatBoxRef = useRef(null);
   const longPressTimeout = useRef(null);
-  const synth = useRef(window.speechSynthesis); // Speech Synthesis API
+  const synth = useRef(window.speechSynthesis);
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -35,7 +36,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     const handleBackButton = () => {
       if (isPdfView) {
         setIsPdfView(false);
-        setShowOptionsForMessage(null); // Reset options when leaving PDF view
+        setShowOptionsForMessage(null);
       }
     };
 
@@ -132,7 +133,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   const handleLongPressStart = (index) => {
     longPressTimeout.current = setTimeout(() => {
       setShowOptionsForMessage(index);
-    }, 500); // 500ms for long press
+    }, 500);
   };
 
   const handleLongPressEnd = () => {
@@ -147,14 +148,55 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
 
   const handleReadAloud = (text) => {
     if (synth.current.speaking) {
-      synth.current.cancel(); // Stop if already speaking
+      synth.current.cancel();
     }
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
     synth.current.speak(utterance);
-    setShowOptionsForMessage(null); // Close options after action
+    setShowOptionsForMessage(null);
+  };
+
+  const handleStopAudio = () => {
+    if (synth.current.speaking) {
+      synth.current.cancel();
+      setIsSpeaking(false);
+    }
+    setShowOptionsForMessage(null);
+  };
+
+  const extractTopicForFilename = (text) => {
+    // Common stop words to remove
+    const stopWords = [
+      'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'how',
+      'in', 'is', 'it', 'of', 'on', 'or', 'that', 'the', 'to', 'what', 'when',
+      'where', 'which', 'who', 'why', 'with'
+    ];
+    // Split the text into words, remove stop words, and clean
+    let words = text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !stopWords.includes(word));
+    
+    // Take up to 3 words to keep filename concise
+    words = words.slice(0, 3);
+    
+    // Join words with underscores and ensure non-empty
+    const topic = words.length > 0 ? words.join('_') : 'chat';
+    return `${topic}_edugen-ai.pdf`;
   };
 
   const downloadChatAsPdf = () => {
+    // Find the last user message to use as the topic
+    const lastUserMessage = messages
+      .slice()
+      .reverse()
+      .find(msg => msg.sender === 'user')?.text || 'default';
+    
+    // Generate filename based on the last user message
+    const filename = extractTopicForFilename(lastUserMessage);
+
     const element = document.createElement('div');
     element.innerHTML = `
       <style>
@@ -198,8 +240,8 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       </div>
     `;
 
-    html2pdf().from(element).save('edugen_ai_chat.pdf');
-    setShowOptionsForMessage(null); // Close options after action
+    html2pdf().from(element).set({ filename }).save();
+    setShowOptionsForMessage(null);
   };
 
   const renderMessageContent = (text) => {
@@ -213,12 +255,6 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   if (isPdfView) {
     return (
       <div className="pdf-view-container">
-        <div className="pdf-view-header">
-          <button onClick={() => setIsPdfView(false)} className="back-to-chat-btn">
-            <i className="fas fa-arrow-left"></i> Back to Chat
-          </button>
-          <h2>PDF View</h2>
-        </div>
         <div className="pdf-view-content">
           {messages.map((msg, index) => (
             <div
@@ -245,7 +281,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
           </div>
         </div>
       )}
-      {isInContainer && ( // Added header for sidebar mode
+      {isInContainer && (
         <div className="chat-header sidebar-header">
           EduGen AI Chatbot
           <div className="chat-actions">
@@ -268,9 +304,15 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
             <div className="message-content">{renderMessageContent(msg.text)}</div>
             {showOptionsForMessage === index && (
               <div className="message-options">
-                <div className="option-item" onClick={() => handleReadAloud(msg.text)}>
-                  <i className="fas fa-volume-up"></i> Read Aloud
-                </div>
+                {isSpeaking ? (
+                  <div className="option-item" onClick={handleStopAudio}>
+                    <i className="fas fa-stop"></i> Stop Audio
+                  </div>
+                ) : (
+                  <div className="option-item" onClick={() => handleReadAloud(msg.text)}>
+                    <i className="fas fa-volume-up"></i> Read Aloud
+                  </div>
+                )}
                 <div className="option-item" onClick={handlePdfView}>
                   <i className="fas fa-file-alt"></i> PDF View
                 </div>
