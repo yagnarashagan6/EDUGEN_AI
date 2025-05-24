@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { onSnapshot, doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
-import { auth, db, storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { onSnapshot, doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import Sidebar from '../components/Sidebar';
 import Chatbot from '../components/Chatbot';
 import TaskItem from '../components/TaskItem';
-import GuideModal from '../components/GuideModal'; // Import the new modal
+import GuideModal from '../components/GuideModal';
 import '../styles/Dashboard.css';
 import '../styles/StaffInteraction.css';
 import '../styles/Chat.css';
 
-// ChatInterface component (unchanged)
 const ChatInterface = ({
   messages,
   sendMessage,
@@ -162,6 +160,7 @@ const StaffDashboard = () => {
   const [messages, setMessages] = useState([]);
   const [studentStats, setStudentStats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -177,9 +176,34 @@ const StaffDashboard = () => {
   });
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
   const [filterType, setFilterType] = useState(null);
-  const [showGuide, setShowGuide] = useState(false); // State for guide modal
+  const [showGuide, setShowGuide] = useState(false);
+  const [newAssignmentSubject, setNewAssignmentSubject] = useState('');
+  const [newAssignmentLink, setNewAssignmentLink] = useState('');
 
-  // Check if guide should be shown on mount
+  // Validate Google Drive link
+  const isValidDriveLink = (url) => {
+    return /^https:\/\/(drive\.google\.com|docs\.google\.com)/.test(url);
+  };
+
+  // Fetch assignments with real-time updates
+  const fetchAssignments = useCallback(() => {
+    setAssignmentsLoading(true);
+    try {
+      const unsubscribe = onSnapshot(collection(db, 'assignments'), (snapshot) => {
+        const staffAssignments = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((assignment) => assignment.staffId === auth.currentUser?.uid); // Filter by staffId
+        setAssignments(staffAssignments);
+        setAssignmentsLoading(false);
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error fetching assignments:', err);
+      setError('Failed to load assignments.');
+      setAssignmentsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const hasSeenGuide = localStorage.getItem('hasSeenStaffGuide');
     if (!hasSeenGuide) {
@@ -188,7 +212,6 @@ const StaffDashboard = () => {
     }
   }, []);
 
-  // Handle window resize for chatbot visibility
   useEffect(() => {
     const handleResize = () => {
       setIsChatbotOpen(window.innerWidth > 768);
@@ -197,16 +220,15 @@ const StaffDashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch initial data (user, tasks, students, assignments, circulars)
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const user = auth.currentUser;
         if (!user) {
+          setError('No authenticated user found.');
           navigate('/staff-login');
           return;
         }
-
         const docRef = doc(db, 'staff', user.uid);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists() || !docSnap.data().formFilled) {
@@ -214,11 +236,9 @@ const StaffDashboard = () => {
           return;
         }
         setUserData(docSnap.data());
-
         const tasksRef = doc(db, 'tasks', 'shared');
         const tasksSnap = await getDoc(tasksRef);
         setTasks(tasksSnap.exists() ? tasksSnap.data().tasks || [] : []);
-
         const studentsRef = collection(db, 'students');
         const snapshot = await getDocs(studentsRef);
         const students = snapshot.docs.map((doc) => ({
@@ -229,7 +249,6 @@ const StaffDashboard = () => {
           photoURL: doc.data().photoURL || '/default-student.png',
         }));
         setStudentStats(students.sort((a, b) => b.streak - a.streak));
-
         const totalStudents = students.length;
         const today = new Date();
         const activeStudents = students.filter((student) => {
@@ -240,7 +259,6 @@ const StaffDashboard = () => {
           ? Math.round(students.reduce((sum, s) => sum + (s.progress || 0), 0) / students.length)
           : 0;
         setQuickStats({ totalStudents, activeStudents, overallPerformance });
-
         const resultsData = students.map((student) => ({
           id: student.id,
           name: student.name,
@@ -248,18 +266,9 @@ const StaffDashboard = () => {
           totalTasks: tasks.length,
         }));
         setResults(resultsData);
-
-        const assignmentsRef = collection(db, 'assignments');
-        const assignmentsSnap = await getDocs(assignmentsRef);
-        const staffAssignments = assignmentsSnap.docs
-          .filter((doc) => doc.data().staffId === user.uid)
-          .map((doc) => ({ id: doc.id, ...doc.data() }));
-        setAssignments(staffAssignments);
-
         const circularsRef = collection(db, 'circulars');
         const circularsSnap = await getDocs(circularsRef);
         setCirculars(circularsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-
         setLoading(false);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -267,18 +276,17 @@ const StaffDashboard = () => {
         setLoading(false);
       }
     };
-    fetchUserData();
-  }, [navigate]);
 
-  // Real-time listener for messages
+    fetchUserData();
+    fetchAssignments();
+  }, [navigate, fetchAssignments]);
+
   useEffect(() => {
     if (!selectedStudentId) return;
     const userId = auth.currentUser?.uid;
     if (!userId) return;
-
     const chatId = `${userId}_${selectedStudentId}`;
     const messagesRef = doc(db, 'messages', chatId);
-
     const unsubscribe = onSnapshot(
       messagesRef,
       async (docSnap) => {
@@ -286,11 +294,9 @@ const StaffDashboard = () => {
           if (docSnap.exists()) {
             const currentMessages = docSnap.data().messages || [];
             setMessages(currentMessages);
-
             const updatedMessages = currentMessages.map((msg) =>
               msg.sender === 'student' && !msg.read ? { ...msg, read: true } : msg
             );
-
             if (currentMessages.some((msg, i) => msg.read !== updatedMessages[i].read)) {
               await setDoc(messagesRef, { messages: updatedMessages });
             }
@@ -307,7 +313,6 @@ const StaffDashboard = () => {
         setError('Failed to load messages.');
       }
     );
-
     return () => unsubscribe();
   }, [selectedStudentId]);
 
@@ -387,10 +392,8 @@ const StaffDashboard = () => {
       const input = document.getElementById('message-input');
       const text = input?.value.trim();
       if (!text || !selectedStudentId) return;
-
       const userId = auth.currentUser?.uid;
       if (!userId) return;
-
       const chatId = `${userId}_${selectedStudentId}`;
       const newMessage = {
         text,
@@ -398,13 +401,11 @@ const StaffDashboard = () => {
         timestamp: new Date().toISOString(),
         read: false,
       };
-
       const messagesRef = doc(db, 'messages', chatId);
       const messagesSnap = await getDoc(messagesRef);
       const existingMessages = messagesSnap.exists()
         ? messagesSnap.data().messages || []
         : [];
-
       const updatedMessages = [...existingMessages, newMessage];
       await setDoc(messagesRef, { messages: updatedMessages });
       input.value = '';
@@ -418,10 +419,8 @@ const StaffDashboard = () => {
     async (index) => {
       try {
         if (!selectedStudentId) return;
-
         const userId = auth.currentUser?.uid;
         if (!userId) return;
-
         const chatId = `${userId}_${selectedStudentId}`;
         const updatedMessages = messages.filter((_, i) => i !== index);
         const messagesRef = doc(db, 'messages', chatId);
@@ -434,26 +433,60 @@ const StaffDashboard = () => {
     [selectedStudentId, messages]
   );
 
-  const handleCircularUpload = async (e) => {
+  const postAssignment = async () => {
     try {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const storageRef = ref(storage, `circulars/${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      const circularRef = doc(db, 'circulars', file.name);
-      const circularData = {
-        url,
-        uploadedAt: new Date().toISOString(),
-        sender: userData?.name || 'Unknown',
+      const user = auth.currentUser;
+      if (!user) {
+        setError('No authenticated user found.');
+        return;
+      }
+      const staffDoc = await getDoc(doc(db, 'staff', user.uid));
+      if (!staffDoc.exists()) {
+        setError('You are not authorized to post assignments.');
+        return;
+      }
+      if (!newAssignmentSubject.trim() || !newAssignmentLink.trim()) {
+        alert('Please enter both subject and Google Drive link.');
+        return;
+      }
+      if (!isValidDriveLink(newAssignmentLink)) {
+        alert('Please enter a valid Google Drive or Docs link.');
+        return;
+      }
+      const newAssignment = {
+        subject: newAssignmentSubject.trim(),
+        driveLink: newAssignmentLink.trim(),
+        staffId: user.uid,
+        staffName: staffDoc.data().name || 'Unknown Staff',
+        postedAt: new Date().toISOString(),
+        date: new Date().toLocaleDateString('en-US', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }),
+        isPublic: true,
       };
-      await setDoc(circularRef, circularData);
-      setCirculars((prev) => [...prev, { id: file.name, ...circularData }]);
-      alert('Circular uploaded successfully!');
+      const assignmentsRef = collection(db, 'assignments');
+      await addDoc(assignmentsRef, newAssignment);
+      setNewAssignmentSubject('');
+      setNewAssignmentLink('');
+      alert('Assignment posted successfully!');
     } catch (err) {
-      console.error('Error uploading circular:', err);
-      setError('Failed to upload circular.');
+      console.error('Error posting assignment:', err);
+      setError('Failed to post assignment: ' + err.message);
+    }
+  };
+
+  const deleteAssignment = async (assignmentId) => {
+    try {
+      if (!window.confirm('Are you sure you want to delete this assignment?')) return;
+      const assignmentRef = doc(db, 'assignments', assignmentId);
+      await deleteDoc(assignmentRef);
+      alert('Assignment deleted successfully!');
+    } catch (err) {
+      console.error('Error deleting assignment:', err);
+      setError('Failed to delete assignment: ' + err.message);
     }
   };
 
@@ -580,19 +613,63 @@ const StaffDashboard = () => {
           >
             <div className="container-header">Assignments</div>
             <div className="container-body">
-              {assignments.length === 0 ? (
-                <p className="empty-message">No assignments received.</p>
+              <div className="assignment-form">
+                <h3>Post a New Assignment</h3>
+                <input
+                  type="text"
+                  value={newAssignmentSubject}
+                  onChange={(e) => setNewAssignmentSubject(e.target.value)}
+                  placeholder="Subject Name"
+                  className="goal-input"
+                />
+                <input
+                  type="text"
+                  value={newAssignmentLink}
+                  onChange={(e) => setNewAssignmentLink(e.target.value)}
+                  placeholder="Google Drive Link"
+                  className="goal-input"
+                />
+                <button onClick={postAssignment} className="add-goal-btn">
+                  Post Assignment
+                </button>
+              </div>
+              {assignmentsLoading ? (
+                <p>Loading assignments...</p>
+              ) : assignments.length === 0 ? (
+                <p className="empty-message">No assignments posted.</p>
               ) : (
-                <ul>
+                <div className="assignment-list">
                   {assignments.map((assignment) => (
-                    <li key={assignment.id}>
-                      <a href={assignment.url} target="_blank" rel="noopener noreferrer">
-                        {assignment.name} (from {assignment.studentName})
-                      </a>
-                      <span> - Received on {new Date(assignment.uploadedAt).toLocaleDateString()}</span>
-                    </li>
+                    <div key={assignment.id} className="assignment-item">
+                      <div className="task-item">
+                        <p>{assignment.subject} <small>(Posted on: {assignment.date})</small></p>
+                        <button
+                          className="copy-topic-btn"
+                          onClick={() => window.open(assignment.driveLink, '_blank')}
+                          style={{ fontSize: '12px', padding: '6px 10px', lineHeight: '1', whiteSpace: 'nowrap' }}
+                        >
+                          <i className="fas fa-external-link-alt"></i> Open
+                        </button>
+                        {assignment.staffId === auth.currentUser?.uid && (
+                          <button
+                            className="copy-topic-btn"
+                            style={{
+                              backgroundColor: '#f44336',
+                              fontSize: '12px',
+                              padding: '6px 10px',
+                              lineHeight: '1',
+                              whiteSpace: 'nowrap',
+                              marginLeft: '10px',
+                            }}
+                            onClick={() => deleteAssignment(assignment.id)}
+                          >
+                            <i className="fas fa-trash"></i> Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           </div>
@@ -624,7 +701,7 @@ const StaffDashboard = () => {
               <input
                 type="file"
                 id="circular-upload"
-                onChange={handleCircularUpload}
+                onChange={(e) => console.log('Circular upload not implemented')}
                 className="goal-input"
                 style={{ display: 'none' }}
               />

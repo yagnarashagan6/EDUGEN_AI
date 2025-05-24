@@ -75,6 +75,11 @@
   display: flex;
 }
 
+/* Ensure toggle button is visible when chatbot is in sidebar mode on mobile */
+.chat-container.sidebar ~ .chat-toggle-btn {
+  display: none;
+}
+
 .chat-toggle-btn:hover {
   background: #032a8a;
 }
@@ -87,6 +92,9 @@
   font-weight: bold;
   font-size: 16px;
   flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-container.mini .chat-header {
@@ -150,23 +158,36 @@
   color: #666;
 }
 
-/* PDF option styling */
-.pdf-option {
+/* Message options (Read Aloud, PDF View) */
+.message-options {
   position: absolute;
   bottom: -30px;
   left: 50%;
   transform: translateX(-50%);
-  background: #0438af;
-  color: white;
-  padding: 5px 10px;
+  background: #fff;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  display: flex;
   font-size: 12px;
   z-index: 10;
+  white-space: nowrap;
 }
 
-.pdf-option:hover {
-  background: #032a8a;
+.option-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.option-item:hover {
+  background: #f0f0f0;
+}
+
+.option-item + .option-item {
+  border-left: 1px solid #eee;
 }
 
 /* PDF view styling */
@@ -181,6 +202,42 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  padding-top: 50px;
+}
+
+.pdf-view-header {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background: #0438af;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.pdf-view-header h2 {
+  flex-grow: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 18px;
+}
+
+.back-to-chat-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.back-to-chat-btn:hover {
+  opacity: 0.8;
 }
 
 .pdf-view-content {
@@ -307,6 +364,7 @@
 .chat-container.sidebar .chat-header {
   background-color: #f4f4f4;
   border-bottom: 1px solid #ddd;
+  color: #000;
 }
 
 .chat-container.sidebar .chat-box {
@@ -324,32 +382,129 @@
   z-index: 10;
 }
 
-/* Responsive adjustments */
+/* Chat actions (Download PDF button) */
+.chat-actions button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.chat-actions button:hover {
+  opacity: 0.8;
+}
+
+.chat-container.sidebar .chat-actions button {
+  color: #000;
+}
+
+/* PDF download container */
+.pdf-download-container {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+.pdf-message {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  word-wrap: break-word;
+}
+
+.pdf-user-message {
+  background-color: #e6f7ff;
+  text-align: right;
+  color: #000;
+}
+
+.pdf-chatbot-message {
+  background-color: #f0f0f0;
+  text-align: left;
+  color: #000;
+}
+
+.pdf-message-sender {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.pdf-message-content p {
+  margin: 0;
+  padding: 0;
+}
+
+/* Responsive adjustments for mobile view */
 @media (max-width: 768px) {
   /* Full-size chat hidden by default */
   .chat-container:not(.mini):not(.sidebar) {
     display: none;
   }
 
-  /* Show mini chat when active */
+  /* Show mini chat when active, covering full container */
   .chat-container.mini.active {
     display: flex;
-    overflow: hidden; /* Prevent overflow in mini view */
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    right: 0;
+    top: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
   }
 
-  /* Always show toggle button in minimized view */
-  .chat-toggle-btn {
-    display: flex;
+  /* Sidebar mode adjustments */
+  .chat-container.sidebar {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chat-container.sidebar .chat-box {
+    height: calc(100% - 56px - 52px); /* Adjust for header (32px + padding) and input (36px + padding) */
+    max-height: none;
+    padding: 10px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.sidebar .chat-header {
+    font-size: 18px; /* Increased for readability */
+    padding: 10px;
+  }
+
+  .chat-container.sidebar .chat-input {
+    padding: 10px;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    z-index: 10;
+  }
+
+  .chat-container.sidebar .chat-input input {
+    height: 40px;
+    padding: 10px 45px 10px 12px;
+    font-size: 16px; /* Increased for readability */
+  }
+
+  .chat-container.sidebar .send-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    right: 10px;
   }
 
   .chat-header {
-    font-size: 14px;
-    padding: 8px;
+    font-size: 18px; /* Increased for readability */
+    padding: 10px;
   }
 
   .chat-box {
-    padding: 8px;
-    gap: 6px;
+    padding: 10px;
+    gap: 8px;
     height: calc(100% - 56px - 52px); /* Adjusted for smaller header (32px + padding) and input (36px + padding) */
     overflow-y: auto;
     box-sizing: border-box;
@@ -357,30 +512,120 @@
 
   .user-message {
     max-width: 80%;
-    font-size: 10px;
-    padding: 6px 10px;
+    font-size: 14px; /* Increased for readability */
+    padding: 8px 12px;
   }
 
   .chatbot-message {
     max-width: 80%;
-    font-size: 10px;
-    padding: 6px 10px;
+    font-size: 14px; /* Increased for readability */
+    padding: 8px 12px;
   }
 
   .chat-input {
-    padding: 8px;
+    padding: 10px;
   }
 
   .chat-input input {
-    height: 36px;
-    padding: 8px 40px 8px 10px;
-    font-size: 12px;
+    height: 40px;
+    padding: 10px 45px 10px 12px;
+    font-size: 16px; /* Increased for readability */
   }
 
   .send-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    right: 10px;
+  }
+
+  .chat-toggle-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .message-options {
+    font-size: 12px;
+    bottom: -25px;
+  }
+
+  .option-item {
+    padding: 4px 8px;
+    gap: 3px;
+  }
+
+  .pdf-view-header h2 {
+    font-size: 16px;
+  }
+
+  .back-to-chat-btn {
+    font-size: 16px;
+  }
+
+  .chat-actions button {
+    font-size: 16px;
+  }
+
+  .pdf-view-content {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .pdf-message-content {
+    font-size: 14px; /* Increased for readability */
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-container.mini {
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    right: 0;
+    top: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .chat-container.mini .chat-box {
+    max-height: none;
+    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
+    padding: 8px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.mini .chat-header {
+    font-size: 16px; /* Increased for readability */
+    padding: 8px;
+  }
+
+  .chat-container.mini .user-message {
+    font-size: 13px; /* Increased for readability */
+    padding: 6px 10px;
+  }
+
+  .chat-container.mini .chatbot-message {
+    font-size: 13px; /* Increased for readability */
+    padding: 6px 10px;
+  }
+
+  .chat-container.mini .chat-input {
+    padding: 8px;
+  }
+
+  .chat-container.mini .chat-input input {
+    height: 38px;
+    padding: 8px 40px 8px 10px;
+    font-size: 15px; /* Increased for readability */
+  }
+
+  .chat-container.mini .send-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
     right: 8px;
   }
 
@@ -390,118 +635,25 @@
     font-size: 16px;
   }
 
-  .pdf-option {
-    font-size: 10px;
-    padding: 4px 8px;
-    bottom: -25px;
-  }
-
-  .pdf-view-content {
-    margin: 10px;
-    padding: 10px;
-  }
-
-  .pdf-message-content {
-    font-size: 14px;
-  }
-
-  /* Sidebar container for mobile */
-  .chat-container.sidebar {
-    height: 100%; /* Full height */
-    position: relative;
-    width: 100%;
-    overflow: hidden; /* Prevent overflow */
-  }
-
-  .chat-container.sidebar .chat-box {
-    height: calc(100% - 56px - 52px); /* Adjust for header (32px + padding) and input (36px + padding) */
-    max-height: none;
-    padding: 8px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.sidebar .chat-input {
-    padding: 8px;
-    position: sticky;
-    bottom: 0;
-    background: #fff;
-    z-index: 10;
-  }
-
-  .chat-container.sidebar .chat-input input {
-    height: 36px;
-    padding: 8px 40px 8px 10px;
-    font-size: 12px;
-  }
-
-  .chat-container.sidebar .send-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    right: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .chat-container.mini {
-    width: 220px;
-    height: 250px;
-    bottom: 50px;
-    right: 8px;
-    overflow: hidden; /* Prevent overflow */
-  }
-
-  .chat-container.mini .chat-box {
-    max-height: 160px;
-    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
-    padding: 6px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.mini .chat-header {
-    font-size: 12px;
-    padding: 6px;
-  }
-
-  .chat-container.mini .user-message {
-    font-size: 9px;
-    padding: 5px 8px;
-  }
-
-  .chat-container.mini .chatbot-message {
-    font-size: 9px;
-    padding: 5px 8px;
-  }
-
-  .chat-container.mini .chat-input {
-    padding: 6px;
-  }
-
-  .chat-container.mini .chat-input input {
-    height: 34px;
-    padding: 6px 35px 6px 8px;
+  .message-options {
     font-size: 11px;
+    bottom: -20px;
   }
 
-  .chat-container.mini .send-btn {
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
-    right: 6px;
+  .option-item {
+    padding: 3px 6px;
   }
 
-  .chat-toggle-btn {
-    width: 30px;
-    height: 30px;
+  .pdf-view-header h2 {
     font-size: 14px;
   }
 
-  .pdf-option {
-    font-size: 9px;
-    padding: 3px 6px;
-    bottom: -20px;
+  .back-to-chat-btn {
+    font-size: 14px;
+  }
+
+  .chat-actions button {
+    font-size: 14px;
   }
 
   .pdf-view-content {
@@ -510,101 +662,121 @@
   }
 
   .pdf-message-content {
-    font-size: 12px;
+    font-size: 13px; /* Increased for readability */
   }
 
   /* Sidebar container for smaller screens */
   .chat-container.sidebar {
     height: 100%;
+    width: 100%;
     overflow: hidden;
   }
 
   .chat-container.sidebar .chat-box {
     height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
     max-height: none;
-    padding: 6px;
+    padding: 8px;
     overflow-y: auto;
     box-sizing: border-box;
   }
 
   .chat-container.sidebar .chat-input {
-    padding: 6px;
+    padding: 8px;
   }
 
   .chat-container.sidebar .chat-input input {
-    height: 34px;
-    padding: 6px 35px 6px 8px;
-    font-size: 11px;
+    height: 38px;
+    padding: 8px 40px 8px 10px;
+    font-size: 15px; /* Increased for readability */
   }
 
   .chat-container.sidebar .send-btn {
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
-    right: 6px;
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+    right: 8px;
   }
 }
 
 @media (max-width: 320px) {
   .chat-container.mini {
-    width: 200px;
-    height: 220px;
-    bottom: 45px;
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    right: 0;
+    top: 0;
+    border-radius: 0;
+    box-shadow: none;
     overflow: hidden;
   }
 
   .chat-container.mini .chat-box {
-    max-height: 140px;
+    max-height: none;
     height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
-    padding: 5px;
+    padding: 6px;
     overflow-y: auto;
     box-sizing: border-box;
   }
 
   .chat-container.mini .chat-header {
-    font-size: 11px;
-    padding: 5px;
+    font-size: 15px; /* Increased for readability */
+    padding: 6px;
   }
 
   .chat-container.mini .user-message {
-    font-size: 8px;
-    padding: 4px 6px;
+    font-size: 12px; /* Increased for readability */
+    padding: 5px 8px;
   }
 
   .chat-container.mini .chatbot-message {
-    font-size: 8px;
-    padding: 4px 6px;
+    font-size: 12px; /* Increased for readability */
+    padding: 5px 8px;
   }
 
   .chat-container.mini .chat-input {
-    padding: 5px;
+    padding: 6px;
   }
 
   .chat-container.mini .chat-input input {
-    height: 32px;
-    padding: 5px 30px 5px 6px;
-    font-size: 10px;
+    height: 36px;
+    padding: 6px 35px 6px 8px;
+    font-size: 14px; /* Increased for readability */
   }
 
   .chat-container.mini .send-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 10px;
-    right: 5px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    right: 6px;
   }
 
   .chat-toggle-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
     bottom: 10px;
     right: 10px;
   }
 
-  .pdf-option {
-    font-size: 8px;
-    padding: 2px 5px;
+  .message-options {
+    font-size: 10px;
     bottom: -18px;
+  }
+
+  .option-item {
+    padding: 2px 5px;
+  }
+
+  .pdf-view-header h2 {
+    font-size: 12px;
+  }
+
+  .back-to-chat-btn {
+    font-size: 12px;
+  }
+
+  .chat-actions button {
+    font-size: 12px;
   }
 
   .pdf-view-content {
@@ -613,37 +785,38 @@
   }
 
   .pdf-message-content {
-    font-size: 11px;
+    font-size: 12px; /* Increased for readability */
   }
 
   /* Sidebar container for very small screens */
   .chat-container.sidebar {
     height: 100%;
+    width: 100%;
     overflow: hidden;
   }
 
   .chat-container.sidebar .chat-box {
     height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
     max-height: none;
-    padding: 5px;
+    padding: 6px;
     overflow-y: auto;
     box-sizing: border-box;
   }
 
   .chat-container.sidebar .chat-input {
-    padding: 5px;
+    padding: 6px;
   }
 
   .chat-container.sidebar .chat-input input {
-    height: 32px;
-    padding: 5px 30px 5px 6px;
-    font-size: 10px;
+    height: 36px;
+    padding: 6px 35px 6px 8px;
+    font-size: 14px; /* Increased for readability */
   }
 
   .chat-container.sidebar .send-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 10px;
-    right: 5px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    right: 6px;
   }
 }

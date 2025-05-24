@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import '../styles/Chat.css';
+import html2pdf from 'html2pdf.js'; // Import html2pdf.js
 
 const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false, isQuizActive = false }) => {
   const [input, setInput] = useState('');
@@ -11,10 +12,11 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPdfOption, setShowPdfOption] = useState(null);
+  const [showOptionsForMessage, setShowOptionsForMessage] = useState(null); // Changed from showPdfOption
   const [isPdfView, setIsPdfView] = useState(false);
   const chatBoxRef = useRef(null);
   const longPressTimeout = useRef(null);
+  const synth = useRef(window.speechSynthesis); // Speech Synthesis API
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -33,7 +35,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     const handleBackButton = () => {
       if (isPdfView) {
         setIsPdfView(false);
-        setShowPdfOption(null);
+        setShowOptionsForMessage(null); // Reset options when leaving PDF view
       }
     };
 
@@ -129,7 +131,7 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
 
   const handleLongPressStart = (index) => {
     longPressTimeout.current = setTimeout(() => {
-      setShowPdfOption(index);
+      setShowOptionsForMessage(index);
     }, 500); // 500ms for long press
   };
 
@@ -139,8 +141,65 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
 
   const handlePdfView = () => {
     setIsPdfView(true);
-    setShowPdfOption(null);
+    setShowOptionsForMessage(null);
     window.history.pushState({}, '');
+  };
+
+  const handleReadAloud = (text) => {
+    if (synth.current.speaking) {
+      synth.current.cancel(); // Stop if already speaking
+    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    synth.current.speak(utterance);
+    setShowOptionsForMessage(null); // Close options after action
+  };
+
+  const downloadChatAsPdf = () => {
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <style>
+        .pdf-download-container {
+          font-family: Arial, sans-serif;
+          padding: 20px;
+        }
+        .pdf-message {
+          margin-bottom: 10px;
+          padding: 10px;
+          border-radius: 8px;
+          word-wrap: break-word;
+        }
+        .pdf-user-message {
+          background-color: #e6f7ff;
+          text-align: right;
+          color: #000;
+        }
+        .pdf-chatbot-message {
+          background-color: #f0f0f0;
+          text-align: left;
+          color: #000;
+        }
+        .pdf-message-sender {
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
+        .pdf-message-content p {
+            margin: 0;
+            padding: 0;
+        }
+      </style>
+      <div class="pdf-download-container">
+        <h1>EduGen AI Chat Conversation</h1>
+        ${messages.map(msg => `
+          <div class="pdf-message ${msg.sender === 'user' ? 'pdf-user-message' : 'pdf-chatbot-message'}">
+            <div class="pdf-message-sender">${msg.sender === 'user' ? 'You' : 'EduGen AI'}:</div>
+            <div class="pdf-message-content">${marked.parse(msg.text)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    html2pdf().from(element).save('edugen_ai_chat.pdf');
+    setShowOptionsForMessage(null); // Close options after action
   };
 
   const renderMessageContent = (text) => {
@@ -154,6 +213,12 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   if (isPdfView) {
     return (
       <div className="pdf-view-container">
+        <div className="pdf-view-header">
+          <button onClick={() => setIsPdfView(false)} className="back-to-chat-btn">
+            <i className="fas fa-arrow-left"></i> Back to Chat
+          </button>
+          <h2>PDF View</h2>
+        </div>
         <div className="pdf-view-content">
           {messages.map((msg, index) => (
             <div
@@ -170,7 +235,26 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
 
   return (
     <div className={`chat-container ${isInContainer ? 'sidebar' : ''}`}>
-      {!isInContainer && <div className="chat-header">EduGen AI Chatbot</div>}
+      {!isInContainer && (
+        <div className="chat-header">
+          EduGen AI Chatbot
+          <div className="chat-actions">
+            <button onClick={downloadChatAsPdf} title="Download Chat as PDF">
+              <i className="fas fa-file-pdf"></i>
+            </button>
+          </div>
+        </div>
+      )}
+      {isInContainer && ( // Added header for sidebar mode
+        <div className="chat-header sidebar-header">
+          EduGen AI Chatbot
+          <div className="chat-actions">
+            <button onClick={downloadChatAsPdf} title="Download Chat as PDF">
+              <i className="fas fa-file-pdf"></i>
+            </button>
+          </div>
+        </div>
+      )}
       <div className="chat-box" ref={chatBoxRef}>
         {messages.map((msg, index) => (
           <div
@@ -182,9 +266,14 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
             onTouchEnd={handleLongPressEnd}
           >
             <div className="message-content">{renderMessageContent(msg.text)}</div>
-            {showPdfOption === index && (
-              <div className="pdf-option" onClick={handlePdfView}>
-                PDF View
+            {showOptionsForMessage === index && (
+              <div className="message-options">
+                <div className="option-item" onClick={() => handleReadAloud(msg.text)}>
+                  <i className="fas fa-volume-up"></i> Read Aloud
+                </div>
+                <div className="option-item" onClick={handlePdfView}>
+                  <i className="fas fa-file-alt"></i> PDF View
+                </div>
               </div>
             )}
           </div>
