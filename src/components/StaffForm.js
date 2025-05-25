@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db, doc, setDoc } from '../firebase';
 import '../styles/Form.css';
@@ -99,6 +99,8 @@ const StaffForm = () => {
               <input
                 type="text"
                 id="staffId"
+                placeholder="enter any 5 number"
+                pattern="[0-9]{5}"
                 value={formData.staffId}
                 onChange={handleChange}
                 required

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db, doc, setDoc } from '../firebase';
 import '../styles/Form.css';
@@ -101,6 +101,7 @@ const StudentForm = () => {
               <input
                 type="text"
                 id="regNumber"
+                placeholder="eg: 312822243058"
                 pattern="[0-9]{12}"
                 value={formData.regNumber}
                 onChange={handleChange}
@@ -112,6 +113,7 @@ const StudentForm = () => {
               <input
                 type="text"
                 id="rollNumber"
+                placeholder="eg: 22AIDS058"
                 value={formData.rollNumber}
                 onChange={handleChange}
                 required
@@ -205,6 +207,7 @@ const StudentForm = () => {
               <input
                 type="text"
                 id="aadhaar"
+                placeholder="eg: 12 numbers"
                 pattern="[0-9]{12}"
                 value={formData.aadhaar}
                 onChange={handleChange}
