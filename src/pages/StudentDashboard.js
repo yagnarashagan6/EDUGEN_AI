@@ -1463,7 +1463,7 @@ const StudentDashboard = () => {
               id="notes-container"
               className={`toggle-container ${activeContainer === 'notes-container' ? 'active' : ''}`}
             >
-              <Notes toggleContainer={toggleContainer} />
+              <Notes toggleContainer={toggleContainer} studentName={userData?.name || ''} />
             </div>
             {quizReady && (
              // ... (Quiz prompt remains same) ...

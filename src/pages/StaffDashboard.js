@@ -168,7 +168,6 @@ const StaffDashboard = () => {
   const [showContactList, setShowContactList] = useState(true);
   const [results, setResults] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [circulars, setCirculars] = useState([]);
   const [quickStats, setQuickStats] = useState({
     totalStudents: 0,
     activeStudents: 0,
@@ -179,6 +178,40 @@ const StaffDashboard = () => {
   const [showGuide, setShowGuide] = useState(false);
   const [newAssignmentSubject, setNewAssignmentSubject] = useState('');
   const [newAssignmentLink, setNewAssignmentLink] = useState('');
+  const [monitorView, setMonitorView] = useState('student-activity');
+
+  // Mock data for student activity (replace with real data if available)
+  const studentActivityData = studentStats.map((student) => ({
+    id: student.id,
+    name: student.name,
+    hoursSpent: Math.floor(Math.random() * 10) + 1,
+    lastActive: new Date().toLocaleDateString(),
+  }));
+
+  // Mock notes data with student names
+  const notesData = [
+    {
+      id: '1',
+      studentName: 'John Doe',
+      title: 'HRM Lecture',
+      subject: 'human_resource',
+      timestamp: '2025-05-23T10:32:00Z',
+    },
+    {
+      id: '2',
+      studentName: 'Jane Smith',
+      title: 'IT Basics',
+      subject: 'it',
+      timestamp: '2025-05-23T10:33:00Z',
+    },
+    {
+      id: '3',
+      studentName: 'Alice Johnson',
+      title: 'Crop Science Notes',
+      subject: 'agriculture',
+      timestamp: '2025-05-23T10:34:00Z',
+    },
+  ];
 
   // Validate Google Drive link
   const isValidDriveLink = (url) => {
@@ -192,7 +225,7 @@ const StaffDashboard = () => {
       const unsubscribe = onSnapshot(collection(db, 'assignments'), (snapshot) => {
         const staffAssignments = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((assignment) => assignment.staffId === auth.currentUser?.uid); // Filter by staffId
+          .filter((assignment) => assignment.staffId === auth.currentUser?.uid);
         setAssignments(staffAssignments);
         setAssignmentsLoading(false);
       });
@@ -266,9 +299,6 @@ const StaffDashboard = () => {
           totalTasks: tasks.length,
         }));
         setResults(resultsData);
-        const circularsRef = collection(db, 'circulars');
-        const circularsSnap = await getDocs(circularsRef);
-        setCirculars(circularsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         setLoading(false);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -693,42 +723,70 @@ const StaffDashboard = () => {
             </div>
           </div>
           <div
-            id="circular-container"
-            className={`toggle-container ${activeContainer === 'circular-container' ? 'active' : ''}`}
+            id="monitor-container"
+            className={`toggle-container ${activeContainer === 'monitor-container' ? 'active' : ''}`}
           >
-            <div className="container-header">Circulars</div>
-            <div className="container-body">
-              <input
-                type="file"
-                id="circular-upload"
-                onChange={(e) => console.log('Circular upload not implemented')}
-                className="goal-input"
-                style={{ display: 'none' }}
-              />
+            <div className="container-header">
+              Monitor
               <button
-                onClick={() => document.getElementById('circular-upload').click()}
-                className="add-goal-btn"
+                onClick={() => setActiveContainer(null)}
+                className="back-btn small"
+                style={{ float: 'right' }}
               >
-                Upload Circular
+                Back to Dashboard
               </button>
-              {circulars.length === 0 ? (
-                <p className="empty-message">No circulars uploaded.</p>
-              ) : (
-                <ul>
-                  {circulars.map((circular) => (
-                    <li key={circular.id}>
-                      <a href={circular.url} target="_blank" rel="noopener noreferrer">
-                        {circular.id}
-                      </a>
-                      <span>
-                        {' - Uploaded by '}
-                        {circular.sender}
-                        {' on '}
-                        {new Date(circular.uploadedAt).toLocaleDateString()}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+            </div>
+            <div className="container-body scrollable">
+              <div className="monitor-controls">
+                <button
+                  className={`monitor-btn ${monitorView === 'student-activity' ? 'active' : ''}`}
+                  onClick={() => setMonitorView('student-activity')}
+                >
+                  Student Activity
+                </button>
+                <button
+                  className={`monitor-btn ${monitorView === 'notes' ? 'active' : ''}`}
+                  onClick={() => setMonitorView('notes')}
+                >
+                  Notes
+                </button>
+              </div>
+              {monitorView === 'student-activity' && (
+                <div className="monitor-content">
+                  <h3>Student Activity</h3>
+                  {studentActivityData.length === 0 ? (
+                    <p className="empty-message">No student activity data available.</p>
+                  ) : (
+                    <ul className="monitor-list">
+                      {studentActivityData.map((student) => (
+                        <li key={student.id} className="monitor-item">
+                          <span>{student.name}</span>
+                          <span>{student.hoursSpent} hours</span>
+                          <span>Last Active: {student.lastActive}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {monitorView === 'notes' && (
+                <div className="monitor-content">
+                  <h3>Posted Notes</h3>
+                  {notesData.length === 0 ? (
+                    <p className="empty-message">No notes posted by students.</p>
+                  ) : (
+                    <ul className="monitor-list">
+                      {notesData.map((note) => (
+                        <li key={note.id} className="monitor-item">
+                          <span>{note.studentName}</span>
+                          <span>{note.title}</span>
+                          <span>{note.subject.replace(/_/g, ' ').toUpperCase()}</span>
+                          <span>{new Date(note.timestamp).toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -760,7 +818,7 @@ const StaffDashboard = () => {
               Student Statistics
               <button
                 onClick={() => setActiveContainer(null)}
-                className="add-goal-btn"
+                className="back-btn small"
                 style={{ float: 'right' }}
               >
                 Back to Dashboard

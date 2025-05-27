@@ -46,7 +46,7 @@ const Sidebar = ({
     { id: 'tasks-container', icon: 'fas fa-tasks', label: 'Tasks' },
     { id: 'assignments-container', icon: 'fas fa-file-alt', label: 'Assignments' },
     { id: 'results-container', icon: 'fas fa-chart-line', label: 'Results' },
-    { id: 'circular-container', icon: 'fas fa-bullhorn', label: 'Circulars' },
+    { id: 'circular-container', icon: 'fas fa-chart-pie', label: 'Monitor' },
     { id: 'staff-interaction-container', icon: 'fas fa-users', label: 'Staff Interaction' },
     { id: 'quick-stats-container', icon: 'fas fa-chart-bar', label: 'Quick Stats' },
     { id: 'settings-container', icon: 'fas fa-cog', label: 'Settings' },

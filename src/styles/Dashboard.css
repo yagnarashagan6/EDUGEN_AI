@@ -1317,3 +1317,37 @@
 .quiz-prompt button:hover {
   background-color: #ddd;
 }
+.monitor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.monitor-item {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+.monitor-item:last-child {
+  border-bottom: none;
+}
+.monitor-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #f8f9fa;
+  color: #0438af;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 10px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.monitor-btn.active {
+  background: #0438af;
+  color: white;
+}
+.monitor-btn:hover {
+  background: #e0e0e0;
+  transform: scale(1.05);
+}
