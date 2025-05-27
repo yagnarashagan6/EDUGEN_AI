@@ -3,7 +3,14 @@ import React, { useState, useEffect } from 'react';
 import NotesForm from './NotesForm';
 import '../styles/Notes.css';
 import { db, auth } from '../firebase';
-import { collection, onSnapshot, addDoc, doc, deleteDoc } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  deleteDoc,
+  getDoc,
+} from 'firebase/firestore';
 
 const Notes = ({ toggleContainer, studentName }) => {
   const currentUser = studentName || 'Unknown';
@@ -16,31 +23,54 @@ const Notes = ({ toggleContainer, studentName }) => {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userNames, setUserNames] = useState({});
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'notes'), (snapshot) => {
-      try {
-        const notesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setNotes(notesData);
-        setFilteredNotes(notesData);
-        setLoading(false);
+    const fetchUserNames = async () => {
+      const uniqueUserIds = [...new Set(notes.map(note => note.userId).filter(Boolean))];
+      const namesMap = {};
+      for (const userId of uniqueUserIds) {
+        try {
+          const userDoc = await getDoc(doc(db, 'students', userId));
+          if (userDoc.exists()) {
+            namesMap[userId] = userDoc.data().name || 'Unknown';
+          }
+        } catch (e) {
+          namesMap[userId] = 'Unknown';
+        }
+      }
+      setUserNames(namesMap);
+    };
+    if (notes.length > 0) fetchUserNames();
+  }, [notes]);
 
-        // Extract unique subjects from notes
-        const uniqueSubjects = [...new Set(notesData.map(note => note.subject))];
-        setSubjects(uniqueSubjects.length > 0 ? uniqueSubjects : ['human_resource', 'it', 'agriculture']);
-      } catch (error) {
-        console.error("Error fetching notes:", error);
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'notes'),
+      (snapshot) => {
+        try {
+          const notesData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setNotes(notesData);
+          setFilteredNotes(notesData);
+          setLoading(false);
+
+          const uniqueSubjects = [...new Set(notesData.map(note => note.subject))];
+          setSubjects(uniqueSubjects.length > 0 ? uniqueSubjects : ['human_resource', 'it', 'agriculture']);
+        } catch (error) {
+          console.error("Error fetching notes:", error);
+          setError('Failed to load notes. Please try again.');
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error("Error in snapshot listener:", error);
         setError('Failed to load notes. Please try again.');
         setLoading(false);
       }
-    }, (error) => {
-      console.error("Error in snapshot listener:", error);
-      setError('Failed to load notes. Please try again.');
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribe();
   }, []);
@@ -48,23 +78,21 @@ const Notes = ({ toggleContainer, studentName }) => {
   useEffect(() => {
     let filtered = [...notes];
     if (selectedSubject) {
-      filtered = filtered.filter((note) => note.subject === selectedSubject);
+      filtered = filtered.filter(note => note.subject === selectedSubject);
     }
     if (searchQuery) {
-      filtered = filtered.filter((note) =>
+      filtered = filtered.filter(note =>
         note.title?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     if (selectedType) {
-      filtered = filtered.filter((note) => note.type === selectedType);
+      filtered = filtered.filter(note => note.type === selectedType);
     }
     setFilteredNotes(filtered);
   }, [notes, selectedSubject, selectedType, searchQuery]);
 
   const getYouTubeEmbedUrl = (url) => {
-    const match = url.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/
-    );
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
     return match ? `https://www.youtube.com/embed/${match[1]}` : '';
   };
 
@@ -74,8 +102,8 @@ const Notes = ({ toggleContainer, studentName }) => {
         await addDoc(collection(db, 'notes'), {
           ...note,
           name: note.name || currentUser,
-          userId: auth.currentUser?.uid || 'unknown', // Add userId for secure deletion
-          timestamp: new Date().toISOString()
+          userId: auth.currentUser?.uid || 'unknown',
+          timestamp: new Date().toISOString(),
         });
       }
       setShowForm(false);
@@ -153,37 +181,30 @@ const Notes = ({ toggleContainer, studentName }) => {
                 <p>No notes found.</p>
               ) : (
                 filteredNotes.map((note) => {
-                  const postedDate = new Date(note.timestamp).toLocaleDateString(
-                    undefined,
-                    {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    }
-                  );
+                  const postedDate = new Date(note.timestamp).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  });
 
                   return (
-                    <div key={note.id} className="note-card">
+                    <div key={note.id} className="note-card" style={{ position: 'relative' }}>
                       <h3>{note.title}</h3>
-                      <p className="note-subject">
-                        {note.subject.replace(/_/g, ' ').toUpperCase()}
-                      </p>
+
                       {note.description && (
-                        <p className="note-description">{note.description}</p>
+                        <p className="note-description">
+                          {note.description}
+                        </p>
                       )}
 
-                      {note.type === 'youtube' && (
+                      {note.type === 'youtube' && note.url && (
                         <div className="video-wrapper">
-                          {getYouTubeEmbedUrl(note.url) ? (
-                            <iframe
-                              src={getYouTubeEmbedUrl(note.url)}
-                              title={note.title}
-                              allowFullScreen
-                              className="youtube-iframe"
-                            />
-                          ) : (
-                            <p className="error-message text-red-500">Invalid YouTube URL</p>
-                          )}
+                          <iframe
+                            src={getYouTubeEmbedUrl(note.url)}
+                            title={note.title}
+                            className="video-iframe"
+                            allowFullScreen
+                          />
                         </div>
                       )}
 
@@ -204,11 +225,21 @@ const Notes = ({ toggleContainer, studentName }) => {
                         </div>
                       )}
 
-                      <p className="note-timestamp">
-                        Submitted by: <strong>{note.name || 'Unknown'}</strong>
-                        <br />
-                        on {postedDate}
-                      </p>
+                      {/* Sender and date at bottom right */}
+                      <div className="note-meta-bottom-right">
+                        <p className="note-sender" style={{ margin: 0 }}>
+                          by: <span className="note-sender-highlight">
+                            {userNames[note.userId] || note.name || 'Unknown'}
+                          </span>
+                        </p>
+                        <p className="note-timestamp" style={{ margin: 0, fontSize: '0.95em', color: '#666' }}>
+                          on {new Date(note.timestamp).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
 
                       {note.userId === auth.currentUser?.uid && (
                         <button

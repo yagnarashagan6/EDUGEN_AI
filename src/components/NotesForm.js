@@ -1,4 +1,3 @@
-// NotesForm.js
 import React, { useState } from 'react';
 import '../styles/NotesForm.css';
 import { storage, auth } from '../firebase';
@@ -15,6 +14,11 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
   });
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  // ✅ Define senderName and userId at component level
+  const user = auth.currentUser;
+  const senderName = user?.displayName || studentName || 'Unknown';
+  const userId = user?.uid || 'unknown';
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -93,6 +97,7 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
     }
 
     const timestamp = new Date().toISOString();
+
     const notes = [];
 
     if (formData.youtube) {
@@ -102,8 +107,8 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
         url: formData.youtube,
         subject: formData.subject,
         description: formData.description,
-        name: studentName,
-        userId: auth.currentUser?.uid || 'unknown', // Add userId
+        name: senderName, // Always use senderName
+        userId,           // Always use userId
         timestamp,
       });
     }
@@ -115,8 +120,8 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
         url: formData.article,
         subject: formData.subject,
         description: formData.description,
-        name: studentName,
-        userId: auth.currentUser?.uid || 'unknown', // Add userId
+        name: senderName, // Always use senderName
+        userId,           // Always use userId
         timestamp,
       });
     }
@@ -128,8 +133,8 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
         url: formData.file,
         subject: formData.subject,
         description: formData.description,
-        name: studentName,
-        userId: auth.currentUser?.uid || 'unknown', // Add userId
+        name: senderName, // Always use senderName
+        userId,           // Always use userId
         timestamp,
       });
     }
@@ -244,6 +249,10 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
           {uploading ? 'Uploading...' : 'Submit'}
         </button>
       </div>
+
+      <p className="note-sender mt-4">
+        <strong>By: {senderName}</strong>
+      </p>
     </form>
   );
 };

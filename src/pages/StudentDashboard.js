@@ -125,7 +125,7 @@ const ChatInterface = ({
                     </div>
                   </div>
                 ))
-              )}
+              )};
             </div>
           </div>
         ) : (
@@ -197,7 +197,8 @@ const ChatInterface = ({
                   type="text"
                   id="message-input" // Ensure this ID is unique if component is used multiple times or manage via ref
                   placeholder="Type your message..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()
+                  }
                   className="message-input-field"
                 />
                 <button onClick={sendMessage} className="send-message-button">
@@ -1203,7 +1204,7 @@ const StudentDashboard = () => {
               <div className="container-body"> <Chatbot isVisible={true} copiedTopic={copiedTopic} clearCopiedTopic={() => setCopiedTopic('')} isInContainer={true} isQuizActive={inQuiz} /> </div>
             </div>
             <div id="notes-container" className={`toggle-container ${activeContainer === 'notes-container' ? 'active' : ''}`}>
-              <Notes toggleContainer={toggleContainer} logActivity={logStudentActivity} />
+              <Notes toggleContainer={toggleContainer} logActivity={logStudentActivity} studentName={userData?.name} />
             </div>
             {quizReady && !inQuiz && ( // Show prompt only if quiz is ready and not already in quiz
               <div className="quiz-prompt">

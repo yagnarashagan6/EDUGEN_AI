@@ -94,6 +94,8 @@
   padding: 16px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  padding-bottom: 54px; /* Add space for meta info */
 }
 
 .note-card:hover {
@@ -277,4 +279,17 @@
 }
 .note-card .close-btn:hover {
   background-color: #c62828;
+}
+/* Add to Notes.css */
+.note-meta-bottom-right {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  text-align: right;
+  width: calc(100% - 32px); /* Ensures it doesn't overflow */
+  pointer-events: none; /* Prevents accidental click issues */
+}
+.note-sender-highlight {
+  color: #2563eb;
+  font-weight: bold;
 }
