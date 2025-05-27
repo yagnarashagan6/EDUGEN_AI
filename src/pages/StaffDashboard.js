@@ -7,6 +7,7 @@ import Sidebar from '../components/Sidebar';
 import Chatbot from '../components/Chatbot';
 import TaskItem from '../components/TaskItem';
 import GuideModal from '../components/GuideModal';
+import StudentMonitor from '../components/StudentMonitor'; // New import
 import '../styles/Dashboard.css';
 import '../styles/StaffInteraction.css';
 import '../styles/Chat.css';
@@ -178,40 +179,6 @@ const StaffDashboard = () => {
   const [showGuide, setShowGuide] = useState(false);
   const [newAssignmentSubject, setNewAssignmentSubject] = useState('');
   const [newAssignmentLink, setNewAssignmentLink] = useState('');
-  const [monitorView, setMonitorView] = useState('student-activity');
-
-  // Mock data for student activity (replace with real data if available)
-  const studentActivityData = studentStats.map((student) => ({
-    id: student.id,
-    name: student.name,
-    hoursSpent: Math.floor(Math.random() * 10) + 1,
-    lastActive: new Date().toLocaleDateString(),
-  }));
-
-  // Mock notes data with student names
-  const notesData = [
-    {
-      id: '1',
-      studentName: 'John Doe',
-      title: 'HRM Lecture',
-      subject: 'human_resource',
-      timestamp: '2025-05-23T10:32:00Z',
-    },
-    {
-      id: '2',
-      studentName: 'Jane Smith',
-      title: 'IT Basics',
-      subject: 'it',
-      timestamp: '2025-05-23T10:33:00Z',
-    },
-    {
-      id: '3',
-      studentName: 'Alice Johnson',
-      title: 'Crop Science Notes',
-      subject: 'agriculture',
-      timestamp: '2025-05-23T10:34:00Z',
-    },
-  ];
 
   // Validate Google Drive link
   const isValidDriveLink = (url) => {
@@ -737,57 +704,7 @@ const StaffDashboard = () => {
               </button>
             </div>
             <div className="container-body scrollable">
-              <div className="monitor-controls">
-                <button
-                  className={`monitor-btn ${monitorView === 'student-activity' ? 'active' : ''}`}
-                  onClick={() => setMonitorView('student-activity')}
-                >
-                  Student Activity
-                </button>
-                <button
-                  className={`monitor-btn ${monitorView === 'notes' ? 'active' : ''}`}
-                  onClick={() => setMonitorView('notes')}
-                >
-                  Notes
-                </button>
-              </div>
-              {monitorView === 'student-activity' && (
-                <div className="monitor-content">
-                  <h3>Student Activity</h3>
-                  {studentActivityData.length === 0 ? (
-                    <p className="empty-message">No student activity data available.</p>
-                  ) : (
-                    <ul className="monitor-list">
-                      {studentActivityData.map((student) => (
-                        <li key={student.id} className="monitor-item">
-                          <span>{student.name}</span>
-                          <span>{student.hoursSpent} hours</span>
-                          <span>Last Active: {student.lastActive}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-              {monitorView === 'notes' && (
-                <div className="monitor-content">
-                  <h3>Posted Notes</h3>
-                  {notesData.length === 0 ? (
-                    <p className="empty-message">No notes posted by students.</p>
-                  ) : (
-                    <ul className="monitor-list">
-                      {notesData.map((note) => (
-                        <li key={note.id} className="monitor-item">
-                          <span>{note.studentName}</span>
-                          <span>{note.title}</span>
-                          <span>{note.subject.replace(/_/g, ' ').toUpperCase()}</span>
-                          <span>{new Date(note.timestamp).toLocaleString()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+              <StudentMonitor />
             </div>
           </div>
           <div

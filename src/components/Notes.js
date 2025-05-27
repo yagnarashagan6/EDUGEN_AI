@@ -1,6 +1,9 @@
+// Notes.js
 import React, { useState, useEffect } from 'react';
 import NotesForm from './NotesForm';
 import '../styles/Notes.css';
+import { db, auth } from '../firebase';
+import { collection, onSnapshot, addDoc, doc, deleteDoc } from 'firebase/firestore';
 
 const Notes = ({ toggleContainer, studentName }) => {
   const currentUser = studentName || 'Unknown';
@@ -12,24 +15,34 @@ const Notes = ({ toggleContainer, studentName }) => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchNotes = async () => {
+    const unsubscribe = onSnapshot(collection(db, 'notes'), (snapshot) => {
       try {
-        // Example API, replace with real URL
-        const res = await fetch('https://your-api-url.com');
-        const data = await res.json();
-        setNotes(data.notes || []);
-        setFilteredNotes(data.notes || []);
-        setSubjects(data.subjects || ['human_resource', 'it', 'agriculture']);
-      } catch {
-        setNotes([]);
-        setFilteredNotes([]);
-      } finally {
+        const notesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setNotes(notesData);
+        setFilteredNotes(notesData);
+        setLoading(false);
+
+        // Extract unique subjects from notes
+        const uniqueSubjects = [...new Set(notesData.map(note => note.subject))];
+        setSubjects(uniqueSubjects.length > 0 ? uniqueSubjects : ['human_resource', 'it', 'agriculture']);
+      } catch (error) {
+        console.error("Error fetching notes:", error);
+        setError('Failed to load notes. Please try again.');
         setLoading(false);
       }
-    };
-    fetchNotes();
+    }, (error) => {
+      console.error("Error in snapshot listener:", error);
+      setError('Failed to load notes. Please try again.');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -55,28 +68,40 @@ const Notes = ({ toggleContainer, studentName }) => {
     return match ? `https://www.youtube.com/embed/${match[1]}` : '';
   };
 
-  const handleNoteSubmit = (newNotes) => {
-    // The notes from the form already have 'name' set by NotesForm,
-    // but just in case, we ensure the current user is attached:
-    const notesWithName = newNotes.map((note) => ({
-      ...note,
-      name: note.name || currentUser,
-    }));
-    setNotes((prev) => [...prev, ...notesWithName]);
-    setFilteredNotes((prev) => [...prev, ...notesWithName]);
-    setShowForm(false);
+  const handleNoteSubmit = async (newNotes) => {
+    try {
+      for (const note of newNotes) {
+        await addDoc(collection(db, 'notes'), {
+          ...note,
+          name: note.name || currentUser,
+          userId: auth.currentUser?.uid || 'unknown', // Add userId for secure deletion
+          timestamp: new Date().toISOString()
+        });
+      }
+      setShowForm(false);
+      setError('');
+    } catch (error) {
+      console.error("Error adding note:", error);
+      setError('Failed to add note. Please try again.');
+    }
   };
 
-  const handleDelete = (id) => {
-    const updatedNotes = notes.filter((note) => note.id !== id);
-    setNotes(updatedNotes);
-    setFilteredNotes(updatedNotes);
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) return;
+    try {
+      await deleteDoc(doc(db, 'notes', id));
+      setError('');
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      setError('Failed to delete note. Please try again.');
+    }
   };
 
   return (
     <div id="notes-container" className="notes-container">
       <div className="container-header">📚 Study Notes</div>
       <div className="container-body">
+        {error && <p className="error-message text-red-500">{error}</p>}
         {loading ? (
           <p>Loading notes...</p>
         ) : showForm ? (
@@ -149,11 +174,16 @@ const Notes = ({ toggleContainer, studentName }) => {
 
                       {note.type === 'youtube' && (
                         <div className="video-wrapper">
-                          <iframe
-                            src={getYouTubeEmbedUrl(note.url)}
-                            title="YouTube Video"
-                            allowFullScreen
-                          />
+                          {getYouTubeEmbedUrl(note.url) ? (
+                            <iframe
+                              src={getYouTubeEmbedUrl(note.url)}
+                              title={note.title}
+                              allowFullScreen
+                              className="youtube-iframe"
+                            />
+                          ) : (
+                            <p className="error-message text-red-500">Invalid YouTube URL</p>
+                          )}
                         </div>
                       )}
 
@@ -170,7 +200,7 @@ const Notes = ({ toggleContainer, studentName }) => {
 
                       {note.type === 'file' && (
                         <div className="pdf-wrapper">
-                          <iframe src={note.url} title="PDF Preview" />
+                          <iframe src={note.url} title={note.title} className="pdf-iframe" />
                         </div>
                       )}
 
@@ -180,7 +210,7 @@ const Notes = ({ toggleContainer, studentName }) => {
                         on {postedDate}
                       </p>
 
-                      {note.name === currentUser && (
+                      {note.userId === auth.currentUser?.uid && (
                         <button
                           onClick={() => handleDelete(note.id)}
                           className="close-btn"

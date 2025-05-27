@@ -1,0 +1,13 @@
+.student-monitor {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.student-monitor table {
+  width: 100%;
+}
+
+.student-monitor th,
+.student-monitor td {
+  text-align: left;
+}

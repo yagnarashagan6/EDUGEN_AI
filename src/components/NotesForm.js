@@ -1,5 +1,8 @@
+// NotesForm.js
 import React, { useState } from 'react';
 import '../styles/NotesForm.css';
+import { storage, auth } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
   const [formData, setFormData] = useState({
@@ -8,6 +11,7 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
     article: '',
     file: null,
     description: '',
+    title: ''
   });
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -17,88 +21,126 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (!file) return; // no file selected
+    if (!file) {
+      setError('No file selected.');
+      return;
+    }
+
     if (file.type !== 'application/pdf') {
       setError('Only PDF files are allowed.');
       return;
     }
+
     if (file.size > 10 * 1024 * 1024) {
       setError('File must be under 10MB.');
       return;
     }
+
     setError('');
-    const reader = new FileReader();
-    reader.onload = () => {
-      setFormData((prev) => ({ ...prev, file: reader.result }));
-    };
-    reader.onerror = () => setError('Error reading file.');
-    reader.readAsDataURL(file);
+    setUploading(true);
+
+    try {
+      const storageRef = ref(storage, `notes/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setFormData((prev) => ({
+        ...prev,
+        file: downloadURL,
+        title: prev.title || file.name.replace('.pdf', '')
+      }));
+    } catch (err) {
+      console.error("Error uploading file:", err);
+      setError('Failed to upload file. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const validateYouTubeUrl = (url) => {
+    return url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
     if (!formData.subject) {
       setError('Please select a subject.');
       return;
     }
+
     if (!formData.youtube && !formData.article && !formData.file) {
-      setError('Please provide at least one resource.');
+      setError('Please provide at least one resource (YouTube, article, or PDF).');
+      return;
+    }
+
+    if (formData.youtube && !validateYouTubeUrl(formData.youtube)) {
+      setError('Please enter a valid YouTube URL.');
+      return;
+    }
+
+    if (formData.article && !formData.article.match(/^https?:\/\/.+/)) {
+      setError('Please enter a valid article URL starting with http:// or https://.');
+      return;
+    }
+
+    if (!formData.title) {
+      setError('Please provide a title for the resource.');
       return;
     }
 
     const timestamp = new Date().toISOString();
-    const uniqueBaseId = Date.now().toString(); // To avoid duplicate IDs
-
     const notes = [];
 
     if (formData.youtube) {
       notes.push({
-        id: uniqueBaseId + '-yt',
-        title: 'YouTube Resource',
+        title: formData.title,
         type: 'youtube',
         url: formData.youtube,
         subject: formData.subject,
         description: formData.description,
         name: studentName,
+        userId: auth.currentUser?.uid || 'unknown', // Add userId
         timestamp,
       });
     }
 
     if (formData.article) {
       notes.push({
-        id: uniqueBaseId + '-art',
-        title: 'Article Resource',
+        title: formData.title,
         type: 'article',
         url: formData.article,
         subject: formData.subject,
         description: formData.description,
         name: studentName,
+        userId: auth.currentUser?.uid || 'unknown', // Add userId
         timestamp,
       });
     }
 
     if (formData.file) {
       notes.push({
-        id: uniqueBaseId + '-pdf',
-        title: 'PDF Resource',
+        title: formData.title,
         type: 'file',
         url: formData.file,
         subject: formData.subject,
         description: formData.description,
         name: studentName,
+        userId: auth.currentUser?.uid || 'unknown', // Add userId
         timestamp,
       });
     }
 
-    setUploading(true);
-    setTimeout(() => {
-      onSubmit(notes);
-      setFormData({ subject: '', youtube: '', article: '', file: null, description: '' });
-      setUploading(false);
-    }, 500);
+    try {
+      await onSubmit(notes);
+      setFormData({ subject: '', youtube: '', article: '', file: null, description: '', title: '' });
+      setError('');
+    } catch (err) {
+      setError('Failed to submit notes. Please try again.');
+    }
   };
 
   return (
@@ -107,8 +149,14 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       <div className="mb-4">
-        <label>Select Subject *</label>
-        <select name="subject" value={formData.subject} onChange={handleInputChange} required>
+        <label className="block text-sm font-medium text-gray-700">Select Subject *</label>
+        <select
+          name="subject"
+          value={formData.subject}
+          onChange={handleInputChange}
+          className="mt-1 block w-full border rounded-md p-2"
+          required
+        >
           <option value="">Choose a subject</option>
           {subjects.map((subj) => (
             <option key={subj} value={subj}>
@@ -119,48 +167,80 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
       </div>
 
       <div className="mb-4">
-        <label>Description</label>
+        <label className="block text-sm font-medium text-gray-700">Title *</label>
+        <input
+          type="text"
+          name="title"
+          value={formData.title}
+          onChange={handleInputChange}
+          placeholder="Resource title"
+          className="mt-1 block w-full border rounded-md p-2"
+          required
+        />
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">Description (Optional)</label>
         <textarea
           name="description"
           value={formData.description}
           onChange={handleInputChange}
           rows={3}
           placeholder="Add a brief description..."
+          className="mt-1 block w-full border rounded-md p-2"
         />
       </div>
 
       <div className="mb-4">
-        <label>YouTube Link</label>
+        <label className="block text-sm font-medium text-gray-700">YouTube Link</label>
         <input
           type="url"
           name="youtube"
           value={formData.youtube}
           onChange={handleInputChange}
           placeholder="Paste YouTube URL"
+          className="mt-1 block w-full border rounded-md p-2"
         />
       </div>
 
       <div className="mb-4">
-        <label>Online Article Link</label>
+        <label className="block text-sm font-medium text-gray-700">Online Article Link</label>
         <input
           type="url"
           name="article"
           value={formData.article}
           onChange={handleInputChange}
           placeholder="Paste Article URL"
+          className="mt-1 block w-full border rounded-md p-2"
         />
       </div>
 
       <div className="mb-4">
-        <label>Upload PDF</label>
-        <input type="file" accept="application/pdf" onChange={handleFileChange} />
+        <label className="block text-sm font-medium text-gray-700">Upload PDF</label>
+        <input
+          type="file"
+          accept="application/pdf"
+          onChange={handleFileChange}
+          disabled={uploading}
+          className="mt-1 block w-full"
+        />
+        {uploading && <p className="mt-2 text-sm text-gray-500">Uploading file...</p>}
       </div>
 
-      <div className="form-buttons">
-        <button type="button" onClick={onCancel} disabled={uploading}>
+      <div className="form-buttons flex space-x-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={uploading}
+          className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400"
+        >
           Cancel
         </button>
-        <button type="submit" disabled={uploading}>
+        <button
+          type="submit"
+          disabled={uploading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
           {uploading ? 'Uploading...' : 'Submit'}
         </button>
       </div>
