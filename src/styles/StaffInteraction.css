@@ -11,7 +11,7 @@
     border: 1px solid #ddd;
     flex-direction: column;
     box-sizing: border-box;
-    position: relative;
+    position: relative; /* Ensure parent is relative */
     overflow: hidden;
 }
 
@@ -35,11 +35,11 @@
 #staff-interaction-container .contact-list.full-container {
     display: flex;
     flex-direction: column;
-    height: calc(100% - 60px);
+    height: 100%;         /* Cover full height */
     width: 100%;
     background: #ffffff;
     position: absolute;
-    top: 60px;
+    top: 0;               /* Start from top */
     left: 0;
     z-index: 5;
     overflow-y: auto;
@@ -364,74 +364,22 @@
     }
 
     #staff-interaction-container .chat-interface {
-        height: auto;
+        height: 100% !important; /* Force full height on mobile */
+    }
+
+    #staff-interaction-container .container-body {
+        height: 100% !important;
+        position: relative !important;
     }
 
     #staff-interaction-container .contact-list.full-container {
-        height: auto;
-    }
-
-    #staff-interaction-container .contact-list-body {
-        padding: 8px;
-        max-height: 300px;
-    }
-
-    #staff-interaction-container .contact-avatar {
-        width: 40px;
-        height: 40px;
-    }
-
-    #staff-interaction-container .contact-info h4 {
-        font-size: 14px;
-    }
-
-    #staff-interaction-container .contact-info p {
-        font-size: 12px;
-    }
-
-    #staff-interaction-container .chat-header {
-        padding: 10px;
-    }
-
-    #staff-interaction-container .toggle-contact-btn {
-        padding: 6px 12px;
-        font-size: 13px;
-    }
-
-    #staff-interaction-container .recipient-avatar {
-        width: 36px;
-        height: 36px;
-    }
-
-    #staff-interaction-container .recipient-info h3 {
-        font-size: 15px;
-    }
-
-    #staff-interaction-container .status {
-        font-size: 11px;
-    }
-
-    #staff-interaction-container .messages-container {
-        padding: 10px;
-        min-height: 100px;
-        max-height: calc(100vh - 200px);
-        overflow-y: auto;
-    }
-
-    #staff-interaction-container .message-bubble {
-        max-width: 80%;
-        padding: 10px 15px;
-        font-size: 14px;
-    }
-
-    #staff-interaction-container .message-input-field {
-        padding: 10px;
-        font-size: 14px;
-    }
-
-    #staff-interaction-container .send-message-button {
-        width: 40px;
-        height: 40px;
+        height: 100% !important;
+        width: 100% !important;
+        position: absolute !important;
+        top: 0; left: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
     }
 }
 
@@ -442,11 +390,22 @@
     }
 
     #staff-interaction-container .chat-interface {
-        height: auto;
+        height: 100% !important; /* Force full height on mobile */
+    }
+
+    #staff-interaction-container .container-body {
+        height: 100% !important;
+        position: relative !important;
     }
 
     #staff-interaction-container .contact-list.full-container {
-        height: auto;
+        height: 100% !important;
+        width: 100% !important;
+        position: absolute !important;
+        top: 0; left: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
     }
 
     #staff-interaction-container .contact-list-body {

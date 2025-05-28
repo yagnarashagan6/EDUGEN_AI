@@ -1,19 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import '../styles/NotesForm.css';
 import { storage, auth } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
+const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
   const [formData, setFormData] = useState({
     subject: '',
     youtube: '',
     article: '',
     file: null,
     description: '',
-    title: ''
+    title: '',
+    sharedWith: ['all'] // Default to sharing with all students
   });
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // ✅ Define senderName and userId at component level
   const user = auth.currentUser;
@@ -23,6 +37,25 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSharedWithChange = (value) => {
+    setFormData((prev) => {
+      if (value === 'all') {
+        // If "All Students" is selected, override with ['all']
+        return { ...prev, sharedWith: ['all'] };
+      } else {
+        // Toggle individual student selection
+        let newSharedWith = prev.sharedWith.includes('all') ? [] : [...prev.sharedWith];
+        if (newSharedWith.includes(value)) {
+          newSharedWith = newSharedWith.filter((id) => id !== value);
+        } else {
+          newSharedWith.push(value);
+        }
+        // Ensure sharedWith is never empty
+        return { ...prev, sharedWith: newSharedWith.length > 0 ? newSharedWith : ['all'] };
+      }
+    });
   };
 
   const handleFileChange = async (e) => {
@@ -96,6 +129,11 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
       return;
     }
 
+    if (formData.sharedWith.length === 0) {
+      setError('Please select at least one recipient.');
+      return;
+    }
+
     const timestamp = new Date().toISOString();
 
     const notes = [];
@@ -107,9 +145,10 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
         url: formData.youtube,
         subject: formData.subject,
         description: formData.description,
-        name: senderName, // Always use senderName
-        userId,           // Always use userId
+        name: senderName,
+        userId,
         timestamp,
+        sharedWith: formData.sharedWith
       });
     }
 
@@ -120,9 +159,10 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
         url: formData.article,
         subject: formData.subject,
         description: formData.description,
-        name: senderName, // Always use senderName
-        userId,           // Always use userId
+        name: senderName,
+        userId,
         timestamp,
+        sharedWith: formData.sharedWith
       });
     }
 
@@ -133,15 +173,16 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
         url: formData.file,
         subject: formData.subject,
         description: formData.description,
-        name: senderName, // Always use senderName
-        userId,           // Always use userId
+        name: senderName,
+        userId,
         timestamp,
+        sharedWith: formData.sharedWith
       });
     }
 
     try {
       await onSubmit(notes);
-      setFormData({ subject: '', youtube: '', article: '', file: null, description: '', title: '' });
+      setFormData({ subject: '', youtube: '', article: '', file: null, description: '', title: '', sharedWith: ['all'] });
       setError('');
     } catch (err) {
       setError('Failed to submit notes. Please try again.');
@@ -169,6 +210,54 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName }) => {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">Share With *</label>
+        <div className="relative" ref={dropdownRef}>
+          <input
+            type="text"
+            readOnly
+            className="mt-1 block w-full border rounded-md p-2 bg-gray-100 cursor-pointer"
+            value={
+              formData.sharedWith.includes('all')
+                ? 'All Students'
+                : `${formData.sharedWith.length} student${formData.sharedWith.length > 1 ? 's' : ''} selected`
+            }
+            onClick={() => setDropdownOpen((open) => !open)}
+          />
+          {dropdownOpen && (
+            <div className="absolute z-10 bg-white border rounded-md mt-1 w-full shadow-lg max-h-60 overflow-y-auto">
+              <div
+                className={`p-2 cursor-pointer flex items-center ${formData.sharedWith.includes('all') ? 'bg-blue-100' : ''}`}
+                onClick={() => handleSharedWithChange('all')}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.sharedWith.includes('all')}
+                  readOnly
+                  className="mr-2"
+                />
+                All Students
+              </div>
+              {students.map((student) => (
+                <div
+                  key={student.id}
+                  className={`p-2 cursor-pointer flex items-center ${formData.sharedWith.includes(student.id) ? 'bg-blue-100' : ''}`}
+                  onClick={() => handleSharedWithChange(student.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.sharedWith.includes(student.id)}
+                    readOnly
+                    className="mr-2"
+                  />
+                  {student.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mb-4">

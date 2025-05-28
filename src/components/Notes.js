@@ -17,6 +17,7 @@ const Notes = ({ toggleContainer, studentName }) => {
   const [notes, setNotes] = useState([]);
   const [filteredNotes, setFilteredNotes] = useState([]);
   const [subjects, setSubjects] = useState(['human_resource', 'it', 'agriculture']);
+  const [students, setStudents] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -24,6 +25,66 @@ const Notes = ({ toggleContainer, studentName }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userNames, setUserNames] = useState({});
+
+  useEffect(() => {
+    // Fetch students from Firebase
+    const unsubscribeStudents = onSnapshot(
+      collection(db, 'students'),
+      (snapshot) => {
+        try {
+          const studentsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name || 'Unknown'
+          }));
+          setStudents(studentsData);
+        } catch (error) {
+          console.error("Error fetching students:", error);
+          setError('Failed to load students. Please try again.');
+        }
+      },
+      (error) => {
+        console.error("Error in students snapshot listener:", error);
+        setError('Failed to load students. Please try again.');
+      }
+    );
+
+    const unsubscribeNotes = onSnapshot(
+      collection(db, 'notes'),
+      (snapshot) => {
+        try {
+          const notesData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          // Filter notes based on sharedWith (all or includes current user's ID)
+          const filtered = notesData.filter(note => 
+            note.sharedWith.includes('all') || 
+            note.sharedWith.includes(auth.currentUser?.uid)
+          );
+          setNotes(filtered);
+          setFilteredNotes(filtered);
+          setLoading(false);
+
+          const uniqueSubjects = [...new Set(filtered.map(note => note.subject))];
+          setSubjects(uniqueSubjects.length > 0 ? uniqueSubjects : ['human_resource', 'it', 'agriculture']);
+        } catch (error) {
+          console.error("Error fetching notes:", error);
+          setError('Failed to load notes. Please try again.');
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error("Error in notes snapshot listener:", error);
+        setError('Failed to load notes. Please try again.');
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      unsubscribeStudents();
+      unsubscribeNotes();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUserNames = async () => {
@@ -43,37 +104,6 @@ const Notes = ({ toggleContainer, studentName }) => {
     };
     if (notes.length > 0) fetchUserNames();
   }, [notes]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'notes'),
-      (snapshot) => {
-        try {
-          const notesData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setNotes(notesData);
-          setFilteredNotes(notesData);
-          setLoading(false);
-
-          const uniqueSubjects = [...new Set(notesData.map(note => note.subject))];
-          setSubjects(uniqueSubjects.length > 0 ? uniqueSubjects : ['human_resource', 'it', 'agriculture']);
-        } catch (error) {
-          console.error("Error fetching notes:", error);
-          setError('Failed to load notes. Please try again.');
-          setLoading(false);
-        }
-      },
-      (error) => {
-        console.error("Error in snapshot listener:", error);
-        setError('Failed to load notes. Please try again.');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     let filtered = [...notes];
@@ -138,6 +168,7 @@ const Notes = ({ toggleContainer, studentName }) => {
             onCancel={() => setShowForm(false)}
             subjects={subjects}
             studentName={currentUser}
+            students={students}
           />
         ) : (
           <>
