@@ -77,6 +77,18 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
   }
 
   const currentQData = questions[currentQuestion];
+
+  // Add this guard before rendering the question:
+  if (!currentQData) {
+    return (
+      <div className="quiz-container">
+        <h2 className="quiz-title">Quiz: {topic}</h2>
+        <p>Could not load this question.</p>
+        <button className="next-button" onClick={() => handleQuizComplete(score)}>Back to Tasks</button>
+      </div>
+    );
+  }
+
   const percentage = Math.round((score / questions.length) * 100);
   const progressPercent = (timer / 10) * 100;
 

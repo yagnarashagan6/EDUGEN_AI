@@ -724,20 +724,21 @@ const StudentDashboard = () => {
 
   const copyTopicAndAskAI = (topic) => {
     setCopiedTopic(topic);
-    if (window.innerWidth > 768) {
-      setNotifications((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          type: 'quiz',
-          message: `Start a quiz on "${topic}"?`,
-          task: { content: topic },
-        },
-      ]);
-    } else {
+    setCurrentTopic(topic);
+    setQuizReady(false);
+    // Always show the quiz notification, regardless of device width
+    setNotifications((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        type: 'quiz',
+        message: `Start a quiz on "${topic}"?`,
+        task: { content: topic },
+      },
+    ]);
+    // On mobile, also open the chatbot container for reference (optional)
+    if (window.innerWidth <= 768) {
       setIsChatbotOpen(true);
-      setQuizReady(false);
-      setCurrentTopic(topic);
       setActiveContainer('chatbot-container');
     }
   };
