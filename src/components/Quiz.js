@@ -8,52 +8,68 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [showScore, setShowScore] = useState(false);
   const [timer, setTimer] = useState(10);
-
-  useEffect(() => {
-    if (!quizCompleted) {
-      setSelectedOption(null);
-      setTimer(10);
-    }
-  }, [currentQuestion]);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     if (quizCompleted) return;
+    setTimer(10);
+    setTimedOut(false);
+    setSelectedOption(null);
+
+    let timeoutCalled = false;
     const interval = setInterval(() => {
       setTimer((prev) => {
         if (prev === 1) {
           clearInterval(interval);
-          handleAutoNext();
+          if (!timeoutCalled) {
+            timeoutCalled = true;
+            handleTimeout();
+          }
+          return 0;
         }
         return prev - 1;
       });
     }, 1000);
+
     return () => clearInterval(interval);
-  }, [timer, quizCompleted]);
+  }, [currentQuestion, quizCompleted]);
 
   const handleOptionSelect = (option) => {
-    if (selectedOption !== null) return;
+    if (selectedOption !== null || timedOut) return;
     setSelectedOption(option);
     if (option === questions[currentQuestion]?.correctAnswer) {
       setScore((prev) => prev + 1);
     }
   };
 
+  // Called when timer runs out
+  const handleTimeout = () => {
+    // Prevent multiple calls for the same question
+    if (quizCompleted) return;
+    setTimedOut(true);
+    setSelectedOption("Timed Out");
+    setTimeout(() => {
+      if (currentQuestion === questions.length - 1) {
+        setQuizCompleted(true);
+        setShowScore(true);
+      } else {
+        setCurrentQuestion((prev) => prev + 1);
+      }
+    }, 1000); // 1 second delay before moving to next question
+  };
+
   const handleNextQuestion = () => {
     if (currentQuestion === questions.length - 1) {
       setQuizCompleted(true);
       setShowScore(true);
-      setTimeout(() => {
-        setShowScore(false);
-        handleQuizComplete(score);
-      }, 3000);
     } else {
       setCurrentQuestion((prev) => prev + 1);
     }
   };
 
-  const handleAutoNext = () => {
-    setSelectedOption("Timed Out");
-    setTimeout(() => handleNextQuestion(), 1000);
+  // Back to dashboard after quiz is finished
+  const handleBackToTasks = () => {
+    handleQuizComplete(score);
   };
 
   if (isLoading) {
@@ -78,7 +94,6 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
 
   const currentQData = questions[currentQuestion];
 
-  // Add this guard before rendering the question:
   if (!currentQData) {
     return (
       <div className="quiz-container">
@@ -106,25 +121,38 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
             <div className="question-count">
               Question {currentQuestion + 1} / {questions.length}
             </div>
-            <div className="question-text">{currentQData.text}</div>
+            <div
+              className="question-text"
+              draggable={false}
+              style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
+              onCopy={e => e.preventDefault()}
+              onContextMenu={e => e.preventDefault()}
+            >
+              {currentQData.text}
+            </div>
             <div className="options-list">
               {currentQData.options.map((option, idx) => (
                 <button
                   key={idx}
                   className={`option-btn${selectedOption === option ? ' selected' : ''}`}
-                  disabled={selectedOption !== null}
+                  disabled={selectedOption !== null || timedOut}
                   onClick={() => handleOptionSelect(option)}
+                  style={
+                    selectedOption === option
+                      ? { backgroundColor: '#1976d2', borderColor: '#1976d2', color: '#fff' }
+                      : {}
+                  }
                 >
                   {option}
                 </button>
               ))}
             </div>
           </div>
-          <div className="quiz-next-btn-row">
+          <div className="quiz-next-btn-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               className="next-button"
               onClick={handleNextQuestion}
-              disabled={selectedOption === null}
+              disabled={selectedOption === null && !timedOut}
             >
               {currentQuestion === questions.length - 1 ? 'Finish' : 'Next'}
             </button>
@@ -135,6 +163,9 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
           <div className="score-circle">{score} / {questions.length}</div>
           <div className="result-message">You scored {percentage}%</div>
           <div className="result-info">Well done!</div>
+          <button className="next-button" style={{ marginTop: 24 }} onClick={handleBackToTasks}>
+            Back to Tasks
+          </button>
         </div>
       ) : null}
     </div>

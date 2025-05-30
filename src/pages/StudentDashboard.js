@@ -202,6 +202,82 @@ const ChatInterface = ({
   );
 };
 
+// AssignmentItem for MAIN CONTENT AREA (assignment name left, marks right in a bubble)
+const AssignmentSummaryCard = ({ assignment }) => {
+  const [marks, setMarks] = useState(null);
+  const [marksLoading, setMarksLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMarks = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const marksRef = doc(db, 'students', user.uid, 'marks', assignment.id);
+        const marksSnap = await getDoc(marksRef);
+        if (marksSnap.exists()) {
+          setMarks(marksSnap.data());
+        }
+        setMarksLoading(false);
+      } catch (err) {
+        setMarksLoading(false);
+      }
+    };
+    fetchMarks();
+  }, [assignment.id]);
+
+  return (
+    <div
+      className="task-item"
+      style={{
+        marginBottom: '10px',
+        cursor: 'default',
+        minWidth: 220,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingRight: 16,
+        paddingLeft: 16,
+      }}
+    >
+      <h3 style={{ margin: 0, flex: 1 }}>{assignment.subject}</h3>
+      <div
+        style={{
+          minWidth: 60,
+          marginLeft: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-block',
+            background: '#e3f2fd',
+            color: '#1976d2',
+            borderRadius: '50%',
+            minWidth: 44,
+            minHeight: 44,
+            fontWeight: 700,
+            fontSize: 18,
+            lineHeight: '44px',
+            textAlign: 'center',
+            boxShadow: '0 2px 8px rgba(25, 118, 210, 0.10)',
+            border: '2px solid #90caf9',
+            padding: '0 10px',
+          }}
+        >
+          {marksLoading
+            ? <span style={{ color: '#888', fontWeight: 400, fontSize: 14 }}>...</span>
+            : marks && marks.marks !== undefined
+              ? marks.marks
+              : ''}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// AssignmentItem for ASSIGNMENTS CONTAINER (show full details)
 const AssignmentItem = ({ assignment }) => {
   const [marks, setMarks] = useState(null);
   const [marksLoading, setMarksLoading] = useState(true);
@@ -218,48 +294,33 @@ const AssignmentItem = ({ assignment }) => {
         }
         setMarksLoading(false);
       } catch (err) {
-        console.error('Error fetching marks:', err);
         setMarksLoading(false);
       }
     };
     fetchMarks();
   }, [assignment.id]);
 
-  const openLink = () => {
-    if (assignment.driveLink) {
-      window.open(assignment.driveLink, '_blank', 'noopener,noreferrer');
-    }
-  };
-
   return (
-    <div
-      className="task-item"
-      onClick={openLink}
-      style={{ cursor: assignment.driveLink ? 'pointer' : 'default', marginBottom: '10px' }}
-    >
+    <div className="task-item" style={{ marginBottom: '10px' }}>
       <div className="task-header">
-        <h3>{assignment.subject}</h3>
+        <h3>
+          <a
+            href={assignment.driveLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#1976d2', textDecoration: 'underline' }}
+            title="Open assignment link"
+            onClick={e => e.stopPropagation()}
+          >
+            {assignment.subject}
+          </a>
+        </h3>
       </div>
-      <p>Posted by: {assignment.staffName || 'Unknown'}</p>
-      <p>Posted on: {assignment.postedAt ? new Date(assignment.postedAt).toLocaleDateString() : 'N/A'}</p>
-      {assignment.deadline && (
-        <p style={{ color: new Date(assignment.deadline) < new Date() ? 'red' : 'darkorange' }}>
-          Deadline: {new Date(assignment.deadline).toLocaleDateString()}
-          {new Date(assignment.deadline) < new Date() ? ' (Expired)' : ''}
-        </p>
-      )}
-      {marksLoading ? (
-        <p>Loading marks...</p>
-      ) : marks ? (
-        <p style={{ color: '#4CAF50' }}>
-          Marks: {marks.marks} (Marked by {marks.staffName} on{' '}
-          {marks.markedAt?.toDate ? marks.markedAt.toDate().toLocaleDateString() : 'N/A'})
-        </p>
-      ) : (
-        <p>No marks assigned yet.</p>
-      )}
-      {assignment.driveLink && <small>Click to view details</small>}
-      {!assignment.driveLink && <small>No link available</small>}
+      <p><b>Deadline:</b> {assignment.deadline ? new Date(assignment.deadline).toLocaleDateString() : 'N/A'}</p>
+      <p><b>Posted At:</b> {assignment.postedAt ? new Date(assignment.postedAt).toLocaleDateString() : 'N/A'}</p>
+      <div style={{ fontWeight: 600, color: '#4CAF50', marginTop: 8 }}>
+        {marksLoading ? 'Loading marks...' : marks && marks.marks !== undefined ? `Marks: ${marks.marks}` : ''}
+      </div>
     </div>
   );
 };
@@ -536,8 +597,11 @@ const StudentDashboard = () => {
                 deadline: aDoc.data().deadline?.toDate ? aDoc.data().deadline.toDate() : null,
               }));
             setAssignments(fetchedAssignments);
-            const sortedAssignments = fetchedAssignments
-              .sort((a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0));
+
+            // Sort by postedAt (descending) and pick top 2
+            const sortedAssignments = [...fetchedAssignments].sort(
+              (a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0)
+            );
             setTopAssignments(sortedAssignments.slice(0, 2));
             setAssignmentsLoading(false);
           } catch (err) {
@@ -1125,7 +1189,18 @@ const StudentDashboard = () => {
                   {assignmentsLoading && <p>Loading assignments...</p>}
                   {assignmentsError && <p className="error-message">{assignmentsError}</p>}
                   {!assignmentsLoading && !assignmentsError && topAssignments.length > 0 ? (
-                    topAssignments.map(assignment => <AssignmentItem key={assignment.id} assignment={assignment} />)
+                    topAssignments.map(assignment => (
+                      <div
+                        key={assignment.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          setSelectedAssignmentSubject(assignment.subject || 'Uncategorized');
+                          setActiveContainer('assignments-container');
+                        }}
+                      >
+                        <AssignmentSummaryCard assignment={assignment} />
+                      </div>
+                    ))
                   ) : (
                     !assignmentsLoading && !assignmentsError && <p className="empty-message">No new assignments from staff.</p>
                   )}
@@ -1144,7 +1219,6 @@ const StudentDashboard = () => {
             <div id="tasks-container" className={`toggle-container ${activeContainer === 'tasks-container' ? 'active' : ''}`}>
               <div className="container-header">
                 {selectedSubject ? <span>Tasks in {selectedSubject}</span> : 'Posted Tasks'}
-                {selectedSubject && <button className="back-btn small" onClick={() => setSelectedSubject(null)}>View All Subjects</button>}
               </div>
               <div className="container-body scrollable">
                 {inQuiz && activeContainer === 'tasks-container' ? (
@@ -1153,7 +1227,7 @@ const StudentDashboard = () => {
                   <div className="subject-tasks">
                     {(tasksBySubject[selectedSubject] || []).length === 0 ? (
                       <p className="empty-message">No tasks available for {selectedSubject}.</p>
-                    ): (
+                    ) : (
                       tasksBySubject[selectedSubject].map((task) => (
                         <TaskItem
                           key={task.id}
@@ -1175,6 +1249,12 @@ const StudentDashboard = () => {
                         />
                       ))
                     )}
+                    {/* Move the back button here, at the bottom */}
+                    <div style={{ marginTop: 24, textAlign: 'center' }}>
+                      <button className="back-btn small" onClick={() => setSelectedSubject(null)}>
+                        Back to All Subjects
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="subjects-grid">
@@ -1229,7 +1309,8 @@ const StudentDashboard = () => {
             <div id="assignments-container" className={`toggle-container ${activeContainer === 'assignments-container' ? 'active' : ''}`}>
               <div className="container-header">
                 {selectedAssignmentSubject ? <span>Assignments in {selectedAssignmentSubject}</span> : 'Posted Assignments (by Staff)'}
-                {selectedAssignmentSubject && <button className="back-btn small" onClick={() => setSelectedAssignmentSubject(null)}>View All Subjects</button>}
+                {/* Remove the back button from here */}
+                {/* {selectedAssignmentSubject && <button className="back-btn small" onClick={() => setSelectedAssignmentSubject(null)}>View All Subjects</button>} */}
               </div>
               <div className="container-body scrollable">
                 {assignmentsLoading ? <p>Loading assignments...</p> : assignmentsError ? <p className="error-message">{assignmentsError}</p>
@@ -1237,15 +1318,31 @@ const StudentDashboard = () => {
                   <div className="subject-assignments">
                     {(assignmentsBySubject[selectedAssignmentSubject] || []).length === 0 ? <p className="empty-message">No assignments for {selectedAssignmentSubject}.</p>
                     : assignmentsBySubject[selectedAssignmentSubject].map((assignment) => <AssignmentItem key={assignment.id} assignment={assignment} />)}
+                    {/* Add the back button at the bottom */}
+                    <div style={{ marginTop: 24, textAlign: 'center' }}>
+                      <button className="back-btn small" onClick={() => setSelectedAssignmentSubject(null)}>
+                        Back to All Subjects
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="subjects-grid">
-                    {Object.keys(assignmentsBySubject).length === 0 ? <p className="empty-message">No assignments posted by staff.</p>
-                    : Object.keys(assignmentsBySubject).map((subject) => (
-                      <div key={subject} className="subject-card" onClick={() => setSelectedAssignmentSubject(subject)}>
-                        <h3>{subject}</h3> <p>{assignmentsBySubject[subject].length} Assignment(s)</p>
-                      </div>
-                    ))}
+                    {Object.keys(assignmentsBySubject).length === 0 ? (
+                      <p className="empty-message">No assignments posted by staff.</p>
+                    ) : (
+                      Object.keys(assignmentsBySubject).map((subject) => (
+                        <div
+                          key={subject}
+                          className="subject-card"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setSelectedAssignmentSubject(subject)}
+                          title="View assignments"
+                        >
+                          <h3>{subject}</h3>
+                          <p>{assignmentsBySubject[subject].length} Assignment{assignmentsBySubject[subject].length > 1 ? 's' : ''}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

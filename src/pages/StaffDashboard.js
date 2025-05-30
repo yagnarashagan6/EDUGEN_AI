@@ -1,3 +1,4 @@
+// StaffDashboard.js
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
@@ -740,10 +741,13 @@ const StaffDashboard = () => {
       addNotification('User not authenticated to send marks.', 'error');
       return;
     }
+
+    // Move this line here so it's available in both try blocks
+    const selectedAssignmentDetails = assignments.find((a) => a.id === selectedAssignmentForMarking);
+
     try {
       const marksPath = `students/${selectedStudentForMarking}/marks/${selectedAssignmentForMarking}`;
       const marksRef = doc(db, marksPath);
-      const selectedAssignmentDetails = assignments.find((a) => a.id === selectedAssignmentForMarking);
 
       await setDoc(marksRef, {
         marks: assignmentMarks.trim(),
@@ -754,6 +758,18 @@ const StaffDashboard = () => {
         markedAt: Timestamp.now(),
       }, { merge: true });
 
+      addNotification('Marks sent successfully!', 'success');
+      setSelectedStudentForMarking('');
+      setSelectedAssignmentForMarking('');
+      setAssignmentMarks('');
+    } catch (err) {
+      console.error('Error sending marks:', err);
+      addNotification(`Failed to send marks: ${err.message}`, 'error');
+      return;
+    }
+
+    // Try sending notification, but don't show error if it fails
+    try {
       const studentNotifRef = collection(db, 'students', selectedStudentForMarking, 'notifications');
       await addDoc(studentNotifRef, {
         message: `Marks received for assignment "${selectedAssignmentDetails?.subject}": ${assignmentMarks}`,
@@ -761,14 +777,9 @@ const StaffDashboard = () => {
         assignmentId: selectedAssignmentForMarking,
         timestamp: Timestamp.now(),
       });
-
-      addNotification('Marks sent successfully!', 'success');
-      setSelectedStudentForMarking('');
-      setSelectedAssignmentForMarking('');
-      setAssignmentMarks('');
     } catch (err) {
-      console.error('Error sending marks:', err);
-      addNotification('Failed to send marks: ' + err.message, 'error');
+      console.warn('Failed to send notification to student:', err);
+      // Optionally: addNotification('Failed to send notification to student.', 'warning');
     }
   };
 

@@ -325,3 +325,10 @@
   background: linear-gradient(to right, #f44336, #ff9800);
   transition: width 1s linear;
 }
+/* Prevent copying quiz question */
+.question-text {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
