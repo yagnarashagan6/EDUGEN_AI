@@ -290,7 +290,7 @@ const StaffDashboard = () => {
         if (docSnap.exists()) {
           newNamesMap[id] = docSnap.data().name || 'Anonymous';
         } else {
-          newNamesMap[id] = 'Unknown User';
+          newNamesMap[id] = 'Anonymous';
         }
       });
 
@@ -353,7 +353,11 @@ const StaffDashboard = () => {
           await fetchUserNames(studentIds, user.uid);
         }
 
-        const totalStudents = studentsData.length;
+        // Only count students with a valid name (not "Unknown User")
+        const totalStudents = studentsData.filter(
+          (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+        ).length;
+
         const today = new Date();
         const activeStudents = studentsData.filter((student) => {
           const lastLoginDate = student.lastLogin?.toDate ? student.lastLogin.toDate() : (student.lastLogin ? new Date(student.lastLogin) : null);
@@ -527,21 +531,27 @@ const StaffDashboard = () => {
   }, []);
 
   const filteredStudents = useMemo(() => {
-    if (!activeContainer || !filterType) return studentStats;
-    const today = new Date();
-    switch (filterType) {
-      case 'total':
-        return studentStats;
-      case 'active':
-        return studentStats.filter((student) => {
-          const lastLogin = student.lastLogin?.toDate ? student.lastLogin.toDate() : (student.lastLogin ? new Date(student.lastLogin) : null);
-          return lastLogin && (today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <= 7;
-        });
-      case 'performance':
-        return studentStats.filter((student) => (student.progress || 0) >= 50);
-      default:
-        return studentStats;
+    let list = studentStats;
+    if (activeContainer && filterType) {
+      const today = new Date();
+      switch (filterType) {
+        case 'active':
+          list = studentStats.filter((student) => {
+            const lastLogin = student.lastLogin?.toDate ? student.lastLogin.toDate() : (student.lastLogin ? new Date(student.lastLogin) : null);
+            return lastLogin && (today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+          });
+          break;
+        case 'performance':
+          list = studentStats.filter((student) => (student.progress || 0) >= 50);
+          break;
+        default:
+          break;
+      }
     }
+    // Only filter out "Unknown User"
+    return list.filter(
+      (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+    );
   }, [filterType, studentStats, activeContainer]);
 
   const toggleContainer = useCallback((containerId, filter = null) => {
@@ -956,9 +966,11 @@ const StaffDashboard = () => {
                     aria-label="Select student for marking"
                   >
                     <option value="">-- Select Student --</option>
-                    {studentStats.map((student) => (
+                    {studentStats.filter(
+                      (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+                    ).map((student) => (
                       <option key={`mark-student-option-${student.id}`} value={student.id}>
-                        {student.name || 'Anonymous'} ({student.id.substring(0, 5)})
+                        {student.name} ({student.id.substring(0, 5)})
                       </option>
                     ))}
                   </select>
@@ -1047,9 +1059,11 @@ const StaffDashboard = () => {
                   <p className="empty-message">No student results to display yet. Ensure tasks and student data are loaded.</p>
                 ) : (
                   <ul className="results-list">
-                    {results.map((result) => (
+                    {results.filter(
+                      r => r.name && r.name !== 'Anonymous' && r.name !== 'Unknown' && r.name !== 'Unknown User'
+                    ).map((result) => (
                       <li key={`result-item-${result.id}`} className="result-item">
-                        <strong>{result.name || 'Anonymous'}:</strong> {result.completedTasks} / {result.totalTasks} tasks completed.
+                        <strong>{result.name}:</strong> {result.completedTasks} / {result.totalTasks} tasks completed.
                         (Progress: {result.totalTasks > 0 ? Math.round((result.completedTasks / result.totalTasks) * 100) : 0}%)
                       </li>
                     ))}
@@ -1091,7 +1105,9 @@ const StaffDashboard = () => {
                   setSelectedStudentId={setSelectedStudentId}
                   setSelectedStudentName={setSelectedStudentName}
                   currentUserId={auth.currentUser?.uid}
-                  studentList={studentStats}
+                  studentList={studentStats.filter(
+                    (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+                  )}
                   selectedStudentName={selectedStudentName}
                   selectedStudentId={selectedStudentId}
                   userNames={userNames}
@@ -1116,26 +1132,16 @@ const StaffDashboard = () => {
                   <p className="empty-message">No students match the current filter.</p>
                 ) : (
                   <div className="student-list detailed-student-list">
-                    {filteredStudents.map((student) => (
+                    {filteredStudents.filter(
+                      (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+                    ).map((student) => (
                       <div key={`filtered-student-${student.id}`} className="student-item-detailed">
-                        <img
-                          src={student.photoURL || '/default-student.png'}
-                          alt={student.name || 'Student'}
-                          className="student-avatar-large"
-                          onError={(e) => (e.target.src = '/default-student.png')}
-                        />
                         <div className="student-info-detailed">
                           <h4>{student.name || 'Anonymous'}</h4>
-                          <p><strong>ID:</strong> {student.id.substring(0,8)}...</p>
                           <p><strong>Streak:</strong> {student.streak || 0} days</p>
                           <p><strong>Progress:</strong> {student.progress || 0}%</p>
                           <p><strong>Last Login:</strong> {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'N/A'}</p>
-                          <button onClick={() => {
-                            setSelectedStudentId(student.id);
-                            setSelectedStudentName(student.name || 'Anonymous');
-                            setShowContactList(false);
-                            setActiveContainer('staff-interaction-container');
-                          }} className="chat-with-student-btn">Chat with {student.name || 'Student'}</button>
+                          {/* Removed the "Chat with student" button here */}
                         </div>
                       </div>
                     ))}

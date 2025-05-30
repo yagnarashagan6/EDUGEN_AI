@@ -99,22 +99,24 @@ const ChatInterface = ({
           <div className="contact-list scrollable">
             <div className="contact-list-header">Staff Members</div>
             <div className="contact-list-body">
-              {staffList.length === 0 ? (
+              {staffList.filter(staff => staff.name && staff.name.trim() !== '').length === 0 ? (
                 <p className="empty-message">Loading staff members...</p>
               ) : (
-                staffList.map((staff) => (
-                  <div
-                    key={staff.id}
-                    className={`contact-item ${selectedStaffId === staff.id ? 'active' : ''}`}
-                    onClick={() => selectStaff(staff)}
-                  >
+                staffList
+                  .filter(staff => staff.name && staff.name.trim() !== '')
+                  .map((staff) => (
+                    <div
+                      key={staff.id}
+                      className={`contact-item ${selectedStaffId === staff.id ? 'active' : ''}`}
+                      onClick={() => selectStaff(staff)}
+                    >
 
-                    <div className="contact-info">
-                      <h4>{staff.name}</h4>
-                      <p>{staff.role || 'Available'}</p>
+                      <div className="contact-info">
+                        <h4>{staff.name}</h4>
+                        <p>{staff.role || 'Available'}</p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>

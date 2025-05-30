@@ -35,19 +35,21 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
   }, [currentQuestion, quizCompleted]);
 
   const handleOptionSelect = (option) => {
-    if (selectedOption !== null || timedOut) return;
+    if (timedOut) return;
     setSelectedOption(option);
-    if (option === questions[currentQuestion]?.correctAnswer) {
-      setScore((prev) => prev + 1);
-    }
   };
 
   // Called when timer runs out
   const handleTimeout = () => {
-    // Prevent multiple calls for the same question
     if (quizCompleted) return;
     setTimedOut(true);
-    setSelectedOption("Timed Out");
+    setSelectedOption((prevSelected) => {
+      // Score only if the final selected answer is correct
+      if (prevSelected === questions[currentQuestion]?.correctAnswer) {
+        setScore((prevScore) => prevScore + 1);
+      }
+      return "Timed Out";
+    });
     setTimeout(() => {
       if (currentQuestion === questions.length - 1) {
         setQuizCompleted(true);
@@ -55,10 +57,14 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
       } else {
         setCurrentQuestion((prev) => prev + 1);
       }
-    }, 1000); // 1 second delay before moving to next question
+    }, 1000);
   };
 
   const handleNextQuestion = () => {
+    // Score only if the final selected answer is correct
+    if (selectedOption === questions[currentQuestion]?.correctAnswer) {
+      setScore((prevScore) => prevScore + 1);
+    }
     if (currentQuestion === questions.length - 1) {
       setQuizCompleted(true);
       setShowScore(true);
@@ -135,7 +141,7 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
                 <button
                   key={idx}
                   className={`option-btn${selectedOption === option ? ' selected' : ''}`}
-                  disabled={selectedOption !== null || timedOut}
+                  disabled={timedOut}
                   onClick={() => handleOptionSelect(option)}
                   style={
                     selectedOption === option
@@ -152,7 +158,7 @@ const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) 
             <button
               className="next-button"
               onClick={handleNextQuestion}
-              disabled={selectedOption === null && !timedOut}
+              disabled={timedOut}
             >
               {currentQuestion === questions.length - 1 ? 'Finish' : 'Next'}
             </button>

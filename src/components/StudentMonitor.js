@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, orderBy, limit as firestoreLimit } from 'firebase/firestore';
-// Ensure this path is correct for your project structure
-import { db } from '../firebase'; 
+// import { collection, getDocs, query, orderBy, limit as firestoreLimit } from 'firebase/firestore';
+// import { db } from '../firebase'; 
 // If you have specific styles in StudentMonitor.css, ensure it's correctly linked
 // For this example, we're relying primarily on Tailwind CSS classes
 import '../styles/StudentMonitor.css'; 
@@ -26,7 +25,7 @@ const StudentMonitor = () => {
 
   // Callback function to fetch activities from Firestore
   const fetchActivities = useCallback(async () => {
-    // Disabled Firestore fetch temporarily
+    // Firestore fetch is disabled
     setLoading(false);
     setError(null);
     // Optionally, setActivities([]); setFilteredActivities([]);
