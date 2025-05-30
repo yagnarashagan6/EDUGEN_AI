@@ -26,57 +26,11 @@ const StudentMonitor = () => {
 
   // Callback function to fetch activities from Firestore
   const fetchActivities = useCallback(async () => {
-    setLoading(true);
-    setError(null); // Reset error state on new fetch
-    try {
-      const activitiesRef = collection(db, 'student_activities');
-      // Query to get the last 20 activities, ordered by timestamp descending
-      const q = query(activitiesRef, orderBy('timestamp', 'desc'), firestoreLimit(20));
-      const snapshot = await getDocs(q);
-      
-      const activityData = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          // Format timestamp for display
-          // Ensure timestamp is a valid date string or Firebase Timestamp object
-          timestamp: data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString() : new Date(data.timestamp).toLocaleString(),
-        };
-      });
-
-      setActivities(activityData);
-      // setFilteredActivities(activityData); // Apply filters will handle this in the useEffect below
-
-      // Calculate summary statistics
-      const todayDateString = new Date().toDateString();
-      
-      const uploadsToday = activityData.filter(
-        (activity) =>
-          activity.activity === 'uploaded note' &&
-          new Date(activity.timestamp).toDateString() === todayDateString
-      ).length;
-
-      const activeStudentNamesToday = new Set();
-      activityData.forEach((activity) => {
-        if (new Date(activity.timestamp).toDateString() === todayDateString) {
-          activeStudentNamesToday.add(activity.name);
-        }
-      });
-      const activeStudentsToday = activeStudentNamesToday.size;
-
-      setSummaryStats({
-        uploadsToday,
-        activeStudentsToday,
-        totalRecentActivities: activityData.length,
-      });
-
-    } catch (err) {
-      console.error('Error fetching student activities:', err);
-      setError('Failed to load student activities. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
+    // Disabled Firestore fetch temporarily
+    setLoading(false);
+    setError(null);
+    // Optionally, setActivities([]); setFilteredActivities([]);
+    // setSummaryStats({ uploadsToday: 0, activeStudentsToday: 0, totalRecentActivities: 0 });
   }, []); // Empty dependency array means this useCallback instance is created once
 
   // Effect for initial data fetch and setting up the refresh interval
