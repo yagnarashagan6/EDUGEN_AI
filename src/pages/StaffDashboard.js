@@ -101,12 +101,6 @@ const ChatInterface = ({
                   tabIndex={0}
                   onKeyPress={(e) => e.key === 'Enter' && selectStudent(student)}
                 >
-                  <img
-                    src={student.photoURL || '/default-student.png'}
-                    alt={student.name || 'Student'}
-                    className="contact-avatar"
-                    onError={(e) => (e.target.src = '/default-student.png')}
-                  />
                   <div className="contact-info">
                     <h4>{student.name || 'Anonymous'}</h4>
                     <p>{student.role || 'Student'}</p>
@@ -159,7 +153,7 @@ const ChatInterface = ({
                         }
                       }}
                     >
-                      <div className="message-sender" style={{fontSize: '0.8em', color: '#777', marginBottom: '2px'}}>
+                      <div className="message-sender" style={{ fontSize: '0.8em', color: '#777', marginBottom: '2px' }}>
                         {msg.sender === 'staff'
                           ? (userNames[currentUserId] || 'You')
                           : (userNames[msg.senderId] || selectedStudentName || 'Student')}
@@ -338,7 +332,7 @@ const StaffDashboard = () => {
         }
         setUserData(staffDocSnap.data());
         if (!userNames[user.uid]) {
-            fetchUserNames([], user.uid);
+          fetchUserNames([], user.uid);
         }
 
         const studentsRef = collection(db, 'students');
@@ -355,7 +349,7 @@ const StaffDashboard = () => {
 
         const studentIds = studentsData.map(s => s.id);
         if (studentIds.length > 0) {
-            await fetchUserNames(studentIds, user.uid);
+          await fetchUserNames(studentIds, user.uid);
         }
 
         const totalStudents = studentsData.length;
@@ -405,7 +399,12 @@ const StaffDashboard = () => {
     const q = query(collection(db, 'assignments'), orderBy('postedAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const staffAssignments = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          postedAt: doc.data().postedAt?.toDate ? doc.data().postedAt.toDate() : new Date(),
+          deadline: doc.data().deadline?.toDate ? doc.data().deadline.toDate() : null,
+        }))
         .filter((assignment) => assignment.staffId === user.uid);
       setAssignments(staffAssignments);
       setLoading((prev) => ({ ...prev, assignments: false }));
@@ -435,6 +434,10 @@ const StaffDashboard = () => {
   }, [tasks, studentStats, loading.students, loading.tasks]);
 
   useEffect(() => {
+    // Temporarily disable fetching latest activity from Firebase
+    setLatestActivity('Monitor fetch is temporarily disabled.');
+    // If you want to re-enable, restore the code below:
+    /*
     const fetchLatestActivity = async () => {
       try {
         const activitiesRef = collection(db, 'student_activities');
@@ -458,6 +461,7 @@ const StaffDashboard = () => {
       }
     };
     fetchLatestActivity();
+    */
   }, [addNotification, fetchUserNames, userNames]);
 
   useEffect(() => {
@@ -476,8 +480,8 @@ const StaffDashboard = () => {
 
   useEffect(() => {
     if (!selectedStudentId) {
-        setMessages([]);
-        return;
+      setMessages([]);
+      return;
     }
     const staffUserId = auth.currentUser?.uid;
     if (!staffUserId) return;
@@ -495,10 +499,10 @@ const StaffDashboard = () => {
           if (JSON.stringify(currentMessages) !== JSON.stringify(updatedMessages)) {
             await setDoc(messagesRef, { messages: updatedMessages }, { merge: true });
           }
-           const senderIds = currentMessages.map(msg => msg.senderId).filter(id => id && !userNames[id]);
-           if (senderIds.length > 0) {
-               fetchUserNames(senderIds, staffUserId);
-           }
+          const senderIds = currentMessages.map(msg => msg.senderId).filter(id => id && !userNames[id]);
+          if (senderIds.length > 0) {
+            fetchUserNames(senderIds, staffUserId);
+          }
         } else {
           setMessages([]);
         }
@@ -519,7 +523,7 @@ const StaffDashboard = () => {
         <i className="fas fa-bars"></i>
       </button>
     );
-  }, []); // Moved to top-level useEffect
+  }, []);
 
   const filteredStudents = useMemo(() => {
     if (!activeContainer || !filterType) return studentStats;
@@ -585,10 +589,10 @@ const StaffDashboard = () => {
       const tasksRef = doc(db, 'tasks', 'shared');
       const tasksSnap = await getDoc(tasksRef);
       if (tasksSnap.exists()) {
-          const existingTasks = tasksSnap.data().tasks || [];
-          const updatedTasks = existingTasks.filter((task) => task.id !== taskId);
-          await setDoc(tasksRef, { tasks: updatedTasks });
-          addNotification('Task deleted successfully!', 'success');
+        const existingTasks = tasksSnap.data().tasks || [];
+        const updatedTasks = existingTasks.filter((task) => task.id !== taskId);
+        await setDoc(tasksRef, { tasks: updatedTasks });
+        addNotification('Task deleted successfully!', 'success');
       }
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -676,8 +680,8 @@ const StaffDashboard = () => {
       if (newAssignmentDeadline) {
         const deadlineDate = new Date(newAssignmentDeadline + "T23:59:59");
         if (isNaN(deadlineDate.getTime())) {
-            addNotification('Invalid deadline date provided.', 'warning');
-            return;
+          addNotification('Invalid deadline date provided.', 'warning');
+          return;
         }
         deadlineTimestamp = Timestamp.fromDate(deadlineDate);
       }
@@ -691,11 +695,24 @@ const StaffDashboard = () => {
         deadline: deadlineTimestamp,
         isPublic: true,
       };
-      await addDoc(collection(db, 'assignments'), newAssignmentData);
+      const assignmentRef = await addDoc(collection(db, 'assignments'), newAssignmentData);
+      addNotification('Assignment posted successfully!', 'success');
+
+      const studentsRef = collection(db, 'students');
+      const studentSnapshot = await getDocs(studentsRef);
+      studentSnapshot.forEach(async (studentDoc) => {
+        const studentNotifRef = collection(db, 'students', studentDoc.id, 'notifications');
+        await addDoc(studentNotifRef, {
+          message: `New assignment posted: ${newAssignmentSubject}`,
+          type: 'assignment',
+          assignmentId: assignmentRef.id,
+          timestamp: Timestamp.now(),
+        });
+      });
+
       setNewAssignmentSubject('');
       setNewAssignmentLink('');
       setNewAssignmentDeadline('');
-      addNotification('Assignment posted successfully!', 'success');
     } catch (err) {
       console.error('Error posting assignment:', err);
       addNotification('Failed to post assignment: ' + err.message, 'error');
@@ -724,17 +741,26 @@ const StaffDashboard = () => {
       return;
     }
     try {
-      const marksPath = `marks/${selectedStudentForMarking}/assignments/${selectedAssignmentForMarking}`;
+      const marksPath = `students/${selectedStudentForMarking}/marks/${selectedAssignmentForMarking}`;
       const marksRef = doc(db, marksPath);
       const selectedAssignmentDetails = assignments.find((a) => a.id === selectedAssignmentForMarking);
 
       await setDoc(marksRef, {
         marks: assignmentMarks.trim(),
         assignmentSubject: selectedAssignmentDetails?.subject || 'N/A',
+        assignmentId: selectedAssignmentForMarking,
         staffId: staffUserId,
         staffName: userData?.name || userNames[staffUserId] || 'Staff',
         markedAt: Timestamp.now(),
       }, { merge: true });
+
+      const studentNotifRef = collection(db, 'students', selectedStudentForMarking, 'notifications');
+      await addDoc(studentNotifRef, {
+        message: `Marks received for assignment "${selectedAssignmentDetails?.subject}": ${assignmentMarks}`,
+        type: 'marks',
+        assignmentId: selectedAssignmentForMarking,
+        timestamp: Timestamp.now(),
+      });
 
       addNotification('Marks sent successfully!', 'success');
       setSelectedStudentForMarking('');
@@ -742,7 +768,7 @@ const StaffDashboard = () => {
       setAssignmentMarks('');
     } catch (err) {
       console.error('Error sending marks:', err);
-      addNotification('Failed to send marks: ' + err.message + '. Check Firestore rules for /marks collection.', 'error');
+      addNotification('Failed to send marks: ' + err.message, 'error');
     }
   };
 
@@ -844,7 +870,6 @@ const StaffDashboard = () => {
             <div id="tasks-container" className={`toggle-container ${activeContainer === 'tasks-container' ? 'active' : ''}`}>
               <div className="container-header">Tasks Management</div>
               <div className="container-body">
-                {/* Move the task form to the top */}
                 <div className="task-form">
                   <h3>Post a New Task/Topic</h3>
                   <input
@@ -858,13 +883,12 @@ const StaffDashboard = () => {
                     Post Task
                   </button>
                 </div>
-                {/* Show posted tasks below the form */}
                 {loading.tasks ? (
                   <p>Loading tasks...</p>
                 ) : tasks.length === 0 ? (
                   <p className="empty-message">No tasks posted yet. Add one above!</p>
                 ) : (
-                  <div className="tasks-list scrollable" style={{maxHeight: '300px', marginBottom: '20px'}}>
+                  <div className="tasks-list scrollable" style={{ maxHeight: '300px', marginBottom: '20px' }}>
                     {tasks.map((task) => (
                       <TaskItem
                         key={`task-item-${task.id}`}
@@ -882,7 +906,6 @@ const StaffDashboard = () => {
                 Assignments
               </div>
               <div className="container-body">
-                {/* Post Assignment Form */}
                 <div className="assignment-form post-new-assignment">
                   <h3>Post a New Assignment</h3>
                   <input
@@ -913,8 +936,7 @@ const StaffDashboard = () => {
                     Post Assignment
                   </button>
                 </div>
-                {/* Mark Assignment Form - shown below post form */}
-                <div className="assignment-form marking-ui" style={{marginTop: '30px'}}>
+                <div className="assignment-form marking-ui" style={{ marginTop: '30px' }}>
                   <h3>Mark Student Assignment</h3>
                   <select
                     value={selectedStudentForMarking}
@@ -954,33 +976,32 @@ const StaffDashboard = () => {
                     Send Marks
                   </button>
                 </div>
-                {/* Posted Assignments List */}
-                <h4 style={{marginTop: '30px'}}>Your Posted Assignments:</h4>
+                <h4 style={{ marginTop: '30px' }}>Your Posted Assignments:</h4>
                 {loading.assignments ? (
                   <p>Loading your assignments...</p>
                 ) : assignments.length === 0 ? (
                   <p className="empty-message">You have not posted any assignments yet.</p>
                 ) : (
-                  <div className="assignment-list scrollable" style={{maxHeight: '300px'}}>
+                  <div className="assignment-list scrollable" style={{ maxHeight: '300px' }}>
                     {assignments.map((assignment) => (
                       <div key={`posted-assignment-${assignment.id}`} className="assignment-item task-item">
-                        <p style={{flexGrow: 1}}>
+                        <p style={{ flexGrow: 1 }}>
                           {assignment.subject}
                           <small className="assignment-meta">
                             {' '}
                             (Posted:{' '}
                             {assignment.postedAt?.toDate
-                              ? assignment.postedAt.toDate().toLocaleDateString()
+                              ? assignment.postedAt.toLocaleDateString()
                               : 'N/A'})
                           </small>
                           {assignment.deadline && (
-                            <small className="assignment-meta" style={{ color: new Date(assignment.deadline.toDate()) < new Date() ? 'red' : 'darkorange' }}>
+                            <small className="assignment-meta" style={{ color: new Date(assignment.deadline) < new Date() ? 'red' : 'darkorange' }}>
                               {' '}
                               (Deadline:{' '}
                               {assignment.deadline?.toDate
-                                ? assignment.deadline.toDate().toLocaleDateString()
+                                ? assignment.deadline.toLocaleDateString()
                                 : 'N/A'})
-                               {new Date(assignment.deadline.toDate()) < new Date() ? ' - Expired' : ''}
+                              {new Date(assignment.deadline) < new Date() ? ' - Expired' : ''}
                             </small>
                           )}
                         </p>
@@ -1008,7 +1029,7 @@ const StaffDashboard = () => {
                 )}
               </div>
             </div>
-             <div id="results-container" className={`toggle-container ${activeContainer === 'results-container' ? 'active' : ''}`}>
+            <div id="results-container" className={`toggle-container ${activeContainer === 'results-container' ? 'active' : ''}`}>
               <div className="container-header">Student Results Overview</div>
               <div className="container-body scrollable">
                 {results.length === 0 ? (
@@ -1037,11 +1058,10 @@ const StaffDashboard = () => {
                   Back to Dashboard
                 </button>
               </div>
-              <div className="container-body scrollable" style={{padding: 0}}>
-                {/* Show latest activity details at the top */}
-                <div className="latest-activity-details" style={{padding: '16px', borderBottom: '1px solid #eee', background: '#f9fafb'}}>
+              <div className="container-body scrollable" style={{ padding: 0 }}>
+                <div className="latest-activity-details" style={{ padding: '16px', borderBottom: '1px solid #eee', background: '#f9fafb' }}>
                   <strong>Latest Activity:</strong>
-                  <div style={{marginTop: '6px', color: '#333'}}>
+                  <div style={{ marginTop: '6px', color: '#333' }}>
                     {latestActivity || 'No recent activity.'}
                   </div>
                 </div>
@@ -1062,7 +1082,7 @@ const StaffDashboard = () => {
                   currentUserId={auth.currentUser?.uid}
                   studentList={studentStats}
                   selectedStudentName={selectedStudentName}
-                  selectedStudentId={selectedStudentId} // <-- ADD THIS LINE
+                  selectedStudentId={selectedStudentId}
                   userNames={userNames}
                 />
               </div>
@@ -1099,12 +1119,12 @@ const StaffDashboard = () => {
                           <p><strong>Streak:</strong> {student.streak || 0} days</p>
                           <p><strong>Progress:</strong> {student.progress || 0}%</p>
                           <p><strong>Last Login:</strong> {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'N/A'}</p>
-                           <button onClick={() => {
-                               setSelectedStudentId(student.id);
-                               setSelectedStudentName(student.name || 'Anonymous');
-                               setShowContactList(false);
-                               setActiveContainer('staff-interaction-container');
-                           }} className="chat-with-student-btn">Chat with {student.name || 'Student'}</button>
+                          <button onClick={() => {
+                            setSelectedStudentId(student.id);
+                            setSelectedStudentName(student.name || 'Anonymous');
+                            setShowContactList(false);
+                            setActiveContainer('staff-interaction-container');
+                          }} className="chat-with-student-btn">Chat with {student.name || 'Student'}</button>
                         </div>
                       </div>
                     ))}
@@ -1119,7 +1139,7 @@ const StaffDashboard = () => {
                 <button onClick={handleEditProfile} className="add-goal-btn" aria-label="Edit profile">
                   Edit Profile
                 </button>
-                <button onClick={handleLogout} className="add-goal-btn logout-btn" aria-label="Logout" style={{backgroundColor: '#dc3545', color: 'white'}}>
+                <button onClick={handleLogout} className="add-goal-btn logout-btn" aria-label="Logout" style={{ backgroundColor: '#dc3545', color: 'white' }}>
                   Logout
                 </button>
               </div>

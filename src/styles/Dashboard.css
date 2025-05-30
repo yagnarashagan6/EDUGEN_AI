@@ -1351,3 +1351,9 @@
   background: #e0e0e0;
   transform: scale(1.05);
 }
+
+@media (min-width: 769px) {
+  #chatbot-container {
+    display: none !important;
+  }
+}

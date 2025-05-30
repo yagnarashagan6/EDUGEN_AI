@@ -1,3 +1,4 @@
+// StudentDashboard.js
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,7 +11,7 @@ import {
   deleteDoc,
   onSnapshot,
   runTransaction,
-  addDoc, // Added for student_activities
+  addDoc,
 } from 'firebase/firestore';
 import { auth, db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -28,7 +29,6 @@ import '../styles/Sidebar.css';
 import '../styles/Chat.css';
 import '../styles/Notes.css';
 
-// Simple TaskItem for display within subjects
 const TaskItem = ({ task, role, onCopy, onStartQuiz }) => (
   <div className="task-item">
     <div className="task-header">
@@ -37,20 +37,15 @@ const TaskItem = ({ task, role, onCopy, onStartQuiz }) => (
             <button className="copy-btn" onClick={() => onCopy(task.content)}>
                 <i className="fas fa-copy"></i> Copy
             </button>
-            <button className="quiz-btn" onClick={() => onStartQuiz(task.content)}>
-                <i className="fas fa-question-circle"></i> Quiz
-            </button>
-        </div>
+         </div>
     </div>
     <p>Subject: {task.subject || 'General'}</p>
     <small>Deadline: {new Date(task.deadline).toLocaleDateString()}</small>
   </div>
 );
 
-
 const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
-  // TODO: Implement componentDidCatch if using class components or getDerivedStateFromError for functional
   if (hasError) {
     return <h1>Something went wrong. Please refresh the page.</h1>;
   }
@@ -113,19 +108,14 @@ const ChatInterface = ({
                     className={`contact-item ${selectedStaffId === staff.id ? 'active' : ''}`}
                     onClick={() => selectStaff(staff)}
                   >
-                    <img
-                      src={staff.photoURL || '/default-staff.png'}
-                      alt="Staff"
-                      className="contact-avatar"
-                      onError={(e) => (e.target.src = '/default-staff.png')}
-                    />
+
                     <div className="contact-info">
                       <h4>{staff.name}</h4>
                       <p>{staff.role || 'Available'}</p>
                     </div>
                   </div>
                 ))
-              )};
+              )}
             </div>
           </div>
         ) : (
@@ -147,7 +137,7 @@ const ChatInterface = ({
                   />
                   <div className="recipient-info">
                     <h3>{selectedStaffName}</h3>
-                    <p className="status">Online</p> {/* Consider making this dynamic */}
+                    <p className="status">Online</p>
                   </div>
                 </>
               )}
@@ -157,12 +147,12 @@ const ChatInterface = ({
                 Object.keys(groupedMessages).length === 0 ? (
                   <p className="empty-message">No messages yet. Start the conversation!</p>
                 ) : (
-                  Object.keys(groupedMessages).map((dateKey) => ( // Renamed 'date' to 'dateKey'
+                  Object.keys(groupedMessages).map((dateKey) => (
                     <div key={dateKey}>
                       <div className="date-separator">{formatDate(dateKey)}</div>
                       {groupedMessages[dateKey].map((msg, index) => (
                         <div
-                          key={`${msg.timestamp}-${index}`} // Ensure unique key
+                          key={`${msg.timestamp}-${index}`}
                           className={`message-bubble ${msg.sender === 'student' ? 'sent' : 'received'}`}
                           onClick={() => {
                             if (msg.sender === 'student' && window.confirm('Delete this message?')) {
@@ -195,10 +185,9 @@ const ChatInterface = ({
               <div className="message-input-area">
                 <input
                   type="text"
-                  id="message-input" // Ensure this ID is unique if component is used multiple times or manage via ref
+                  id="message-input"
                   placeholder="Type your message..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()
-                  }
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                   className="message-input-field"
                 />
                 <button onClick={sendMessage} className="send-message-button">
@@ -213,8 +202,29 @@ const ChatInterface = ({
   );
 };
 
-
 const AssignmentItem = ({ assignment }) => {
+  const [marks, setMarks] = useState(null);
+  const [marksLoading, setMarksLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMarks = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const marksRef = doc(db, 'students', user.uid, 'marks', assignment.id);
+        const marksSnap = await getDoc(marksRef);
+        if (marksSnap.exists()) {
+          setMarks(marksSnap.data());
+        }
+        setMarksLoading(false);
+      } catch (err) {
+        console.error('Error fetching marks:', err);
+        setMarksLoading(false);
+      }
+    };
+    fetchMarks();
+  }, [assignment.id]);
+
   const openLink = () => {
     if (assignment.driveLink) {
       window.open(assignment.driveLink, '_blank', 'noopener,noreferrer');
@@ -223,7 +233,7 @@ const AssignmentItem = ({ assignment }) => {
 
   return (
     <div
-      className="task-item" // Reusing task-item style, consider a specific assignment-item style
+      className="task-item"
       onClick={openLink}
       style={{ cursor: assignment.driveLink ? 'pointer' : 'default', marginBottom: '10px' }}
     >
@@ -231,15 +241,32 @@ const AssignmentItem = ({ assignment }) => {
         <h3>{assignment.subject}</h3>
       </div>
       <p>Posted by: {assignment.staffName || 'Unknown'}</p>
-      <p>Posted on: {assignment.date ? new Date(assignment.date).toLocaleDateString() : 'N/A'}</p>
+      <p>Posted on: {assignment.postedAt ? new Date(assignment.postedAt).toLocaleDateString() : 'N/A'}</p>
+      {assignment.deadline && (
+        <p style={{ color: new Date(assignment.deadline) < new Date() ? 'red' : 'darkorange' }}>
+          Deadline: {new Date(assignment.deadline).toLocaleDateString()}
+          {new Date(assignment.deadline) < new Date() ? ' (Expired)' : ''}
+        </p>
+      )}
+      {marksLoading ? (
+        <p>Loading marks...</p>
+      ) : marks ? (
+        <p style={{ color: '#4CAF50' }}>
+          Marks: {marks.marks} (Marked by {marks.staffName} on{' '}
+          {marks.markedAt?.toDate ? marks.markedAt.toDate().toLocaleDateString() : 'N/A'})
+        </p>
+      ) : (
+        <p>No marks assigned yet.</p>
+      )}
       {assignment.driveLink && <small>Click to view details</small>}
-       {!assignment.driveLink && <small>No link available</small>}
+      {!assignment.driveLink && <small>No link available</small>}
     </div>
   );
 };
 
 const Leaderboard = ({ students, showStats = false, currentUserId }) => {
-  const sortedStudents = [...students].sort((a, b) => {
+  const filteredStudents = students.filter(student => student.name !== 'Unknown');
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
     const progressDiff = (b.progress || 0) - (a.progress || 0);
     if (progressDiff !== 0) return progressDiff;
     return (b.streak || 0) - (a.streak || 0);
@@ -259,7 +286,6 @@ const Leaderboard = ({ students, showStats = false, currentUserId }) => {
     </div>
   );
 };
-
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -286,7 +312,7 @@ const StudentDashboard = () => {
       communicationSkill: 0,
       goalCompletionRate: 0,
       quizEngagement: 0,
-      timeSpent: '0 minutes', // Added for time spent
+      timeSpent: '0 minutes',
       suggestions: '',
   });
   const [error, setError] = useState(null);
@@ -305,14 +331,14 @@ const StudentDashboard = () => {
   const [selectedAssignmentSubject, setSelectedAssignmentSubject] = useState(null);
   const [pendingStreakUpdate, setPendingStreakUpdate] = useState(false);
   const [newStreakValue, setNewStreakValue] = useState(0);
+  const [pendingQuizTask, setPendingQuizTask] = useState(null);
   
   const loginTimeRef = useRef(null);
   const [totalTimeSpentInMs, setTotalTimeSpentInMs] = useState(0);
-  const sessionStartTimeRef = useRef(null); // For current session tracking
+  const sessionStartTimeRef = useRef(null);
 
-  const [mobileHamburger, setMobileHamburger] = useState(null); // Initialized later
+  const [mobileHamburger, setMobileHamburger] = useState(null);
 
-  // Function to log student activity
   const logStudentActivity = async (activityType, subject = 'N/A') => {
     const user = auth.currentUser;
     if (!user || !userData) return;
@@ -322,14 +348,13 @@ const StudentDashboard = () => {
         studentId: user.uid,
         activity: activityType,
         subject: subject,
-        timestamp: new Date(), // Firestore server timestamp is better: serverTimestamp()
+        timestamp: new Date(),
       });
     } catch (err) {
       console.error("Error logging student activity:", err);
     }
   };
-  
-  // Initialize mobileHamburger
+
   useEffect(() => {
     setMobileHamburger(
       <button className="mobile-hamburger" onClick={() => setSidebarVisible(true)}>
@@ -338,14 +363,11 @@ const StudentDashboard = () => {
     );
   }, []);
 
-
   const assignmentsBySubject = useMemo(() => {
     return assignments.reduce((acc, assignment) => {
-        if(assignment.staffName) { // Only include assignments posted by staff
-            const subject = assignment.subject || 'Uncategorized';
-            if (!acc[subject]) acc[subject] = [];
-            acc[subject].push(assignment);
-        }
+        const subject = assignment.subject || 'Uncategorized';
+        if (!acc[subject]) acc[subject] = [];
+        acc[subject].push(assignment);
         return acc;
     }, {});
   }, [assignments]);
@@ -365,7 +387,6 @@ const StudentDashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [activeContainer, inQuiz]);
 
-  // Format milliseconds to a readable string
   const formatTimeSpent = (ms) => {
     if (ms <= 0) return '0 minutes';
     const totalSeconds = Math.floor(ms / 1000);
@@ -376,9 +397,13 @@ const StudentDashboard = () => {
     if (minutes > 0 || hours === 0) readableTime += `${minutes} minute${minutes > 1 ? 's' : ''}`;
     return readableTime.trim() || 'Less than a minute';
   };
-  
-  // Function to update total time spent in Firestore
+
+  // Temporarily disable updating total time spent in Firestore
   const updateTotalTimeSpentInFirestore = useCallback(async (timeToAddMs) => {
+    // Disabled: setTotalTimeSpentInMs will still update local state, but no Firestore writes
+    setTotalTimeSpentInMs((prev) => (prev || 0) + (timeToAddMs || 0));
+    // If you want to re-enable, restore the code below:
+    /*
     const user = auth.currentUser;
     if (!user || timeToAddMs <= 0) return;
     try {
@@ -386,36 +411,34 @@ const StudentDashboard = () => {
       const currentTotalMs = totalTimeSpentInMs || 0;
       const newTotalMs = currentTotalMs + timeToAddMs;
       await updateDoc(userRef, { totalTimeSpentInMs: newTotalMs });
-      setTotalTimeSpentInMs(newTotalMs); // Update local state
+      setTotalTimeSpentInMs(newTotalMs);
     } catch (err) {
       console.error("Error updating total time spent in Firestore:", err);
     }
-  }, [totalTimeSpentInMs]);
+    */
+  }, []);
 
-  // Effect for periodic time update
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (sessionStartTimeRef.current) {
         const currentTime = new Date();
         const sessionDurationMs = currentTime - sessionStartTimeRef.current;
         updateTotalTimeSpentInFirestore(sessionDurationMs);
-        sessionStartTimeRef.current = currentTime; // Reset session start time for the next interval
+        sessionStartTimeRef.current = currentTime;
       }
-    }, 60000); // Update every minute
-
+    }, 60000);
     return () => clearInterval(intervalId);
   }, [updateTotalTimeSpentInFirestore]);
 
-
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
-        const user = auth.currentUser;
-        if (!user) {
-            navigate('/student-login');
-            return;
-        }
-        sessionStartTimeRef.current = new Date(); // Start session timer
-        loginTimeRef.current = new Date(); 
+      const user = auth.currentUser;
+      if (!user) {
+        navigate('/student-login');
+        return;
+      }
+      sessionStartTimeRef.current = new Date();
+      loginTimeRef.current = new Date();
 
       try {
         const docRef = doc(db, 'students', user.uid);
@@ -433,61 +456,68 @@ const StudentDashboard = () => {
           setUserData(fetchedUserData);
           setProgress(fetchedUserData.progress || 0);
           setQuizCount(fetchedUserData.quizCount || 0);
-          setTotalTimeSpentInMs(fetchedUserData.totalTimeSpentInMs || 0); // Fetch total time spent
+          setTotalTimeSpentInMs(fetchedUserData.totalTimeSpentInMs || 0);
 
           logStudentActivity("login");
 
+          const lastLogin = fetchedUserData.lastLogin ? new Date(fetchedUserData.lastLogin) : null;
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+          let currentStreak = fetchedUserData.streak || 0;
+          let calculatedStreak = currentStreak;
+          let shouldWaitFiveMinutes = false;
 
-            const lastLogin = fetchedUserData.lastLogin ? new Date(fetchedUserData.lastLogin) : null;
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-            let currentStreak = fetchedUserData.streak || 0;
-            let calculatedStreak = currentStreak;
-            let shouldWaitFiveMinutes = false;
+          if (!lastLogin) {
+            calculatedStreak = 1;
+            shouldWaitFiveMinutes = true;
+          } else if (lastLogin.toDateString() === today.toDateString()) {
+            calculatedStreak = currentStreak;
+          } else if (lastLogin.toDateString() === yesterday.toDateString()) {
+            calculatedStreak = currentStreak + 1;
+            shouldWaitFiveMinutes = true;
+          } else {
+            calculatedStreak = 1;
+            shouldWaitFiveMinutes = true;
+          }
 
-            if (!lastLogin) { 
-                calculatedStreak = 1;
-                shouldWaitFiveMinutes = true;
-            } else if (lastLogin.toDateString() === today.toDateString()) {
-                calculatedStreak = currentStreak;
-            } else if (lastLogin.toDateString() === yesterday.toDateString()) {
-                calculatedStreak = currentStreak + 1;
-                shouldWaitFiveMinutes = true;
-            } else {
-                calculatedStreak = 1;
-                shouldWaitFiveMinutes = true;
+          if (shouldWaitFiveMinutes) {
+            setNewStreakValue(calculatedStreak);
+            setPendingStreakUpdate(true);
+            setStreak(currentStreak);
+          } else {
+            setStreak(currentStreak);
+            if (currentStreak !== (fetchedUserData.streak || 0)) {
+              await updateLeaderboard(user.uid, fetchedUserData.name, currentStreak, fetchedUserData.progress || 0);
             }
-
-            if (shouldWaitFiveMinutes) {
-                setNewStreakValue(calculatedStreak);
-                setPendingStreakUpdate(true);
-                setStreak(currentStreak); 
-            } else {
-                setStreak(currentStreak); 
-                if (currentStreak !== (fetchedUserData.streak || 0)) {
-                   await updateLeaderboard(user.uid, fetchedUserData.name, currentStreak, fetchedUserData.progress || 0);
-                }
-            }
+          }
         } else {
           navigate('/student-login');
           return;
         }
 
-        const tasksRef = doc(db, 'tasks', 'shared');
-        const tasksSnap = await getDoc(tasksRef);
-        if (tasksSnap.exists()) setTasks(tasksSnap.data().tasks || []);
-        
+        const tasksUnsubscribe = onSnapshot(doc(db, 'tasks', 'shared'), (tasksSnap) => {
+          if (tasksSnap.exists()) {
+            const fetchedTasks = tasksSnap.data().tasks || [];
+            setTasks(fetchedTasks);
+          } else {
+            setTasks([]);
+          }
+        }, (err) => {
+          console.error('Error fetching tasks:', err);
+          setError('Failed to load tasks: ' + err.message);
+        });
+
         try {
-            const goalsRef = doc(db, 'students', user.uid, 'goals', 'list');
-            const goalsSnap = await getDoc(goalsRef);
-            if (goalsSnap.exists()) setGoals(goalsSnap.data().goals || []);
+          const goalsRef = doc(db, 'students', user.uid, 'goals', 'list');
+          const goalsSnap = await getDoc(goalsRef);
+          if (goalsSnap.exists()) setGoals(goalsSnap.data().goals || []);
         } catch (goalError) {
-             console.warn("Could not fetch goals, check Firestore rules:", goalError);
+          console.warn("Could not fetch goals, check Firestore rules:", goalError);
         }
 
         const studentsRef = collection(db, 'students');
         const studentsSnap = await getDocs(studentsRef);
-        const students = studentsSnap.docs.map((sDoc) => ({ // Renamed doc to sDoc
+        const students = studentsSnap.docs.map((sDoc) => ({
           id: sDoc.id,
           name: sDoc.data().name || 'Unknown',
           streak: sDoc.data().streak || 0,
@@ -495,43 +525,43 @@ const StudentDashboard = () => {
         }));
         setLeaderboard(students);
 
-        const unsubscribeAssignments = onSnapshot(collection(db, 'assignments'), (snapshot) => {
+        const assignmentsUnsubscribe = onSnapshot(collection(db, 'assignments'), (snapshot) => {
           try {
             setAssignmentsLoading(true);
-            const fetchedAssignments = snapshot.docs.map((aDoc) => ({ // Renamed doc to aDoc
-              id: aDoc.id,
-              ...aDoc.data(),
-            }));
+            const fetchedAssignments = snapshot.docs
+              .map((aDoc) => ({
+                id: aDoc.id,
+                ...aDoc.data(),
+                postedAt: aDoc.data().postedAt?.toDate ? aDoc.data().postedAt.toDate() : new Date(),
+                deadline: aDoc.data().deadline?.toDate ? aDoc.data().deadline.toDate() : null,
+              }));
             setAssignments(fetchedAssignments);
-            const staffAssignments = fetchedAssignments
-                .filter(a => a.staffName) 
-                .sort((a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0)); // Use postedAt for sorting
-             setTopAssignments(staffAssignments.slice(0, 2));
+            const sortedAssignments = fetchedAssignments
+              .sort((a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0));
+            setTopAssignments(sortedAssignments.slice(0, 2));
             setAssignmentsLoading(false);
           } catch (err) {
             console.error('Error fetching assignments:', err);
-            setAssignmentsError('Failed to load assignments.');
+            setAssignmentsError('Failed to load assignments: ' + err.message);
             setAssignmentsLoading(false);
           }
         }, (err) => {
-             console.error('Error in assignments snapshot:', err);
-             setAssignmentsError(`Failed to load assignments: ${err.message}`);
-             setAssignmentsLoading(false);
+          console.error('Error in assignments snapshot:', err);
+          setAssignmentsError(`Failed to load assignments: ${err.message}`);
+          setAssignmentsLoading(false);
         });
 
         const circularsRef = collection(db, 'circulars');
         const circularsSnap = await getDocs(circularsRef);
-        setCirculars(circularsSnap.docs.map((cDoc) => ({ id: cDoc.id, ...cDoc.data() }))); // Renamed doc to cDoc
+        setCirculars(circularsSnap.docs.map((cDoc) => ({ id: cDoc.id, ...cDoc.data() })));
 
-
-        // calculateSelfAnalysis will be called in its own useEffect dependent on totalTimeSpentInMs
         return () => {
-            unsubscribeAssignments();
-            // Save remaining session time on unmount
-            if (sessionStartTimeRef.current) {
-                const sessionDurationMs = new Date() - sessionStartTimeRef.current;
-                updateTotalTimeSpentInFirestore(sessionDurationMs);
-            }
+          tasksUnsubscribe();
+          assignmentsUnsubscribe();
+          if (sessionStartTimeRef.current) {
+            const sessionDurationMs = new Date() - sessionStartTimeRef.current;
+            updateTotalTimeSpentInFirestore(sessionDurationMs);
+          }
         };
       } catch (err) {
         console.error('Error in checkAuthAndFetchData:', err);
@@ -539,39 +569,34 @@ const StudentDashboard = () => {
       }
     };
     checkAuthAndFetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]); 
+  }, [navigate, updateTotalTimeSpentInFirestore]);
 
-
-    // Streak Timer Effect - separate from main data fetch
-    useEffect(() => {
-        if (pendingStreakUpdate && loginTimeRef.current && userData) {
-            const timer = setTimeout(async () => {
-                const user = auth.currentUser;
-                if (user && pendingStreakUpdate) { 
-                    const userRef = doc(db, 'students', user.uid);
-                    await updateDoc(userRef, {
-                        streak: newStreakValue,
-                        lastLogin: new Date().toISOString(), 
-                    });
-                    setStreak(newStreakValue);
-                    await updateLeaderboard(user.uid, userData.name, newStreakValue, progress);
-                    setPendingStreakUpdate(false);
-                }
-            }, 300000); // 5 minutes
-
-            return () => clearTimeout(timer);
+  useEffect(() => {
+    if (pendingStreakUpdate && loginTimeRef.current && userData) {
+      const timer = setTimeout(async () => {
+        const user = auth.currentUser;
+        if (user && pendingStreakUpdate) {
+          const userRef = doc(db, 'students', user.uid);
+          await updateDoc(userRef, {
+            streak: newStreakValue,
+            lastLogin: new Date().toISOString(),
+          });
+          setStreak(newStreakValue);
+          await updateLeaderboard(user.uid, userData.name, newStreakValue, progress);
+          setPendingStreakUpdate(false);
         }
+      }, 300000);
+      return () => clearTimeout(timer);
+    }
   }, [pendingStreakUpdate, newStreakValue, userData, progress]);
 
-
-    useEffect(() => {
+  useEffect(() => {
     const staffRef = collection(db, 'staff');
     const unsubscribe = onSnapshot(
       staffRef,
       (snapshot) => {
         try {
-          const staffData = snapshot.docs.map((sDoc) => ({ // Renamed doc to sDoc
+          const staffData = snapshot.docs.map((sDoc) => ({
             id: sDoc.id,
             ...sDoc.data(),
             photoURL: sDoc.data().photoURL || '/default-staff.png',
@@ -579,7 +604,7 @@ const StudentDashboard = () => {
           setStaffList(staffData);
         } catch (err) {
           console.error('Error fetching staff list:', err);
-          setError('Failed to load staff list.'); // Consider a more specific error state
+          setError('Failed to load staff list.');
         }
       },
       (err) => {
@@ -592,13 +617,13 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     if (!selectedStaffId) {
-        setMessages([]); // Clear messages when no staff is selected
-        return;
+      setMessages([]);
+      return;
     }
     const userId = auth.currentUser?.uid;
     if (!userId) return;
 
-    const chatId = `${selectedStaffId}_${userId}`; // Staff ID first, then student ID
+    const chatId = [selectedStaffId, userId].sort().join('_');
     const messagesRef = doc(db, 'messages', chatId);
 
     const unsubscribe = onSnapshot(
@@ -607,7 +632,6 @@ const StudentDashboard = () => {
         if (docSnap.exists()) {
           const currentMessages = docSnap.data().messages || [];
           setMessages(currentMessages);
-          // Mark messages from staff as read
           const updatedMessages = currentMessages.map(msg => 
             msg.sender === 'staff' && !msg.read ? { ...msg, read: true } : msg
           );
@@ -626,10 +650,9 @@ const StudentDashboard = () => {
     return () => unsubscribe();
   }, [selectedStaffId]);
 
-
-  const updateLeaderboard = async (uid, name, currentStreak, currentProgress) => { // Renamed variables
+  const updateLeaderboard = async (uid, name, currentStreak, currentProgress) => {
     try {
-      const leaderboardRef = doc(db, 'leaderboard', 'class'); // Assuming one class leaderboard
+      const leaderboardRef = doc(db, 'leaderboard', 'class');
       await runTransaction(db, async (transaction) => {
         const leaderboardSnap = await transaction.get(leaderboardRef);
         let students = leaderboardSnap.exists() ? leaderboardSnap.data().students || [] : [];
@@ -641,59 +664,56 @@ const StudentDashboard = () => {
         }
         transaction.set(leaderboardRef, { students });
       });
-       setLeaderboard(prev => { // Optimistic update for local state
-           const newLeaderboard = [...prev];
-           const studentIndex = newLeaderboard.findIndex(s => s.id === uid);
-            if (studentIndex !== -1) {
-                newLeaderboard[studentIndex] = { id: uid, name, streak: currentStreak, progress: currentProgress };
-            } else {
-                newLeaderboard.push({ id: uid, name, streak: currentStreak, progress: currentProgress });
-            }
-           return newLeaderboard.sort((a,b) => (b.progress || 0) - (a.progress || 0) || (b.streak || 0) - (a.streak || 0));
-       });
+      setLeaderboard(prev => {
+        const newLeaderboard = [...prev];
+        const studentIndex = newLeaderboard.findIndex(s => s.id === uid);
+        if (studentIndex !== -1) {
+          newLeaderboard[studentIndex] = { id: uid, name, streak: currentStreak, progress: currentProgress };
+        } else {
+          newLeaderboard.push({ id: uid, name, streak: currentStreak, progress: currentProgress });
+        }
+        return newLeaderboard.sort((a,b) => (b.progress || 0) - (a.progress || 0) || (b.streak || 0) - (a.streak || 0));
+      });
     } catch (err) {
       console.error('Error updating leaderboard:', err);
-      // setError('Failed to update leaderboard.'); // Avoid too many error popups
     }
   };
 
-    const calculateSelfAnalysis = useCallback(() => {
-        const user = auth.currentUser;
-        if (!user || !userData) return; // Ensure userData is available
+  const calculateSelfAnalysis = useCallback(() => {
+    const user = auth.currentUser;
+    if (!user || !userData) return;
 
-        const completedTasks = tasks.filter((t) => t.completedBy?.includes(user.uid)).length;
-        const totalTasks = tasks.length;
-        const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+    const completedTasks = tasks.filter((t) => t.completedBy?.includes(user.uid)).length;
+    const totalTasks = tasks.length;
+    const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-        const learningRate = Math.min(progress + taskCompletionRate / 5, 100);
-        const communicationSkill = Math.min(messages.filter((m) => m.sender === 'student').length * 5, 100);
-        const goalCompletionRate = goals.length > 0 ? (goals.filter((g) => g.completed).length / goals.length) * 100 : 0;
-        const quizEngagement = Math.min(quizCount * 10, 100); 
+    const learningRate = Math.min(progress + taskCompletionRate / 5, 100);
+    const communicationSkill = Math.min(messages.filter((m) => m.sender === 'student').length * 5, 100);
+    const goalCompletionRate = goals.length > 0 ? (goals.filter((g) => g.completed).length / goals.length) * 100 : 0;
+    const quizEngagement = Math.min(quizCount * 10, 100);
 
-        let suggestions = [];
-        if (learningRate < 60) suggestions.push("Focus on tasks & quizzes to boost learning.");
-        if (communicationSkill < 50) suggestions.push("Interact more with staff.");
-        if (goalCompletionRate < 70 && goals.length > 0) suggestions.push("Set & track goals for progress.");
-        if (quizEngagement < 50) suggestions.push("Take more quizzes to test understanding.");
-        if (suggestions.length === 0) suggestions.push("You're doing great! Keep it up.");
+    let suggestions = [];
+    if (learningRate < 60) suggestions.push("Focus on tasks & quizzes to boost learning.");
+    if (communicationSkill < 50) suggestions.push("Interact more with staff.");
+    if (goalCompletionRate < 70 && goals.length > 0) suggestions.push("Set & track goals for progress.");
+    if (quizEngagement < 50) suggestions.push("Take more quizzes to test understanding.");
+    if (suggestions.length === 0) suggestions.push("You're doing great! Keep it up.");
 
-        setSelfAnalysis({
-            learningRate,
-            communicationSkill,
-            goalCompletionRate,
-            quizEngagement,
-            timeSpent: formatTimeSpent(totalTimeSpentInMs), // Use state for totalTimeSpentInMs
-            suggestions: suggestions.join(' '),
-        });
-    }, [progress, tasks, messages, goals, quizCount, userData, totalTimeSpentInMs]); // Added userData and totalTimeSpentInMs
+    setSelfAnalysis({
+      learningRate,
+      communicationSkill,
+      goalCompletionRate,
+      quizEngagement,
+      timeSpent: formatTimeSpent(totalTimeSpentInMs),
+      suggestions: suggestions.join(' '),
+    });
+  }, [progress, tasks, messages, goals, quizCount, userData, totalTimeSpentInMs]);
 
-    // Update Self Analysis when dependencies change
-    useEffect(() => {
-        if(userData) { // Ensure userData is loaded before calculating
-            calculateSelfAnalysis();
-        }
-    }, [calculateSelfAnalysis, userData]); // Add userData here
-
+  useEffect(() => {
+    if(userData) {
+      calculateSelfAnalysis();
+    }
+  }, [calculateSelfAnalysis, userData]);
 
   const toggleContainer = (containerId) => {
     setActiveContainer(prev => prev === containerId ? null : containerId);
@@ -704,81 +724,140 @@ const StudentDashboard = () => {
 
   const copyTopicAndAskAI = (topic) => {
     setCopiedTopic(topic);
-    setIsChatbotOpen(true); // Open chatbot
-    setQuizReady(false); // Ensure quiz prompt is not shown unless quiz button is clicked
-    setCurrentTopic(topic); // Set topic for chatbot context
-    setActiveContainer('chatbot-container'); // Switch to chatbot view
+    if (window.innerWidth > 768) {
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: 'quiz',
+          message: `Start a quiz on "${topic}"?`,
+          task: { content: topic },
+        },
+      ]);
+    } else {
+      setIsChatbotOpen(true);
+      setQuizReady(false);
+      setCurrentTopic(topic);
+      setActiveContainer('chatbot-container');
+    }
   };
 
-  const startQuizForTopic = (topicContent) => { // Renamed to avoid conflict
-      if (!inQuiz) {
-        setCurrentTopic(topicContent);
-        setQuizReady(true); // Show quiz prompt
-        setActiveContainer('tasks-container'); // Stay in tasks or define a quiz container
-        logStudentActivity("quiz started", topicContent);
-      } else {
-        alert('A quiz is already in progress. Please complete it before starting a new one.');
-      }
+  const startQuizForTopic = (topicContent) => {
+    if (!inQuiz) {
+      setCurrentTopic(topicContent);
+      setQuizReady(true);
+      setActiveContainer('tasks-container');
+      logStudentActivity("quiz started", topicContent);
+    } else {
+      alert('A quiz is already in progress. Please complete it before starting a new one.');
+    }
   };
 
+  const FALLBACK_QUIZ_QUESTIONS = [
+    {
+      text: "Which of the following is a common application of Artificial Intelligence?",
+      options: [
+        "Image Recognition",
+        "Manual Data Entry",
+        "Paper Filing"
+      ],
+      correctAnswer: "Image Recognition"
+    },
+    {
+      text: "What is the main purpose of Data Science?",
+      options: [
+        "To analyze and extract insights from data",
+        "To design computer hardware",
+        "To repair electronic devices"
+      ],
+      correctAnswer: "To analyze and extract insights from data"
+    },
+    {
+      text: "Which algorithm is often used for classification tasks in AI?",
+      options: [
+        "Decision Tree",
+        "Bubble Sort",
+        "Binary Search"
+      ],
+      correctAnswer: "Decision Tree"
+    }
+  ];
 
-  const generateQuizQuestions = async () => { // Renamed from startQuiz
-      const user = auth.currentUser;
-      if (!user) return;
+  const generateQuizQuestions = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
     setInQuiz(true);
-    setQuizReady(false); // Hide prompt once quiz starts
-    // setActiveContainer('tasks-container'); // Or a dedicated quiz view
+    setQuizReady(false);
+
     const newQuizCount = quizCount + 1;
     setQuizCount(newQuizCount);
 
     if (!currentTopic) {
-      console.error('No topic provided for quiz generation');
-      setNotifications((prev) => [...prev, { id: Date.now(), type: 'quiz', message: 'Error: No topic selected.' }]);
+      setNotifications((prev) => [
+        ...prev,
+        { id: Date.now(), type: 'quiz', message: 'Error: No topic selected.' },
+      ]);
       setInQuiz(false);
       return;
     }
 
     try {
-      setNotifications((prev) => [...prev, { id: Date.now(), type: 'quiz', message: `Generating quiz for ${currentTopic}...` }]);
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: 'quiz',
+          message: `Generating quiz for ${currentTopic}...`,
+        },
+      ]);
       const userRef = doc(db, 'students', user.uid);
       await updateDoc(userRef, { quizCount: newQuizCount });
 
-      // !!! IMPORTANT: Replace with actual API call if available, or use placeholder logic
-      // This is a placeholder. In a real app, you'd call your backend/AI service.
-      console.warn("Using placeholder quiz questions. Integrate with a real quiz generation service.");
-      const fallbackQuestions = [
-        { text: `What is a key concept of ${currentTopic}?`, options: ['Opt 1', 'Opt 2', 'Opt 3', 'Opt 4'], correctAnswer: 'Opt 1' },
-        { text: `How does ${currentTopic} relate to X?`, options: ['Rel 1', 'Rel 2', 'Rel 3', 'Rel 4'], correctAnswer: 'Rel 2' },
-        { text: `A common challenge in ${currentTopic} is:`, options: ['Chal 1', 'Chal 2', 'Chal 3', 'Chal 4'], correctAnswer: 'Chal 3' },
-      ];
-      setQuizQuestions(fallbackQuestions);
-      setNotifications((prev) => [...prev, { id: Date.now(), type: 'quiz', message: `Quiz on ${currentTopic} loaded!` }]);
-
+      let aiQuestions = null;
+      if (!aiQuestions) {
+        setQuizQuestions(FALLBACK_QUIZ_QUESTIONS);
+      } else {
+        setQuizQuestions(aiQuestions);
+      }
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: 'quiz',
+          message: `Quiz on ${currentTopic} loaded!`,
+        },
+      ]);
     } catch (err) {
-      console.error('Error generating quiz:', err);
-      setQuizQuestions([]); // Clear questions on error
-      setNotifications((prev) => [...prev, { id: Date.now(), type: 'quiz', message: `Failed to load quiz for ${currentTopic}.` }]);
-      setInQuiz(false); // Allow user to try again or select another topic
+      setQuizQuestions(FALLBACK_QUIZ_QUESTIONS);
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: 'quiz',
+          message: `Quiz on ${currentTopic} loaded!`,
+        },
+      ]);
+      setInQuiz(true);
     }
   };
 
   const handleQuizComplete = async (score) => {
-      const user = auth.currentUser;
-      if (!user || !userData) return;
+    const user = auth.currentUser;
+    if (!user || !userData) return;
     try {
       setInQuiz(false);
-      const percentage = Math.round((score / quizQuestions.length) * 100); // Use quizQuestions.length
-      const newProgress = Math.min(progress + percentage / 10, 100); // Adjusted progress increment
+      const percentage = Math.round((score / quizQuestions.length) * 100);
+      const newProgress = Math.min(progress + percentage / 10, 100);
       setProgress(newProgress);
 
       const userRef = doc(db, 'students', user.uid);
       await updateDoc(userRef, { progress: newProgress });
 
-      const tasksRef = doc(db, 'tasks', 'shared'); // Assuming tasks are shared
+      const tasksRef = doc(db, 'tasks', 'shared');
       const tasksSnap = await getDoc(tasksRef);
       if (tasksSnap.exists()) {
         const updatedTasks = (tasksSnap.data().tasks || []).map((task) =>
-          task.content === currentTopic && !task.completedBy?.includes(user.uid) // Mark complete only if not already
+          task.content === currentTopic && !task.completedBy?.includes(user.uid)
             ? { ...task, completedBy: [...(task.completedBy || []), user.uid], completed: true }
             : task
         );
@@ -789,9 +868,9 @@ const StudentDashboard = () => {
       await updateLeaderboard(user.uid, userData.name, streak, newProgress);
       setNotifications((prev) => [...prev, { id: Date.now(), type: 'quiz', message: `Quiz completed! Score: ${percentage}%` }]);
       logStudentActivity("quiz completed", currentTopic);
-      setCurrentTopic(''); // Reset current topic
-      setQuizQuestions([]); // Clear questions
-      setActiveContainer('tasks-container'); // Or navigate to a results summary
+      setCurrentTopic('');
+      setQuizQuestions([]);
+      setActiveContainer('tasks-container');
     } catch (err) {
       console.error('Error completing quiz:', err);
       setError('Failed to update after quiz completion.');
@@ -800,8 +879,8 @@ const StudentDashboard = () => {
   };
 
   const addNewGoal = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
     try {
       const title = document.getElementById('goal-title')?.value.trim();
       const type = document.getElementById('goal-type')?.value;
@@ -820,7 +899,7 @@ const StudentDashboard = () => {
       const goalsRef = doc(db, 'students', user.uid, 'goals', 'list');
       await setDoc(goalsRef, { goals: updatedGoals });
       logStudentActivity("goal added", subject);
-      toggleGoalForm(false); // Hide form after adding
+      toggleGoalForm(false);
       setNotifications((prev) => [...prev, { id: Date.now(), type: 'goal', message: `Goal "${title}" set for ${new Date(dueDate).toLocaleDateString()}` }]);
     } catch (err) {
       console.error('Error adding goal:', err);
@@ -828,18 +907,18 @@ const StudentDashboard = () => {
     }
   };
 
-  const toggleGoalForm = (show) => { // Pass boolean to control visibility
+  const toggleGoalForm = (show) => {
     const form = document.getElementById('add-goal-form');
     const button = document.getElementById('show-add-goal-form');
     if (form && button) {
       form.style.display = show ? 'block' : 'none';
-      button.style.display = show ? 'none' : 'flex'; // 'flex' or 'block' depending on original style
+      button.style.display = show ? 'none' : 'flex';
     }
   };
 
   const toggleGoalComplete = async (id) => {
-      const user = auth.currentUser;
-      if (!user || !userData) return;
+    const user = auth.currentUser;
+    if (!user || !userData) return;
     try {
       let completedGoalTitle = '';
       const updatedGoals = goals.map((goal) => {
@@ -855,13 +934,12 @@ const StudentDashboard = () => {
 
       const goalJustCompleted = updatedGoals.find((g) => g.id === id)?.completed;
       if (goalJustCompleted) {
-        const newProgress = Math.min(progress + 5, 100); // Smaller increment for goal completion
+        const newProgress = Math.min(progress + 5, 100);
         setProgress(newProgress);
         await updateDoc(doc(db, 'students', user.uid), { progress: newProgress });
         await updateLeaderboard(user.uid, userData.name, streak, newProgress);
         setNotifications((prev) => [...prev, {id: Date.now(), type: 'goal', message: `Goal "${completedGoalTitle}" marked complete!`}]);
       }
-      // calculateSelfAnalysis(); // Will be called by its own useEffect
     } catch (err) {
       console.error('Error toggling goal completion:', err);
       setError('Failed to toggle goal completion.');
@@ -869,8 +947,8 @@ const StudentDashboard = () => {
   };
 
   const deleteGoal = async (id) => {
-      const user = auth.currentUser;
-      if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
     try {
       if (window.confirm('Are you sure you want to delete this goal?')) {
         const deletedGoalTitle = goals.find(g => g.id === id)?.title || "Selected goal";
@@ -879,7 +957,6 @@ const StudentDashboard = () => {
         const goalsRef = doc(db, 'students', user.uid, 'goals', 'list');
         await setDoc(goalsRef, { goals: updatedGoals });
         setNotifications((prev) => [...prev, {id: Date.now(), type: 'goal', message: `Goal "${deletedGoalTitle}" deleted.`}]);
-        // calculateSelfAnalysis(); // Will be called by its own useEffect
       }
     } catch (err) {
       console.error('Error deleting goal:', err);
@@ -887,20 +964,18 @@ const StudentDashboard = () => {
     }
   };
 
-
   const handleFeedbackSubmit = async () => {
-       const user = auth.currentUser;
-       if (!user || !userData) return;
+    const user = auth.currentUser;
+    if (!user || !userData) return;
     try {
       if (!feedbackText.trim()) {
         alert('Please enter feedback before submitting.');
         return;
       }
-      // Store feedback in a subcollection for the student
       const feedbackColRef = collection(db, 'students', user.uid, 'feedback');
       await addDoc(feedbackColRef, {
         text: feedbackText,
-        studentName: userData.name, // Optional: add student name for easier review
+        studentName: userData.name,
         submittedAt: new Date(),
       });
       logStudentActivity("feedback submitted");
@@ -913,19 +988,19 @@ const StudentDashboard = () => {
   };
 
   const sendOverdueReason = async (task, reason) => {
-       const user = auth.currentUser;
-       if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
     try {
       if (!task.staffId) throw new Error('Staff ID missing for this task.');
-      const staffMember = staffList.find((s) => s.id === task.staffId); // Renamed 'staff'
+      const staffMember = staffList.find((s) => s.id === task.staffId);
       if (!staffMember) throw new Error('Staff member not found');
 
-      const chatId = `${task.staffId}_${user.uid}`; // Staff ID first
+      const chatId = [task.staffId, user.uid].sort().join('_');
       const messagesRef = doc(db, 'messages', chatId);
       const messagesSnap = await getDoc(messagesRef);
       const existingMessages = messagesSnap.exists() ? messagesSnap.data().messages || [] : [];
-      const newMessage = { text: `Reason for not completing task "${task.content}": ${reason}`, sender: 'student', timestamp: new Date().toISOString(), read: false };
-      await setDoc(messagesRef, { messages: [...existingMessages, newMessage] });
+      const newMessage = { text: `Reason for not completing task "${task.content}": ${reason}`, sender: 'student', senderId: user.uid, timestamp: new Date().toISOString(), read: false };
+      await setDoc(messagesRef, { messages: [...existingMessages, newMessage] }, { merge: true });
       
       setOverdueTaskReasons((prev) => ({ ...prev, [task.id]: reason }));
       setSelectedStaffId(task.staffId);
@@ -939,43 +1014,47 @@ const StudentDashboard = () => {
     }
   };
 
-
-  const sendMessageToStaff = useCallback( // Renamed from sendMessage
+  const sendMessageToStaff = useCallback(
     async () => {
-        const user = auth.currentUser;
-        if (!user) return;
+      const user = auth.currentUser;
+      if (!user) return;
       try {
         if (!selectedStaffId) {
-            alert("Please select a staff member to chat with.");
-            return;
+          alert("Please select a staff member to chat with.");
+          return;
         }
-        const input = document.getElementById('message-input'); // Ensure this ID is correct and unique
+        const input = document.getElementById('message-input');
         const text = input?.value.trim();
         if (!text) return;
 
-        const chatId = `${selectedStaffId}_${user.uid}`; // Staff ID first
-        const newMessage = { text, sender: 'student', timestamp: new Date().toISOString(), read: false };
+        const chatId = [selectedStaffId, user.uid].sort().join('_');
+        const newMessage = {
+          text,
+          sender: 'student',
+          senderId: user.uid,
+          timestamp: new Date().toISOString(),
+          read: false
+        };
         const messagesRef = doc(db, 'messages', chatId);
         const messagesSnap = await getDoc(messagesRef);
         const existingMessages = messagesSnap.exists() ? messagesSnap.data().messages || [] : [];
-        await setDoc(messagesRef, { messages: [...existingMessages, newMessage] });
+        await setDoc(messagesRef, { messages: [...existingMessages, newMessage] }, { merge: true });
         if(input) input.value = '';
-        // calculateSelfAnalysis(); // Will be called by its own useEffect
       } catch (err) {
         console.error('Error sending message:', err);
         setError('Failed to send message.');
       }
     },
-    [selectedStaffId] // Removed calculateSelfAnalysis from deps
+    [selectedStaffId]
   );
 
-  const deleteMessageFromStaffChat = useCallback( // Renamed from deleteMessage
-    async (indexToDelete) => { // Renamed 'index'
-        const user = auth.currentUser;
-        if (!user) return;
+  const deleteMessageFromStaffChat = useCallback(
+    async (indexToDelete) => {
+      const user = auth.currentUser;
+      if (!user) return;
       try {
         if (!selectedStaffId) return;
-        const chatId = `${selectedStaffId}_${user.uid}`; // Staff ID first
+        const chatId = [selectedStaffId, user.uid].sort().join('_');
         const updatedMessages = messages.filter((_, i) => i !== indexToDelete);
         const messagesRef = doc(db, 'messages', chatId);
         await setDoc(messagesRef, { messages: updatedMessages });
@@ -991,9 +1070,9 @@ const StudentDashboard = () => {
 
   const handleLogout = async () => {
     if (sessionStartTimeRef.current) {
-        const sessionDurationMs = new Date() - sessionStartTimeRef.current;
-        await updateTotalTimeSpentInFirestore(sessionDurationMs);
-        sessionStartTimeRef.current = null; // Clear session start time
+      const sessionDurationMs = new Date() - sessionStartTimeRef.current;
+      await updateTotalTimeSpentInFirestore(sessionDurationMs);
+      sessionStartTimeRef.current = null;
     }
     logStudentActivity("logout");
     try {
@@ -1005,11 +1084,11 @@ const StudentDashboard = () => {
     }
   };
 
-  const toggleSubjectExpansion = (subject) => { // Renamed from toggleSubject
+  const toggleSubjectExpansion = (subject) => {
     setExpandedSubjects((prev) => ({ ...prev, [subject]: !prev[subject] }));
   };
 
-  if (!userData) { // Show loading screen until userData is fetched
+  if (!userData) {
     return <div className="loading-dashboard">Loading Student Dashboard...</div>;
   }
 
@@ -1023,7 +1102,7 @@ const StudentDashboard = () => {
           toggleContainer={toggleContainer}
           isVisible={sidebarVisible}
           toggleSidebar={toggleSidebar}
-          setMobileHamburger={setMobileHamburger} // Pass setter if Sidebar modifies it
+          setMobileHamburger={setMobileHamburger}
           copiedTopic={copiedTopic}
           clearCopiedTopic={() => setCopiedTopic('')}
         />
@@ -1032,7 +1111,7 @@ const StudentDashboard = () => {
             {mobileHamburger}
             <input type="text" className="search-bar" placeholder="What do you want to learn today?" />
           </div>
-           {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message">{error}</div>}
           <div id="main-content-section">
             {!activeContainer && !inQuiz && (
               <div id="default-content" className="default-content">
@@ -1040,29 +1119,29 @@ const StudentDashboard = () => {
                   <h3>Your Profile</h3>
                   <p>Hi {userData?.name || 'Student'}, you have completed <b>{Math.round(progress)}%</b> of weekly targets. Your current streak: <b>{streak}</b> days! 🔥</p>
                 </div>
-                 <h3>Your Assignments</h3>
-                 <div className="assignments-preview scrollable-x">
-                    {assignmentsLoading && <p>Loading assignments...</p>}
-                    {assignmentsError && <p className="error-message">{assignmentsError}</p>}
-                    {!assignmentsLoading && !assignmentsError && topAssignments.length > 0 ? (
-                        topAssignments.map(assignment => <AssignmentItem key={assignment.id} assignment={assignment} />)
-                    ) : (
-                        !assignmentsLoading && !assignmentsError && <p className="empty-message">No new assignments from staff.</p>
-                    )}
-                 </div>
+                <h3>Your Assignments</h3>
+                <div className="assignments-preview scrollable-x">
+                  {assignmentsLoading && <p>Loading assignments...</p>}
+                  {assignmentsError && <p className="error-message">{assignmentsError}</p>}
+                  {!assignmentsLoading && !assignmentsError && topAssignments.length > 0 ? (
+                    topAssignments.map(assignment => <AssignmentItem key={assignment.id} assignment={assignment} />)
+                  ) : (
+                    !assignmentsLoading && !assignmentsError && <p className="empty-message">No new assignments from staff.</p>
+                  )}
+                </div>
                 <h3>Your Subjects (Tasks)</h3>
                 <div className="subjects-grid assignments scrollable-x">
-                   {Object.keys(tasksBySubject).length > 0 ? Object.keys(tasksBySubject).map(subject => (
-                     <div key={subject} className="assignment-box" style={{ backgroundColor: '#c5cae9' }} onClick={() => { setSelectedSubject(subject); setActiveContainer('tasks-container'); }}>
-                       {subject} ({tasksBySubject[subject].length})
-                     </div>
-                   )) : <p className="empty-message">No tasks assigned yet.</p>}
+                  {Object.keys(tasksBySubject).length > 0 ? Object.keys(tasksBySubject).map(subject => (
+                    <div key={subject} className="assignment-box" style={{ backgroundColor: '#c5cae9' }} onClick={() => { setSelectedSubject(subject); setActiveContainer('tasks-container'); }}>
+                      {subject} ({tasksBySubject[subject].length})
+                    </div>
+                  )) : <p className="empty-message">No tasks assigned yet.</p>}
                 </div>
                 <Leaderboard students={leaderboard} showStats={false} currentUserId={auth.currentUser?.uid} />
               </div>
             )}
             <div id="tasks-container" className={`toggle-container ${activeContainer === 'tasks-container' ? 'active' : ''}`}>
-               <div className="container-header">
+              <div className="container-header">
                 {selectedSubject ? <span>Tasks in {selectedSubject}</span> : 'Posted Tasks'}
                 {selectedSubject && <button className="back-btn small" onClick={() => setSelectedSubject(null)}>View All Subjects</button>}
               </div>
@@ -1072,17 +1151,28 @@ const StudentDashboard = () => {
                 ) : selectedSubject ? (
                   <div className="subject-tasks">
                     {(tasksBySubject[selectedSubject] || []).length === 0 ? (
-                         <p className="empty-message">No tasks available for {selectedSubject}.</p>
+                      <p className="empty-message">No tasks available for {selectedSubject}.</p>
                     ): (
-                        tasksBySubject[selectedSubject].map((task) => (
-                          <TaskItem
-                            key={task.id}
-                            task={task}
-                            role="student"
-                            onCopy={copyTopicAndAskAI}
-                            onStartQuiz={() => startQuizForTopic(task.content)}
-                          />
-                        ))
+                      tasksBySubject[selectedSubject].map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          task={task}
+                          role="student"
+                          onCopy={copyTopicAndAskAI}
+                          onStartQuiz={() => {
+                            setPendingQuizTask(task);
+                            setNotifications((prev) => [
+                              ...prev,
+                              {
+                                id: Date.now(),
+                                type: 'quiz',
+                                message: `Start a quiz on "${task.content}"?`,
+                                task,
+                              },
+                            ]);
+                          }}
+                        />
+                      ))
                     )}
                   </div>
                 ) : (
@@ -1098,7 +1188,7 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div id="goals-container" className={`toggle-container ${activeContainer === 'goals-container' ? 'active' : ''}`}>
-                 <div className="container-header">Your Goals</div>
+              <div className="container-header">Your Goals</div>
               <div className="container-body scrollable">
                 <button id="show-add-goal-form" className="add-goal-btn" onClick={() => toggleGoalForm(true)}>
                   <i className="fas fa-plus"></i> Add New Goal
@@ -1122,7 +1212,7 @@ const StudentDashboard = () => {
                 </div>
                 <div className="goals-list">
                   {goals.length === 0 ? <p className="empty-message">No goals set yet.</p> : goals.map((goal) => (
-                      <GoalItem key={goal.id} goal={goal} onToggleComplete={toggleGoalComplete} onDelete={deleteGoal} />
+                    <GoalItem key={goal.id} goal={goal} onToggleComplete={toggleGoalComplete} onDelete={deleteGoal} />
                   ))}
                 </div>
               </div>
@@ -1151,9 +1241,9 @@ const StudentDashboard = () => {
                   <div className="subjects-grid">
                     {Object.keys(assignmentsBySubject).length === 0 ? <p className="empty-message">No assignments posted by staff.</p>
                     : Object.keys(assignmentsBySubject).map((subject) => (
-                        <div key={subject} className="subject-card" onClick={() => setSelectedAssignmentSubject(subject)}>
-                            <h3>{subject}</h3> <p>{assignmentsBySubject[subject].length} Assignment(s)</p>
-                        </div>
+                      <div key={subject} className="subject-card" onClick={() => setSelectedAssignmentSubject(subject)}>
+                        <h3>{subject}</h3> <p>{assignmentsBySubject[subject].length} Assignment(s)</p>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -1163,13 +1253,13 @@ const StudentDashboard = () => {
               <div className="container-header">Important Circulars</div>
               <div className="container-body scrollable">
                 {circulars.length === 0 ? <p className="empty-message">No new circulars.</p> : <ul>
-                    {circulars.map((circular) => ( <li key={circular.id}> <a href={circular.url} target="_blank" rel="noopener noreferrer">{circular.helptitle || circular.id}</a> <span> {' - Sent by '} <strong>{circular.sender}</strong> </span> </li> ))}
-                  </ul>}
+                  {circulars.map((circular) => ( <li key={circular.id}> <a href={circular.url} target="_blank" rel="noopener noreferrer">{circular.helptitle || circular.id}</a> <span> {' - Sent by '} <strong>{circular.sender}</strong> </span> </li> ))}
+                </ul>}
               </div>
             </div>
             <div id="staff-interaction-container" className={`toggle-container ${activeContainer === 'staff-interaction-container' ? 'active' : ''}`}>
               <div className="container-header">Staff Interaction</div>
-              <div className="container-body"> {/* Ensure this container allows ChatInterface to fill space */}
+              <div className="container-body">
                 <ChatInterface messages={messages} selectedStaffId={selectedStaffId} selectedStaffName={selectedStaffName} staffList={staffList} sendMessage={sendMessageToStaff} deleteMessage={deleteMessageFromStaffChat} showContactList={showContactList} setShowContactList={setShowContactList} setSelectedStaffId={setSelectedStaffId} setSelectedStaffName={setSelectedStaffName} currentUserId={auth.currentUser?.uid} />
               </div>
             </div>
@@ -1192,7 +1282,7 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div id="settings-container" className={`toggle-container ${activeContainer === 'settings-container' ? 'active' : ''}`}>
-               <div className="container-header">Settings</div>
+              <div className="container-header">Settings</div>
               <div className="container-body">
                 <h3>Profile Options</h3>
                 <button onClick={handleEditProfile} className="add-goal-btn">Edit Profile</button>
@@ -1200,25 +1290,66 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div id="chatbot-container" className={`toggle-container ${activeContainer === 'chatbot-container' ? 'active' : ''}`}>
-               <div className="container-header">EduGen AI Chatbot <button className="back-btn small" onClick={() => setActiveContainer(null)}>Close Chatbot</button></div>
+              <div className="container-header">EduGen AI Chatbot <button className="back-btn small" onClick={() => setActiveContainer(null)}>Close Chatbot</button></div>
               <div className="container-body"> <Chatbot isVisible={true} copiedTopic={copiedTopic} clearCopiedTopic={() => setCopiedTopic('')} isInContainer={true} isQuizActive={inQuiz} /> </div>
             </div>
             <div id="notes-container" className={`toggle-container ${activeContainer === 'notes-container' ? 'active' : ''}`}>
               <Notes toggleContainer={toggleContainer} logActivity={logStudentActivity} studentName={userData?.name} />
             </div>
-            {quizReady && !inQuiz && ( // Show prompt only if quiz is ready and not already in quiz
+            {quizReady && !inQuiz && (
               <div className="quiz-prompt">
                 <p>Start a quiz on "{currentTopic}"?</p>
-                <button onClick={generateQuizQuestions}>Start Quiz</button> {/* Changed from startQuiz to generateQuizQuestions */}
+                <button onClick={generateQuizQuestions}>Start Quiz</button>
                 <button onClick={() => { setQuizReady(false); setCurrentTopic(''); }}>Cancel</button>
               </div>
             )}
           </div>
           <div className="notifications">
-           {notifications.map((notif, index) => (
-              notif.type === 'overdue' ? ( <OverdueTaskNotification key={`${notif.id}-${index}`} task={notif.task} onSubmitAndNavigate={sendOverdueReason} onClose={() => setNotifications((prev) => prev.filter((_, i) => i !== index))} /> )
-              : ( <Notification key={`${notif.id || 'notif'}-${index}`} message={notif.message} onClose={() => setNotifications((prev) => prev.filter((_, i) => i !== index))} /> )
-            ))}
+            {notifications.map((notif, index) => {
+              if (notif.type === 'overdue') {
+                return (
+                  <OverdueTaskNotification
+                    key={`${notif.id}-${index}`}
+                    task={notif.task}
+                    onSubmitAndNavigate={sendOverdueReason}
+                    onClose={() =>
+                      setNotifications((prev) => prev.filter((_, i) => i !== index))
+                    }
+                  />
+                );
+              } else if (notif.type === 'quiz' && notif.task) {
+                return (
+                  <Notification
+                    key={`${notif.id || 'notif'}-${index}`}
+                    message={notif.message}
+                    onClick={() => {
+                      setCurrentTopic(notif.task.content);
+                      setQuizQuestions(FALLBACK_QUIZ_QUESTIONS);
+                      setQuizReady(false);
+                      setInQuiz(true);
+                      setActiveContainer('tasks-container');
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      );
+                    }}
+                    onClose={() =>
+                      setNotifications((prev) => prev.filter((_, i) => i !== index))
+                    }
+                    isClickable={true}
+                  />
+                );
+              } else {
+                return (
+                  <Notification
+                    key={`${notif.id || 'notif'}-${index}`}
+                    message={notif.message}
+                    onClose={() =>
+                      setNotifications((prev) => prev.filter((_, i) => i !== index))
+                    }
+                  />
+                );
+              }
+            })}
           </div>
           {window.innerWidth > 768 && ( <Chatbot isVisible={isChatbotOpen && !inQuiz} copiedTopic={copiedTopic} clearCopiedTopic={() => setCopiedTopic('')} isInContainer={false} isQuizActive={inQuiz} /> )}
         </div>
