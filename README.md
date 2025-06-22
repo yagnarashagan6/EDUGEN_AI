@@ -1,70 +1,49 @@
-# Getting Started with Create React App
+# 📚 EduGen AI
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+> A personalized AI-powered learning platform tailored for engineering students, especially beneficial for arrear students seeking conceptual clarity and interactive revision.
 
-## Available Scripts
+🌐 **Live Website**: [edugen-ai-zeta.vercel.app](https://edugen-ai-zeta.vercel.app)  
+📦 **GitHub Repo**: [EduGen AI](https://github.com/yagnarashagan6/EDUGEN_AI)
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## 📌 Overview
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**EduGen AI** is an innovative and intelligent learning platform built specifically for **engineering students**, with a strong focus on helping **arrear students** catch up on missed concepts. It leverages **artificial intelligence** to deliver dynamic, personalized, and interactive educational tools.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+The platform adapts to individual learning styles using an AI-powered chatbot and offers features such as personalized note generation, MCQ practice, and student performance self-assessment. It also encourages collaboration between students and staff for real-time doubt clearing.
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## ⚙️ Tech Stack
 
-### `npm run build`
+- ⚛️ **React.js** – Frontend UI
+- 🎨 **CSS** – Responsive styling
+- 🔥 **Firebase** – Hosting, Authentication, Real-time Database
+- 🧠 **OpenRouter API** – AI/LLM integration
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🌟 Features
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- 🤖 **AI-Powered Chatbot** – Acts as a virtual tutor for personalized learning  
+- 📝 **Personalized Notes** – Custom notes based on user interaction and subject  
+- 👨‍🏫 **Student & Staff Interaction** – Real-time doubt-clearing sessions  
+- ❓ **MCQ Generation** – Instantly generates multiple-choice questions for practice  
+- 📊 **Student Self-Analysis** – Evaluate and track performance and improvement areas  
+- 🧑‍🎓 **Arrear-Focused Assistance** – Designed especially to help students with backlogs  
+- 🚀 **Vercel Deployment** – Fast and scalable hosting  
+- 💻 **Responsive Design** – Works smoothly on both mobile and desktop  
+- 🔐 **Secure Backend** – Firebase handles user data safely
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 🚀 Getting Started
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+To run the project locally:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 1. Clone the Repository
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```bash
+git clone https://github.com/yagnarashagan6/EDUGEN_AI.git
+cd EDUGEN_AI
