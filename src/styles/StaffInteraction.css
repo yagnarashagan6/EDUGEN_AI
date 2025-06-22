@@ -1,0 +1,465 @@
+/* StaffInteraction.css - Styles for Staff Interaction Container in Student and Staff Dashboards */
+
+/* Main Container */
+#staff-interaction-container {
+    display: none; /* Hidden by default */
+    width: 100%;
+    min-height: calc(100vh - 100px);
+    background: white;
+    border-radius: 10px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ddd;
+    flex-direction: column;
+    box-sizing: border-box;
+    position: relative; /* Ensure parent is relative */
+    overflow: hidden;
+}
+
+/* Show container when active */
+#staff-interaction-container.active {
+    display: flex;
+}
+
+/* Chat Interface Container */
+#staff-interaction-container .chat-interface {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background: #faf9f8;
+    box-sizing: border-box;
+}
+
+/* Contact List */
+#staff-interaction-container .contact-list.full-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;         /* Cover full height */
+    width: 100%;
+    background: #ffffff;
+    position: absolute;
+    top: 0;               /* Start from top */
+    left: 0;
+    z-index: 5;
+    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#staff-interaction-container .contact-list-header,
+#staff-interaction-container .chat-header {
+    background: #075e54;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+#staff-interaction-container .contact-list-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background: #f0f0f0;
+    scrollbar-width: thin;
+    scrollbar-color: #075e54 #e0e0e0;
+}
+
+#staff-interaction-container .contact-list-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+#staff-interaction-container .contact-list-body::-webkit-scrollbar-track {
+    background: #e0e0e0;
+}
+
+#staff-interaction-container .contact-list-body::-webkit-scrollbar-thumb {
+    background: #075e54;
+    border-radius: 4px;
+}
+
+#staff-interaction-container .contact-list-body::-webkit-scrollbar-thumb:hover {
+    background: #128c7e;
+}
+
+#staff-interaction-container .contact-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #ddd;
+    transition: background 0.3s ease;
+}
+
+#staff-interaction-container .contact-item:hover {
+    background: #e0f7fa;
+}
+
+#staff-interaction-container .contact-item.active {
+    background: #b2ebf2;
+}
+
+#staff-interaction-container .contact-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 15px;
+    object-fit: cover;
+}
+
+#staff-interaction-container .contact-info h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#staff-interaction-container .contact-info p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: #666;
+}
+
+/* Chat Container */
+#staff-interaction-container .chat-container.full-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background: #ffffff;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+}
+
+/* Chat Header */
+#staff-interaction-container .chat-header {
+    flex-shrink: 0;
+    background: #075e54;
+    color: white;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#staff-interaction-container .toggle-contact-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    background: #128c7e;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#staff-interaction-container .toggle-contact-btn:hover {
+    background: #0a6b5c;
+}
+
+#staff-interaction-container .recipient-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+#staff-interaction-container .recipient-info h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+#staff-interaction-container .status {
+    margin: 4px 0 0;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Messages Container */
+#staff-interaction-container .messages-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: url('whatsapp1.jpg');
+    background-size: cover;
+    padding: 15px;
+    scrollbar-width: thin;
+    scrollbar-color: #075e54 #e0e0e0;
+    min-height: 200px;
+}
+
+#staff-interaction-container .messages-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+#staff-interaction-container .messages-container::-webkit-scrollbar-track {
+    background: #e0e0e0;
+}
+
+#staff-interaction-container .messages-container::-webkit-scrollbar-thumb {
+    background: #075e54;
+    border-radius: 4px;
+}
+
+#staff-interaction-container .messages-container::-webkit-scrollbar-thumb:hover {
+    background: #128c7e;
+}
+
+/* Messages Scrollable Area */
+#staff-interaction-container .messages-scrollable {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+}
+
+/* Message Bubble */
+.message-bubble {
+    max-width: 75%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+    word-wrap: break-word;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+    display: inline-block;
+    clear: both;
+}
+
+/* Sent Message Bubble (Student) */
+.message-bubble.sent {
+    background: #d1f7c4; /* Light green for sent messages */
+    float: right;
+    text-align: left;
+    border-bottom-right-radius: 5px;
+    border-top-left-radius: 15px;
+}
+
+/* Received Message Bubble (Staff) */
+.message-bubble.received {
+    background: #ffffff; /* White for received messages */
+    float: left;
+    text-align: left;
+    border-bottom-left-radius: 5px;
+    border-top-right-radius: 15px;
+}
+
+/* Message Content */
+#staff-interaction-container .message-content {
+    word-break: break-word;
+    color: #333;
+}
+
+/* Message Meta (Time and Status) */
+#staff-interaction-container .message-meta {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 5px;
+    font-size: 11px;
+    color: #666;
+    gap: 4px;
+}
+
+#staff-interaction-container .message-time {
+    order: 1;
+}
+
+#staff-interaction-container .message-status {
+    color: #4fc3f7;
+    order: 2;
+}
+
+/* Message Input Area */
+#staff-interaction-container .message-input-area {
+    flex-shrink: 0;
+    display: flex;
+    padding: 12px;
+    background: #f0f0f0;
+    border-top: 1px solid #ddd;
+}
+
+#staff-interaction-container .message-input-field {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 24px;
+    outline: none;
+    font-size: 15px;
+    background: #ffffff;
+}
+
+#staff-interaction-container .send-message-button {
+    background: #075e54;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    margin-left: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#staff-interaction-container .send-message-button:hover {
+    background: #128c7e;
+}
+
+/* Container Body */
+#staff-interaction-container .container-body {
+    padding: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Date Separator */
+.date-separator {
+    text-align: center;
+    margin: 15px auto;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 6px 16px;
+    border-radius: 12px;
+    display: block;
+    width: fit-content;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    position: relative;
+    z-index: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    #staff-interaction-container {
+        min-height: calc(100vh - 100px);
+    }
+
+    #staff-interaction-container .messages-container {
+        min-height: 150px;
+    }
+}
+
+@media (max-width: 992px) {
+    #staff-interaction-container {
+        min-height: calc(100vh - 100px);
+    }
+
+    #staff-interaction-container .messages-container {
+        min-height: 120px;
+    }
+}
+
+@media (max-width: 768px) {
+    #staff-interaction-container {
+        min-height: calc(100vh - 80px);
+        height: auto;
+    }
+
+    #staff-interaction-container .chat-interface {
+        height: 100% !important; /* Force full height on mobile */
+    }
+
+    #staff-interaction-container .container-body {
+        height: 100% !important;
+        position: relative !important;
+    }
+
+    #staff-interaction-container .contact-list.full-container {
+        height: 100% !important;
+        width: 100% !important;
+        position: absolute !important;
+        top: 0; left: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    #staff-interaction-container {
+        min-height: calc(100vh - 60px);
+        height: auto;
+    }
+
+    #staff-interaction-container .chat-interface {
+        height: 100% !important; /* Force full height on mobile */
+    }
+
+    #staff-interaction-container .container-body {
+        height: 100% !important;
+        position: relative !important;
+    }
+
+    #staff-interaction-container .contact-list.full-container {
+        height: 100% !important;
+        width: 100% !important;
+        position: absolute !important;
+        top: 0; left: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #staff-interaction-container .contact-list-body {
+        max-height: 250px;
+    }
+
+    #staff-interaction-container .contact-avatar {
+        width: 36px;
+        height: 36px;
+    }
+
+    #staff-interaction-container .contact-info h4 {
+        font-size: 13px;
+    }
+
+    #staff-interaction-container .contact-info p {
+        font-size: 11px;
+    }
+
+    #staff-interaction-container .toggle-contact-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    #staff-interaction-container .recipient-info h3 {
+        font-size: 14px;
+    }
+
+    #staff-interaction-container .status {
+        font-size: 10px;
+    }
+
+    #staff-interaction-container .message-bubble {
+        max-width: 85%;
+        font-size: 13px;
+    }
+
+    #staff-interaction-container .message-input-field {
+        font-size: 13px;
+    }
+
+    #staff-interaction-container .send-message-button {
+        width: 36px;
+        height: 36px;
+    }
+
+    #staff-interaction-container .messages-container {
+        padding: 8px;
+        min-height: 80px;
+        max-height: calc(100vh - 180px);
+    }
+
+    .date-separator {
+        font-size: 11px;
+        padding: 5px 12px;
+    }
+}

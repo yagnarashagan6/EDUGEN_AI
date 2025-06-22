@@ -1,0 +1,130 @@
+.form-container {
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+.form-container h2 {
+  font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+}
+
+.multi-select-container {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  background-color: #fff;
+  margin-top: 4px;
+}
+
+.multi-select-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 15px;
+  color: #333;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.multi-select-item:hover {
+  background-color: #f1f1f1;
+}
+
+.multi-select-item.selected {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  font-weight: 500;
+}
+
+/* Ensure scrollbar is styled for consistency */
+.multi-select-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.multi-select-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.multi-select-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.multi-select-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Dropdown container */
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.custom-dropdown-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: #f3f4f6;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.custom-dropdown-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #fff;
+}
+
+.custom-dropdown-list {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  z-index: 20;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0;
+}
+
+.custom-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+
+.custom-dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.custom-dropdown-item.selected {
+  background: #e0e7ff;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.custom-dropdown-checkbox {
+  margin-right: 0.75rem;
+  accent-color: #2563eb;
+}
+
+/* Optional: Scrollbar styling for dropdown */
+.custom-dropdown-list::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-dropdown-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+.custom-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}

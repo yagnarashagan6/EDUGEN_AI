@@ -1,0 +1,845 @@
+/* Chat.css - Styles for Chatbot */
+
+/* Full-size chatbot */
+.chat-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 350px;
+  height: 100vh;
+  background: white;
+  border-left: 2px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  overflow: hidden;
+}
+
+/* Hidden full-size chatbot */
+.chat-container.hidden {
+  transform: translateX(100%);
+}
+
+/* Minimized chatbot */
+.chat-container.mini {
+  width: 250px;
+  height: 300px;
+  bottom: 60px;
+  top: auto;
+  right: 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  transform: translateX(0);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  overflow: hidden; /* Ensure no overflow in mini view */
+}
+
+/* Minimized chat container hidden by default */
+.chat-container.mini.hidden {
+  display: none;
+}
+
+/* Active state for the mini chat container */
+.chat-container.mini.active {
+  display: flex;
+}
+
+/* Circular toggle button */
+.chat-toggle-btn {
+  position: fixed;
+  bottom: 15px;
+  right: 15px;
+  background: #0438af;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  font-size: 18px;
+}
+
+/* Show toggle button only in minimized view */
+.chat-container:not(.mini) ~ .chat-toggle-btn {
+  display: none;
+}
+
+/* Always show toggle button in minimized view */
+.chat-container.mini ~ .chat-toggle-btn {
+  display: flex;
+}
+
+.chat-toggle-btn:hover {
+  background: #032a8a;
+}
+
+.chat-header {
+  background: #0438af;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.chat-container.mini .chat-header {
+  font-size: 14px;
+  padding: 8px;
+  border-radius: 8px 8px 0 0;
+}
+
+.chat-box {
+  flex-grow: 1;
+  padding: 12px;
+  overflow-y: auto;
+  background: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: calc(100% - 64px - 60px); /* Subtract header (44px + padding) and input (40px + padding) heights */
+  box-sizing: border-box;
+}
+
+.chat-container.mini .chat-box {
+  padding: 8px;
+  max-height: 200px;
+  overflow-y: auto; /* Ensure scrollable in mini view */
+}
+
+/* Sent message bubble (user) */
+.user-message {
+  background-color: #d1e7ff;
+  color: #000;
+  align-self: flex-end;
+  text-align: right;
+  border-radius: 16px 16px 0 16px;
+  padding: 10px 15px;
+  margin: 8px 0;
+  max-width: 70%;
+  word-wrap: break-word;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Received message (chatbot) */
+.chatbot-message {
+  color: #000; /* Black text color for chatbot messages */
+  align-self: flex-start;
+  text-align: left;
+  padding: 10px 15px;
+  margin: 8px 0;
+  max-width: 70%;
+  word-wrap: break-word;
+  position: relative;
+}
+
+/* Hover effect for user messages */
+.user-message:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.chatbot-message.loading {
+  font-style: italic;
+  color: #666;
+}
+
+/* PDF option styling */
+.pdf-option {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0438af;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 10;
+}
+
+.pdf-option:hover {
+  background: #032a8a;
+}
+
+/* PDF view styling */
+.pdf-view-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: white;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.pdf-view-content {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-message {
+  margin: 10px 0;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.pdf-user-message {
+  text-align: right;
+  color: #333;
+}
+
+.pdf-chatbot-message {
+  text-align: left;
+  color: #333;
+}
+
+.pdf-message-content {
+  font-size: 16px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+/* Chat input container */
+.chat-input {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #ddd;
+  padding: 10px;
+  background: #fff;
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* Input wrapper for proper alignment */
+.input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* Input field */
+.chat-input input {
+  width: 100%;
+  height: 40px;
+  padding: 10px 50px 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* Send button */
+.send-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0438af;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.send-btn i {
+  font-size: 16px;
+}
+
+.send-btn:hover {
+  background: #032a8a;
+}
+
+/* Adjustments for minimized chat container */
+.chat-container.mini .chat-input {
+  padding: 8px;
+}
+
+.chat-container.mini .chat-input input {
+  height: 36px;
+  padding: 8px 45px 8px 10px;
+  font-size: 12px;
+}
+
+.chat-container.mini .send-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+/* Sidebar container adjustments */
+.chat-container.sidebar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: hidden; /* Ensure no overflow in sidebar view */
+}
+
+.chat-container.sidebar .chat-header {
+  background-color: #f4f4f4;
+  border-bottom: 1px solid #ddd;
+}
+
+.chat-container.sidebar .chat-box {
+  height: calc(100% - 64px - 60px); /* Adjust for header (44px + padding) and input (40px + padding) */
+  max-height: none;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.chat-container.sidebar .chat-input {
+  border-top: 1px solid #ddd;
+  padding: 10px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  /* Full-size chat hidden by default */
+  .chat-container:not(.mini):not(.sidebar) {
+    display: none;
+  }
+
+  /* Show mini chat when active */
+  .chat-container.mini.active {
+    display: flex;
+    overflow: hidden; /* Prevent overflow in mini view */
+  }
+
+  /* Always show toggle button in minimized view */
+  .chat-toggle-btn {
+    display: flex;
+  }
+
+  .chat-header {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .chat-box {
+    padding: 8px;
+    gap: 6px;
+    height: calc(100% - 56px - 52px); /* Adjusted for smaller header (32px + padding) and input (36px + padding) */
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .user-message {
+    max-width: 80%;
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  .chatbot-message {
+    max-width: 80%;
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  .chat-input {
+    padding: 8px;
+  }
+
+  .chat-input input {
+    height: 36px;
+    padding: 8px 40px 8px 10px;
+    font-size: 12px;
+  }
+
+  .send-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    right: 8px;
+  }
+
+  .chat-toggle-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+  }
+
+  .pdf-option {
+    font-size: 10px;
+    padding: 4px 8px;
+    bottom: -25px;
+  }
+
+  .pdf-view-content {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .pdf-message-content {
+    font-size: 14px;
+  }
+
+  /* Sidebar container for mobile */
+  .chat-container.sidebar {
+    height: 100%; /* Full height */
+    position: relative;
+    width: 100%;
+    overflow: hidden; /* Prevent overflow */
+  }
+
+  .chat-container.sidebar .chat-box {
+    height: calc(100% - 56px - 52px); /* Adjust for header (32px + padding) and input (36px + padding) */
+    max-height: none;
+    padding: 8px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.sidebar .chat-input {
+    padding: 8px;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    z-index: 10;
+  }
+
+  .chat-container.sidebar .chat-input input {
+    height: 36px;
+    padding: 8px 40px 8px 10px;
+    font-size: 12px;
+  }
+
+  .chat-container.sidebar .send-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    right: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-container.mini {
+    width: 220px;
+    height: 250px;
+    bottom: 50px;
+    right: 8px;
+    overflow: hidden; /* Prevent overflow */
+  }
+
+  .chat-container.mini .chat-box {
+    max-height: 160px;
+    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
+    padding: 6px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.mini .chat-header {
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .chat-container.mini .user-message {
+    font-size: 9px;
+    padding: 5px 8px;
+  }
+
+  .chat-container.mini .chatbot-message {
+    font-size: 9px;
+    padding: 5px 8px;
+  }
+
+  .chat-container.mini .chat-input {
+    padding: 6px;
+  }
+
+  .chat-container.mini .chat-input input {
+    height: 34px;
+    padding: 6px 35px 6px 8px;
+    font-size: 11px;
+  }
+
+  .chat-container.mini .send-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    right: 6px;
+  }
+
+  .chat-toggle-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .pdf-option {
+    font-size: 9px;
+    padding: 3px 6px;
+    bottom: -20px;
+  }
+
+  .pdf-view-content {
+    margin: 5px;
+    padding: 8px;
+  }
+
+  .pdf-message-content {
+    font-size: 12px;
+  }
+
+  /* Sidebar container for smaller screens */
+  .chat-container.sidebar {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .chat-container.sidebar .chat-box {
+    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
+    max-height: none;
+    padding: 6px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.sidebar .chat-input {
+    padding: 6px;
+  }
+
+  .chat-container.sidebar .chat-input input {
+    height: 34px;
+    padding: 6px 35px 6px 8px;
+    font-size: 11px;
+  }
+
+  .chat-container.sidebar .send-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    right: 6px;
+  }
+}
+
+@media (max-width: 320px) {
+  .chat-container.mini {
+    width: 200px;
+    height: 220px;
+    bottom: 45px;
+    overflow: hidden;
+  }
+
+  .chat-container.mini .chat-box {
+    max-height: 140px;
+    height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
+    padding: 5px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.mini .chat-header {
+    font-size: 11px;
+    padding: 5px;
+  }
+
+  .chat-container.mini .user-message {
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+
+  .chat-container.mini .chatbot-message {
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+
+  .chat-container.mini .chat-input {
+    padding: 5px;
+  }
+
+  .chat-container.mini .chat-input input {
+    height: 32px;
+    padding: 5px 30px 5px 6px;
+    font-size: 10px;
+  }
+
+  .chat-container.mini .send-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+    right: 5px;
+  }
+
+  .chat-toggle-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .pdf-option {
+    font-size: 8px;
+    padding: 2px 5px;
+    bottom: -18px;
+  }
+
+  .pdf-view-content {
+    margin: 3px;
+    padding: 6px;
+  }
+
+  .pdf-message-content {
+    font-size: 11px;
+  }
+
+  /* Sidebar container for very small screens */
+  .chat-container.sidebar {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .chat-container.sidebar .chat-box {
+    height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
+    max-height: none;
+    padding: 5px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .chat-container.sidebar .chat-input {
+    padding: 5px;
+  }
+
+  .chat-container.sidebar .chat-input input {
+    height: 32px;
+    padding: 5px 30px 5px 6px;
+    font-size: 10px;
+  }
+
+  .chat-container.sidebar .send-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+    right: 5px;
+  }
+}
+/* Existing Chat.css styles... */
+
+/* Styles for message options (Read Aloud, PDF View) */
+.message-options {
+  position: absolute;
+  bottom: -30px; /* Adjust as needed */
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  display: flex;
+  font-size: 12px;
+  z-index: 10;
+  white-space: nowrap; /* Prevent options from wrapping */
+}
+
+.option-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.option-item:hover {
+  background: #f0f0f0;
+}
+
+.option-item + .option-item {
+  border-left: 1px solid #eee;
+}
+
+/* New styles for PDF view header */
+.pdf-view-header {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background: #0438af;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.pdf-view-header h2 {
+  flex-grow: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 18px;
+}
+
+.back-to-chat-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.back-to-chat-btn:hover {
+  opacity: 0.8;
+}
+
+/* Styles for the chat header actions (Download PDF button) */
+.chat-header {
+  /* Keep existing styles */
+  display: flex; /* Make it a flex container */
+  justify-content: space-between; /* Space out items */
+  align-items: center; /* Vertically align items */
+}
+
+.chat-actions button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.chat-actions button:hover {
+  opacity: 0.8;
+}
+
+/* Adjustments for sidebar header if needed */
+.chat-container.sidebar .sidebar-header {
+  background-color: #f4f4f4;
+  color: #000;
+  border-bottom: 1px solid #ddd;
+}
+
+.chat-container.sidebar .sidebar-header .chat-actions button {
+  color: #000;
+}
+
+/* Ensure existing PDF view styles are compatible with new header */
+.pdf-view-container {
+  /* Keep existing styles */
+  padding-top: 50px; /* Adjust if your header height changes */
+}
+
+.pdf-download-container {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+.pdf-message {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  word-wrap: break-word;
+}
+.pdf-user-message {
+  background-color: #e6f7ff;
+  text-align: right;
+  color: #000;
+}
+.pdf-chatbot-message {
+  background-color: #f0f0f0;
+  text-align: left;
+  color: #000;
+}
+.pdf-message-sender {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+.pdf-message-content p {
+    margin: 0;
+    padding: 0;
+}
+
+
+/* Add responsive styles for new elements if necessary */
+@media (max-width: 768px) {
+  .message-options {
+    font-size: 10px;
+    bottom: -25px;
+  }
+  .option-item {
+    padding: 4px 8px;
+    gap: 3px;
+  }
+  .pdf-view-header h2 {
+    font-size: 16px;
+  }
+  .back-to-chat-btn {
+    font-size: 16px;
+  }
+  .chat-actions button {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .message-options {
+    font-size: 9px;
+    bottom: -20px;
+  }
+  .option-item {
+    padding: 3px 6px;
+  }
+  .pdf-view-header h2 {
+    font-size: 14px;
+  }
+  .back-to-chat-btn {
+    font-size: 14px;
+  }
+  .chat-actions button {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 320px) {
+  .message-options {
+    font-size: 8px;
+    bottom: -18px;
+  }
+  .option-item {
+    padding: 2px 5px;
+  }
+  .pdf-view-header h2 {
+    font-size: 12px;
+  }
+  .back-to-chat-btn {
+    font-size: 12px;
+  }
+  .chat-actions button {
+    font-size: 12px;
+  }
+}
