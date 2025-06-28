@@ -2,10 +2,28 @@ services:
   - type: web
     name: edugen-backend
     env: node
+    repo: https://github.com/your-username/your-repo # Replace with your repo URL
+    rootDir: chat-backend
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: OPENROUTER_API_KEY
-        sync: false  # Set this in the Render dashboard
+        sync: false # Set this in the Render dashboard
+      - key: PORT
+        value: 10000 # Render's default port
+  - type: web
+    name: quiz-backend
+    env: node
+    repo: https://github.com/your-username/your-repo # Replace with your repo URL
+    rootDir: quiz-backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENROUTER_API_KEY1
+        sync: false # Set this in the Render dashboard
+      - key: PORT
+        value: 10000 # Render's default port

@@ -1,0 +1,15 @@
+{
+  "name": "quiz-backend",
+  "version": "1.0.0",
+  "main": "quiz.js",
+  "type": "module",
+  "scripts": {
+    "start": "node quiz.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.0.3",
+    "cors": "^2.8.5"
+  }
+}
