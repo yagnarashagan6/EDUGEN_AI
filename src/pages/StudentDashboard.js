@@ -1358,7 +1358,7 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div id="staff-interaction-container" className={`toggle-container ${activeContainer === 'staff-interaction-container' ? 'active' : ''}`}>
-              <div className="container-header">Staff Interaction</div>
+        
               <div className="container-body">
                 <ChatInterface messages={messages} selectedStaffId={selectedStaffId} selectedStaffName={selectedStaffName} staffList={staffList} sendMessage={sendMessageToStaff} deleteMessage={deleteMessageFromStaffChat} showContactList={showContactList} setShowContactList={setShowContactList} setSelectedStaffId={setSelectedStaffId} setSelectedStaffName={setSelectedStaffName} currentUserId={auth.currentUser?.uid} />
               </div>
@@ -1382,11 +1382,10 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div id="settings-container" className={`toggle-container ${activeContainer === 'settings-container' ? 'active' : ''}`}>
-              <div className="container-header">Settings</div>
+              <div className="container-header">⚙️ Settings</div>
               <div className="container-body">
-                <h3>Profile Options</h3>
-                <button onClick={handleEditProfile} className="add-goal-btn">Edit Profile</button>
-                <button onClick={handleLogout} className="add-goal-btn" style={{ marginTop: '10px' }}>Logout</button>
+                <button onClick={handleEditProfile} className="add-goal-btn" style={{ marginTop: '200px' }}>Edit Profile</button>
+                <button onClick={handleLogout} className="add-goal-btn" style={{ marginBottom: '200px' }}>Logout</button>
               </div>
             </div>
             <div id="chatbot-container" className={`toggle-container ${activeContainer === 'chatbot-container' ? 'active' : ''}`}>

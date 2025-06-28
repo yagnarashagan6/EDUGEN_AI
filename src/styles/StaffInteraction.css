@@ -64,6 +64,7 @@
     background: #f0f0f0;
     scrollbar-width: thin;
     scrollbar-color: #075e54 #e0e0e0;
+    height: 1100px; /* Set a fixed height for the contact list */
 }
 
 #staff-interaction-container .contact-list-body::-webkit-scrollbar {

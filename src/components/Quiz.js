@@ -1,179 +1,273 @@
-import React, { useState, useEffect } from 'react';
-import '../styles/Quiz.css';
+import React, { useState, useEffect, useRef } from "react";
+import "../styles/Quiz.css";
 
-const Quiz = ({ topic, questions = [], handleQuizComplete, isLoading = false }) => {
+const Quiz = ({ topic, handleQuizComplete }) => {
+  const [numQuestions, setNumQuestions] = useState("3"); // Default to 3 questions
+  const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [score, setScore] = useState(0);
+  const [quizStarted, setQuizStarted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
-  const [showScore, setShowScore] = useState(false);
-  const [timer, setTimer] = useState(10);
-  const [timedOut, setTimedOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [timer, setTimer] = useState(30); // Default timer to 30 seconds
+  const [userAnswers, setUserAnswers] = useState([]);
+  const [showCorrect, setShowCorrect] = useState(false);
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    if (quizCompleted) return;
-    setTimer(10);
-    setTimedOut(false);
-    setSelectedOption(null);
-
-    let timeoutCalled = false;
-    const interval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev === 1) {
-          clearInterval(interval);
-          if (!timeoutCalled) {
-            timeoutCalled = true;
-            handleTimeout();
+    if (quizStarted && !quizCompleted && questions.length > 0) {
+      setTimer(30); // Fixed 30 seconds per question
+      setShowCorrect(false);
+      timerRef.current = setInterval(() => {
+        setTimer((prev) => {
+          if (prev <= 0) {
+            clearInterval(timerRef.current);
+            handleNext(true);
+            return 0;
           }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timerRef.current);
+    }
+  }, [currentQuestion, quizStarted, quizCompleted, questions]);
 
-    return () => clearInterval(interval);
-  }, [currentQuestion, quizCompleted]);
+  const handleStartQuiz = async () => {
+    const numQ = parseInt(numQuestions);
+    if (!topic) {
+      setError("No topic provided. Please copy a task to start the quiz.");
+      return;
+    }
+    if (isNaN(numQ) || numQ < 3) {
+      setError("Please enter a valid number of questions (minimum 3).");
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await fetch("http://localhost:8080/api/generate-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, count: numQ }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.questions) {
+        throw new Error(data.error || "Failed to generate quiz questions.");
+      }
+      setQuestions(data.questions);
+      setQuizStarted(true);
+      setUserAnswers([]);
+    } catch (err) {
+      setError("Failed to generate quiz. Please try again.");
+      console.error("Failed to generate quiz", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Screenshot restriction
+  useEffect(() => {
+    const handlePrintScreen = (e) => {
+      if (e.key === "PrintScreen") {
+        alert("Screenshots are not allowed during the quiz.");
+        const body = document.body;
+        const prev = body.style.visibility;
+        body.style.visibility = "hidden";
+        setTimeout(() => {
+          body.style.visibility = prev;
+        }, 800);
+      }
+    };
+    window.addEventListener("keydown", handlePrintScreen);
+    return () => {
+      window.removeEventListener("keydown", handlePrintScreen);
+    };
+  }, []);
 
   const handleOptionSelect = (option) => {
-    if (timedOut) return;
-    setSelectedOption(option);
+    if (!showCorrect) {
+      setSelectedOption(option);
+      setUserAnswers((prev) => {
+        const updated = [...prev];
+        const idx = updated.findIndex((ua) => ua.question === currentQuestion);
+        if (idx !== -1) {
+          updated[idx] = { question: currentQuestion, answer: option };
+        } else {
+          updated.push({ question: currentQuestion, answer: option });
+        }
+        return updated;
+      });
+    }
   };
 
-  // Called when timer runs out
-  const handleTimeout = () => {
-    if (quizCompleted) return;
-    setTimedOut(true);
-    setSelectedOption((prevSelected) => {
-      // Score only if the final selected answer is correct
-      if (prevSelected === questions[currentQuestion]?.correctAnswer) {
-        setScore((prevScore) => prevScore + 1);
-      }
-      return "Timed Out";
-    });
+  const handleNext = (isTimeout = false) => {
+    if (
+      !isTimeout &&
+      selectedOption &&
+      selectedOption === questions[currentQuestion].correctAnswer
+    ) {
+      setScore((s) => s + 1);
+    }
+    setShowCorrect(true);
     setTimeout(() => {
-      if (currentQuestion === questions.length - 1) {
+      if (currentQuestion + 1 === questions.length) {
         setQuizCompleted(true);
-        setShowScore(true);
+        clearInterval(timerRef.current);
       } else {
-        setCurrentQuestion((prev) => prev + 1);
+        setCurrentQuestion((i) => i + 1);
+        setSelectedOption(null);
+        setShowCorrect(false);
       }
-    }, 1000);
+    }, 1000); // Brief delay to show correct/incorrect feedback
   };
 
-  const handleNextQuestion = () => {
-    // Score only if the final selected answer is correct
-    if (selectedOption === questions[currentQuestion]?.correctAnswer) {
-      setScore((prevScore) => prevScore + 1);
-    }
-    if (currentQuestion === questions.length - 1) {
-      setQuizCompleted(true);
-      setShowScore(true);
-    } else {
-      setCurrentQuestion((prev) => prev + 1);
-    }
-  };
-
-  // Back to dashboard after quiz is finished
   const handleBackToTasks = () => {
     handleQuizComplete(score);
   };
 
-  if (isLoading) {
+  if (!quizStarted) {
     return (
       <div className="quiz-container">
-        <h2 className="quiz-title">Quiz: {topic}</h2>
-        <p>Generating questions... Please wait.</p>
-        <div className="loader"></div>
+        <h2 className="quiz-title">Quiz: {topic || "No Topic Selected"}</h2>
+        <div className="input-group">
+          <input
+            type="number"
+            id="numQuestions"
+            value={numQuestions}
+            onChange={(e) => setNumQuestions(e.target.value)}
+            min="3"
+            required
+            aria-label="Number of questions"
+            className="quiz-input"
+          />
+          <label
+            htmlFor="numQuestions"
+            className={numQuestions ? "input-label active" : "input-label"}
+          >
+            Number of Questions (min 3)
+          </label>
+        </div>
+        <button
+          className="start-button"
+          onClick={handleStartQuiz}
+          disabled={isLoading || !topic}
+        >
+          <i className="fas fa-play" style={{ marginRight: "0.5rem" }}></i>
+          Start Quiz
+        </button>
+        {error && <p className="error-message">{error}</p>}
+        {isLoading && (
+          <p className="loading-message">
+            Generating questions... <i className="fas fa-spinner fa-spin"></i>
+          </p>
+        )}
       </div>
     );
   }
 
-  if (!questions || questions.length === 0) {
+  if (quizCompleted) {
     return (
-      <div className="quiz-container">
-        <h2 className="quiz-title">Quiz: {topic}</h2>
-        <p>Could not load questions.</p>
-        <button className="next-button" onClick={() => handleQuizComplete(0)}>Back to Tasks</button>
+      <div className="quiz-container result">
+        <h2 className="result-title">Quiz Completed!</h2>
+        <div className="score-circle">
+          {score} / {questions.length}
+        </div>
+        <div className="result-message">Your Results:</div>
+        <div className="results-list">
+          {questions.map((q, idx) => {
+            const userAnswer = userAnswers.find(
+              (ua) => ua.question === idx
+            )?.answer;
+            const isCorrect = userAnswer === q.correctAnswer;
+            return (
+              <div
+                key={idx}
+                className={`result-item ${isCorrect ? "correct" : "incorrect"}`}
+              >
+                <div className="result-question">
+                  Q{idx + 1}: {q.text}
+                </div>
+                <div className="result-answer">
+                  Your Answer: {userAnswer || "None"}{" "}
+                  {userAnswer && (isCorrect ? "✅" : "❌")}
+                </div>
+                <div className="result-correct">
+                  Correct Answer: {q.correctAnswer}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button className="back-button" onClick={handleBackToTasks}>
+          <i
+            className="fas fa-arrow-left"
+            style={{ marginRight: "0.5rem" }}
+          ></i>
+          Back to Tasks
+        </button>
       </div>
     );
   }
 
-  const currentQData = questions[currentQuestion];
-
-  if (!currentQData) {
-    return (
-      <div className="quiz-container">
-        <h2 className="quiz-title">Quiz: {topic}</h2>
-        <p>Could not load this question.</p>
-        <button className="next-button" onClick={() => handleQuizComplete(score)}>Back to Tasks</button>
-      </div>
-    );
-  }
-
-  const percentage = Math.round((score / questions.length) * 100);
-  const progressPercent = (timer / 10) * 100;
+  const q = questions[currentQuestion];
+  const progress = ((currentQuestion + 1) / questions.length) * 100;
 
   return (
     <div className="quiz-container">
-      <h2 className="quiz-title">Quiz: {topic}</h2>
-
-      {!quizCompleted ? (
-        <>
-          <div className="quiz-countdown">⏳ {timer} seconds left</div>
-          <div className="timer-bar">
-            <div className="fill" style={{ width: `${progressPercent}%` }}></div>
-          </div>
-          <div className="question-section">
-            <div className="question-count">
-              Question {currentQuestion + 1} / {questions.length}
-            </div>
-            <div
-              className="question-text"
-              draggable={false}
-              style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
-              onCopy={e => e.preventDefault()}
-              onContextMenu={e => e.preventDefault()}
-            >
-              {currentQData.text}
-            </div>
-            <div className="options-list">
-              {currentQData.options.map((option, idx) => (
-                <button
-                  key={idx}
-                  className={`option-btn${selectedOption === option ? ' selected' : ''}`}
-                  disabled={timedOut}
-                  onClick={() => handleOptionSelect(option)}
-                  style={
-                    selectedOption === option
-                      ? { backgroundColor: '#1976d2', borderColor: '#1976d2', color: '#fff' }
-                      : {}
-                  }
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="quiz-next-btn-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              className="next-button"
-              onClick={handleNextQuestion}
-              disabled={timedOut}
-            >
-              {currentQuestion === questions.length - 1 ? 'Finish' : 'Next'}
-            </button>
-          </div>
-        </>
-      ) : showScore ? (
-        <div className="result">
-          <div className="score-circle">{score} / {questions.length}</div>
-          <div className="result-message">You scored {percentage}%</div>
-          <div className="result-info">Well done!</div>
-          <button className="next-button" style={{ marginTop: 24 }} onClick={handleBackToTasks}>
-            Back to Tasks
-          </button>
+      <div className="quiz-header">
+        <h2 className="quiz-title">Quiz: {topic}</h2>
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${progress}%` }}
+          ></div>
         </div>
-      ) : null}
+        <div className="quiz-countdown">{timer} seconds left</div>
+        <div className="timer-bar">
+          <div
+            className="fill"
+            style={{ width: `${(timer / 30) * 100}%` }}
+          ></div>
+        </div>
+        <div
+          className="question-text"
+          onCopy={(e) => {
+            e.preventDefault();
+            alert("Copying questions is not allowed.");
+          }}
+        >
+          Q{currentQuestion + 1}/{questions.length}: {q.text}
+        </div>
+      </div>
+      <div className="options-list">
+        {q.options.map((opt, i) => (
+          <button
+            key={i}
+            className={`option-btn${selectedOption === opt ? " selected" : ""}${
+              showCorrect && opt === q.correctAnswer ? " correct" : ""
+            }${
+              showCorrect && selectedOption === opt && opt !== q.correctAnswer
+                ? " incorrect"
+                : ""
+            }`}
+            onClick={() => handleOptionSelect(opt)}
+            disabled={showCorrect}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+      <div className="quiz-next-btn-row">
+        <button
+          className="next-button"
+          onClick={() => handleNext()}
+          disabled={!selectedOption}
+        >
+          {currentQuestion + 1 === questions.length ? "Finish" : "Next"}
+        </button>
+      </div>
     </div>
   );
 };

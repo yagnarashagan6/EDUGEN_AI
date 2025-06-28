@@ -251,8 +251,8 @@
 /* Send button */
 .send-btn {
   position: absolute;
-  right: 10px;
-  top: 50%;
+  right: 05px;
+  top: 15%;
   transform: translateY(-50%);
   background: #0438af;
   color: white;
