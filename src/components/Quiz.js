@@ -47,7 +47,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:8080/api/generate-quiz", {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, count: numQ }),
