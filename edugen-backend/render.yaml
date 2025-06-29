@@ -2,8 +2,8 @@ services:
   - type: web
     name: edugen-backend
     env: node
-    repo: https://github.com/your-username/your-repo # Replace with your repo URL
-    rootDir: . # Set to the root directory where package.json and server.js are located
+    repo: https://github.com/your-username/your-repo
+    rootDir: .
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -11,7 +11,5 @@ services:
         value: production
       - key: OPENROUTER_API_KEY
         sync: false # Set this in the Render dashboard
-      - key: OPENROUTER_API_KEY1
-        sync: false # Set this in the Render dashboard
       - key: PORT
-        value: 10000 # Render's default port
+        value: 10000
