@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "../styles/Quiz.css";
 
 const Quiz = ({ topic, handleQuizComplete }) => {
-  const [numQuestions, setNumQuestions] = useState("3"); // Default to 3 questions
+  const [numQuestions, setNumQuestions] = useState("3");
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -11,14 +11,14 @@ const Quiz = ({ topic, handleQuizComplete }) => {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [timer, setTimer] = useState(30); // Default timer to 30 seconds
+  const [timer, setTimer] = useState(30);
   const [userAnswers, setUserAnswers] = useState([]);
   const [showCorrect, setShowCorrect] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => {
     if (quizStarted && !quizCompleted && questions.length > 0) {
-      setTimer(30); // Fixed 30 seconds per question
+      setTimer(30);
       setShowCorrect(false);
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
@@ -47,7 +47,10 @@ const Quiz = ({ topic, handleQuizComplete }) => {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const API_URL =
+        process.env.REACT_APP_API_URL ||
+        "https://your-service-name.onrender.com"; // Replace with your Render service URL
+      const res = await fetch(`${API_URL}/api/generate-quiz`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, count: numQ }),
@@ -120,7 +123,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
         setSelectedOption(null);
         setShowCorrect(false);
       }
-    }, 1000); // Brief delay to show correct/incorrect feedback
+    }, 1000);
   };
 
   const handleBackToTasks = () => {

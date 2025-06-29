@@ -25,7 +25,7 @@ app.post("/api/chat", async (req, res) => {
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "meta-llama/llama-3.1-8b-instruct:free",
           messages: [
             {
               role: "system",
@@ -40,7 +40,10 @@ app.post("/api/chat", async (req, res) => {
       }
     );
 
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || `OpenRouter Error: ${response.status}`);
+    }
 
     const data = await response.json();
     const reply =
@@ -60,17 +63,19 @@ app.post("/api/generate-quiz", async (req, res) => {
   const { topic, count } = req.body;
 
   const prompt = `Generate exactly ${count} multiple choice quiz questions on the topic "${topic}". Each question must strictly follow this format:
-- A question text
-- Exactly four options prefixed with A), B), C), D)
-- One correct answer exactly matching one of the options
-Return JSON like:
+- A question text (clear, concise, and relevant to the topic)
+- Exactly four options, each prefixed with "A)", "B)", "C)", or "D)" (e.g., "A) Option 1")
+- One correct answer as the full option text, including the letter prefix (e.g., "B) Option 2")
+- Ensure options are unique and the correct answer matches one of the options exactly
+Return the response in valid JSON format, with no additional text or code block markers, like this:
 [
   {
     "text": "Sample question?",
     "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
     "correctAnswer": "B) Option 2"
   }
-]`;
+]
+Do not include code block markers (e.g., \`\`\`), comments, or any text outside the JSON array. Ensure all options have the correct prefix and the correctAnswer is the full text of one option.`;
 
   try {
     const response = await fetch(
@@ -84,7 +89,7 @@ Return JSON like:
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "meta-llama/llama-3.1-8b-instruct:free",
           messages: [
             {
               role: "system",
@@ -93,13 +98,16 @@ Return JSON like:
             },
             { role: "user", content: prompt },
           ],
-          temperature: 0.7, // Match chat route's temperature for consistency
+          temperature: 0.7,
         }),
-        timeout: 120000, // Match chat route's timeout
+        timeout: 120000,
       }
     );
 
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || `OpenRouter Error: ${response.status}`);
+    }
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content?.trim();
@@ -149,5 +157,5 @@ app.all("*", (req, res) => {
 // Start server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`Unified backend listening on port ${PORT}`);
+  console.log(`EduGen backend listening on port ${PORT}`);
 });
