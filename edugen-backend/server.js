@@ -10,12 +10,12 @@ const app = express();
 // CORS configuration
 const allowedOrigins = [
   "https://edugen-ai-zeta.vercel.app",
-  "https://edugen-backend.onrender.com",
   "http://localhost:3000",
+  "https://edugen-backend.onrender.com",
 ];
 
 const corsOptions = {
-  origin: function (origin, callback) {
+  origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -93,7 +93,6 @@ app.post("/api/generate-quiz", async (req, res) => {
 
   const { topic, count } = req.body;
 
-  // Input validation
   if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
     return res.status(400).json({
       error: "Invalid input",
@@ -166,41 +165,26 @@ Now generate ${questionCount} questions about "${topic}":`;
     }
 
     const data = await response.json();
-    console.log("OpenRouter response:", data);
-
     let content = data.choices?.[0]?.message?.content?.trim();
+
     if (!content) throw new Error("Empty response from AI");
 
-    // Parse the response
     let questions;
     try {
-      // First try to parse directly
-      const parsed = JSON.parse(content);
-
-      // Handle different response formats
-      if (Array.isArray(parsed)) {
-        questions = parsed;
-      } else if (parsed.questions && Array.isArray(parsed.questions)) {
-        questions = parsed.questions;
-      } else {
+      // Strip markdown and parse JSON
+      content = content.replace(/```json\n|\n```/g, "").trim();
+      questions = JSON.parse(content);
+      if (!Array.isArray(questions)) {
         throw new Error("Response is not a valid array");
       }
-    } catch (e) {
-      console.log("Direct parse failed, trying to extract JSON");
-      // Try to extract JSON from markdown code blocks
-      const jsonMatch = content.match(/```(?:json)?\n([\s\S]*?)\n```/);
-      if (jsonMatch && jsonMatch[1]) {
-        questions = JSON.parse(jsonMatch[1]);
-      } else {
-        // Fallback to finding first [ and last ]
-        const start = content.indexOf("[");
-        const end = content.lastIndexOf("]");
-        if (start === -1 || end === -1) {
-          throw new Error("Could not find JSON array in response");
-        }
-        const jsonStr = content.substring(start, end + 1);
-        questions = JSON.parse(jsonStr);
-      }
+    } catch (parseError) {
+      console.error(
+        "JSON parse error:",
+        parseError.message,
+        "Raw content:",
+        content
+      );
+      throw new Error("Failed to parse quiz data");
     }
 
     // Validate each question
@@ -225,6 +209,12 @@ Now generate ${questionCount} questions about "${topic}":`;
         correctAnswer: q.correctAnswer.trim(),
       };
     });
+
+    if (validated.length !== questionCount) {
+      throw new Error(
+        `Expected ${questionCount} questions, got ${validated.length}`
+      );
+    }
 
     console.log("Successfully generated quiz:", validated);
     res.json({ questions: validated });
