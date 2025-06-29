@@ -48,12 +48,10 @@ app.post("/api/chat", async (req, res) => {
     res.status(200).json({ response: reply });
   } catch (error) {
     console.error("Chat API Error:", error.message);
-    res
-      .status(500)
-      .json({
-        error: "Failed to get response from AI",
-        message: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to get response from AI",
+      message: error.message,
+    });
   }
 });
 
@@ -81,7 +79,7 @@ Return JSON like:
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY1}`,
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "HTTP-Referer": "https://edugen-ai-zeta.vercel.app",
           "X-Title": "EduGen AI",
         },
