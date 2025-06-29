@@ -89,14 +89,17 @@ Return JSON like:
             {
               role: "system",
               content:
-                "You are an educational quiz generator that strictly follows the provided JSON format.",
+                "You are EduGen AI, a helpful assistant for students. Generate educational quiz questions in the exact JSON format specified, ensuring clear and accurate content.",
             },
             { role: "user", content: prompt },
           ],
-          temperature: 0.5,
+          temperature: 0.7, // Match chat route's temperature for consistency
         }),
+        timeout: 120000, // Match chat route's timeout
       }
     );
+
+    if (!response.ok) throw new Error(await response.text());
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content?.trim();
