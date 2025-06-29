@@ -40,30 +40,49 @@ const Quiz = ({ topic, handleQuizComplete }) => {
       setError("No topic provided. Please copy a task to start the quiz.");
       return;
     }
-    if (isNaN(numQ) || numQ < 3) {
-      setError("Please enter a valid number of questions (minimum 3).");
+    if (isNaN(numQ) || numQ < 3 || numQ > 10) {
+      setError("Please enter a valid number between 3 and 10.");
       return;
     }
+
     setIsLoading(true);
     setError("");
+
     try {
       const API_URL =
-        process.env.REACT_APP_API_URL || "https://edugen-backend.onrender.com"; // Update with your Render service URL
-      const res = await fetch(`${API_URL}/api/generate-quiz`, {
+        process.env.REACT_APP_API_URL || "https://edugen-backend.onrender.com";
+      const response = await fetch(`${API_URL}/api/generate-quiz`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, count: numQ }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic: topic.trim(),
+          count: numQ,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.questions) {
-        throw new Error(data.error || "Failed to generate quiz questions.");
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || data.error || "Failed to generate quiz"
+        );
       }
+
+      if (!data.questions || !Array.isArray(data.questions)) {
+        throw new Error("Invalid quiz data received");
+      }
+
       setQuestions(data.questions);
       setQuizStarted(true);
-      setUserAnswers([]);
+      setUserAnswers(Array(data.questions.length).fill(null));
+      setCurrentQuestion(0);
+      setScore(0);
+      setQuizCompleted(false);
     } catch (err) {
-      setError("Failed to generate quiz. Please try again.");
-      console.error("Failed to generate quiz", err);
+      console.error("Quiz generation error:", err);
+      setError(err.message || "Failed to generate quiz. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -93,12 +112,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
       setSelectedOption(option);
       setUserAnswers((prev) => {
         const updated = [...prev];
-        const idx = updated.findIndex((ua) => ua.question === currentQuestion);
-        if (idx !== -1) {
-          updated[idx] = { question: currentQuestion, answer: option };
-        } else {
-          updated.push({ question: currentQuestion, answer: option });
-        }
+        updated[currentQuestion] = option;
         return updated;
       });
     }
@@ -107,11 +121,11 @@ const Quiz = ({ topic, handleQuizComplete }) => {
   const handleNext = (isTimeout = false) => {
     if (
       !isTimeout &&
-      selectedOption &&
       selectedOption === questions[currentQuestion].correctAnswer
     ) {
       setScore((s) => s + 1);
     }
+
     setShowCorrect(true);
     setTimeout(() => {
       if (currentQuestion + 1 === questions.length) {
@@ -140,6 +154,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
             value={numQuestions}
             onChange={(e) => setNumQuestions(e.target.value)}
             min="3"
+            max="10"
             required
             aria-label="Number of questions"
             className="quiz-input"
@@ -148,7 +163,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
             htmlFor="numQuestions"
             className={numQuestions ? "input-label active" : "input-label"}
           >
-            Number of Questions (min 3)
+            Number of Questions (3-10)
           </label>
         </div>
         <button
@@ -156,15 +171,22 @@ const Quiz = ({ topic, handleQuizComplete }) => {
           onClick={handleStartQuiz}
           disabled={isLoading || !topic}
         >
-          <i className="fas fa-play" style={{ marginRight: "0.5rem" }}></i>
-          Start Quiz
+          {isLoading ? (
+            <>
+              <i
+                className="fas fa-spinner fa-spin"
+                style={{ marginRight: "0.5rem" }}
+              ></i>
+              Generating Quiz...
+            </>
+          ) : (
+            <>
+              <i className="fas fa-play" style={{ marginRight: "0.5rem" }}></i>
+              Start Quiz
+            </>
+          )}
         </button>
         {error && <p className="error-message">{error}</p>}
-        {isLoading && (
-          <p className="loading-message">
-            Generating questions... <i className="fas fa-spinner fa-spin"></i>
-          </p>
-        )}
       </div>
     );
   }
@@ -179,9 +201,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
         <div className="result-message">Your Results:</div>
         <div className="results-list">
           {questions.map((q, idx) => {
-            const userAnswer = userAnswers.find(
-              (ua) => ua.question === idx
-            )?.answer;
+            const userAnswer = userAnswers[idx];
             const isCorrect = userAnswer === q.correctAnswer;
             return (
               <div
@@ -195,9 +215,11 @@ const Quiz = ({ topic, handleQuizComplete }) => {
                   Your Answer: {userAnswer || "None"}{" "}
                   {userAnswer && (isCorrect ? "✅" : "❌")}
                 </div>
-                <div className="result-correct">
-                  Correct Answer: {q.correctAnswer}
-                </div>
+                {!isCorrect && (
+                  <div className="result-correct">
+                    Correct Answer: {q.correctAnswer}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -213,7 +235,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
     );
   }
 
-  const q = questions[currentQuestion];
+  const currentQ = questions[currentQuestion];
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
   return (
@@ -240,20 +262,24 @@ const Quiz = ({ topic, handleQuizComplete }) => {
             alert("Copying questions is not allowed.");
           }}
         >
-          Q{currentQuestion + 1}/{questions.length}: {q.text}
+          Q{currentQuestion + 1}/{questions.length}: {currentQ.text}
         </div>
       </div>
       <div className="options-list">
-        {q.options.map((opt, i) => (
+        {currentQ.options.map((opt, i) => (
           <button
             key={i}
-            className={`option-btn${selectedOption === opt ? " selected" : ""}${
-              showCorrect && opt === q.correctAnswer ? " correct" : ""
-            }${
-              showCorrect && selectedOption === opt && opt !== q.correctAnswer
-                ? " incorrect"
-                : ""
-            }`}
+            className={`option-btn
+              ${selectedOption === opt ? " selected" : ""}
+              ${showCorrect && opt === currentQ.correctAnswer ? " correct" : ""}
+              ${
+                showCorrect &&
+                selectedOption === opt &&
+                opt !== currentQ.correctAnswer
+                  ? " incorrect"
+                  : ""
+              }
+            `}
             onClick={() => handleOptionSelect(opt)}
             disabled={showCorrect}
           >
@@ -265,7 +291,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
         <button
           className="next-button"
           onClick={() => handleNext()}
-          disabled={!selectedOption}
+          disabled={!selectedOption && timer > 0}
         >
           {currentQuestion + 1 === questions.length ? "Finish" : "Next"}
         </button>

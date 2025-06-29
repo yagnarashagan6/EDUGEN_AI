@@ -7,15 +7,36 @@ dotenv.config();
 
 const app = express();
 
-// Explicit CORS configuration to allow the frontend origin
+// CORS configuration
+const allowedOrigins = [
+  "https://edugen-ai-zeta.vercel.app",
+  "https://edugen-backend.onrender.com",
+  "http://localhost:3000",
+];
+
 const corsOptions = {
-  origin: "https://edugen-ai-zeta.vercel.app",
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Route 1: Chat
 app.post("/api/chat", async (req, res) => {
@@ -33,7 +54,7 @@ app.post("/api/chat", async (req, res) => {
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
           messages: [
             {
               role: "system",
@@ -68,21 +89,47 @@ app.post("/api/chat", async (req, res) => {
 
 // Route 2: Quiz Generation
 app.post("/api/generate-quiz", async (req, res) => {
+  console.log("Quiz generation request received:", req.body);
+
   const { topic, count } = req.body;
 
-  const prompt = `Generate exactly ${count} multiple choice quiz questions on the topic "${topic}". Each question must strictly follow this format:
-- A question text (clear, concise, and relevant to the topic)
-- Exactly four options, each prefixed with "A)", "B)", "C)", or "D)" (e.g., "A) Option 1")
-- One correct answer as the full option text, including the letter prefix (e.g., "B) Option 2")
-- Ensure options are unique and the correct answer matches one of the options exactly
-Return the response as a valid JSON array with no additional text or code block markers, like this:
+  // Input validation
+  if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
+    return res.status(400).json({
+      error: "Invalid input",
+      message: "Please provide a valid topic for the quiz",
+    });
+  }
+
+  const questionCount = parseInt(count);
+  if (isNaN(questionCount) || questionCount < 3 || questionCount > 10) {
+    return res.status(400).json({
+      error: "Invalid input",
+      message: "Please request between 3 and 10 questions",
+    });
+  }
+
+  const prompt = `Generate exactly ${questionCount} multiple choice quiz questions on the topic "${topic}". Follow these strict rules:
+1. Each question must have:
+   - A clear question text
+   - Exactly 4 options (A, B, C, D)
+   - One correct answer (must match exactly one option)
+2. Format each question as JSON with:
+   - "text": The question
+   - "options": Array of 4 options (prefix with A), B), etc.)
+   - "correctAnswer": The full correct option text
+3. Return only a valid JSON array with no extra text
+
+Example:
 [
   {
-    "text": "Sample question?",
-    "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-    "correctAnswer": "B) Option 2"
+    "text": "What is the capital of France?",
+    "options": ["A) London", "B) Paris", "C) Berlin", "D) Madrid"],
+    "correctAnswer": "B) Paris"
   }
-]`;
+]
+
+Now generate ${questionCount} questions about "${topic}":`;
 
   try {
     const response = await fetch(
@@ -96,16 +143,17 @@ Return the response as a valid JSON array with no additional text or code block 
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
           messages: [
             {
               role: "system",
               content:
-                "You are EduGen AI, a helpful assistant for students. Generate educational quiz questions in the exact JSON format specified, ensuring clear and accurate content with no additional text.",
+                "You are a quiz generator. Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations.",
             },
             { role: "user", content: prompt },
           ],
           temperature: 0.7,
+          response_format: { type: "json_object" },
         }),
         timeout: 120000,
       }
@@ -113,49 +161,80 @@ Return the response as a valid JSON array with no additional text or code block 
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(errText || `OpenRouter Error: ${response.status}`);
+      console.error("OpenRouter API Error:", response.status, errText);
+      throw new Error(`API Error: ${response.status} - ${errText}`);
     }
 
     const data = await response.json();
-    let content = data.choices?.[0]?.message?.content?.trim();
+    console.log("OpenRouter response:", data);
 
+    let content = data.choices?.[0]?.message?.content?.trim();
     if (!content) throw new Error("Empty response from AI");
 
-    // Attempt to parse directly, fallback to stripping code blocks if needed
-    let parsed;
+    // Parse the response
+    let questions;
     try {
-      parsed = JSON.parse(content);
-    } catch (e) {
-      if (content.startsWith("```")) {
-        content = content
-          .replace(/^```[a-zA-Z]*\n/, "")
-          .replace(/```$/, "")
-          .trim();
+      // First try to parse directly
+      const parsed = JSON.parse(content);
+
+      // Handle different response formats
+      if (Array.isArray(parsed)) {
+        questions = parsed;
+      } else if (parsed.questions && Array.isArray(parsed.questions)) {
+        questions = parsed.questions;
+      } else {
+        throw new Error("Response is not a valid array");
       }
-      const start = content.indexOf("[");
-      const end = content.lastIndexOf("]");
-      if (start === -1 || end === -1)
-        throw new Error("AI response is not valid JSON");
-      const quizJson = content.substring(start, end + 1);
-      parsed = JSON.parse(quizJson);
+    } catch (e) {
+      console.log("Direct parse failed, trying to extract JSON");
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = content.match(/```(?:json)?\n([\s\S]*?)\n```/);
+      if (jsonMatch && jsonMatch[1]) {
+        questions = JSON.parse(jsonMatch[1]);
+      } else {
+        // Fallback to finding first [ and last ]
+        const start = content.indexOf("[");
+        const end = content.lastIndexOf("]");
+        if (start === -1 || end === -1) {
+          throw new Error("Could not find JSON array in response");
+        }
+        const jsonStr = content.substring(start, end + 1);
+        questions = JSON.parse(jsonStr);
+      }
     }
 
-    const validated = parsed.map((q, i) => {
-      if (!q.text || !q.options || !q.correctAnswer)
-        throw new Error(`Invalid question at index ${i}`);
-      if (q.options.length !== 4)
-        throw new Error(`Question ${i + 1} does not have exactly 4 options`);
-      if (!q.options.includes(q.correctAnswer))
-        throw new Error(`Correct answer mismatch at question ${i + 1}`);
-      return q;
+    // Validate each question
+    const validated = questions.map((q, i) => {
+      if (!q.text || typeof q.text !== "string") {
+        throw new Error(`Question ${i + 1} missing text`);
+      }
+      if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+        throw new Error(`Question ${i + 1} must have exactly 4 options`);
+      }
+      if (!q.correctAnswer || typeof q.correctAnswer !== "string") {
+        throw new Error(`Question ${i + 1} missing correctAnswer`);
+      }
+      if (!q.options.includes(q.correctAnswer)) {
+        throw new Error(
+          `Question ${i + 1} correctAnswer doesn't match any option`
+        );
+      }
+      return {
+        text: q.text.trim(),
+        options: q.options.map((opt) => opt.trim()),
+        correctAnswer: q.correctAnswer.trim(),
+      };
     });
 
+    console.log("Successfully generated quiz:", validated);
     res.json({ questions: validated });
-  } catch (err) {
-    console.error("Quiz generation error:", err.message);
-    res
-      .status(500)
-      .json({ error: "Failed to generate quiz", message: err.message });
+  } catch (error) {
+    console.error("Quiz generation error:", error.message);
+    res.status(500).json({
+      error: "Failed to generate quiz",
+      message: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
   }
 });
 
@@ -165,7 +244,7 @@ app.all("*", (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 10000; // Match Render's PORT
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`EduGen backend listening on port ${PORT}`);
 });
