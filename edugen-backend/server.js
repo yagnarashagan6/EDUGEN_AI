@@ -6,7 +6,15 @@ import cors from "cors";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// Explicit CORS configuration to allow the frontend origin
+const corsOptions = {
+  origin: "https://edugen-ai-zeta.vercel.app",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Route 1: Chat
@@ -67,15 +75,14 @@ app.post("/api/generate-quiz", async (req, res) => {
 - Exactly four options, each prefixed with "A)", "B)", "C)", or "D)" (e.g., "A) Option 1")
 - One correct answer as the full option text, including the letter prefix (e.g., "B) Option 2")
 - Ensure options are unique and the correct answer matches one of the options exactly
-Return the response in valid JSON format, with no additional text or code block markers, like this:
+Return the response as a valid JSON array with no additional text or code block markers, like this:
 [
   {
     "text": "Sample question?",
     "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
     "correctAnswer": "B) Option 2"
   }
-]
-Do not include code block markers (e.g., \`\`\`), comments, or any text outside the JSON array. Ensure all options have the correct prefix and the correctAnswer is the full text of one option.`;
+]`;
 
   try {
     const response = await fetch(
@@ -94,7 +101,7 @@ Do not include code block markers (e.g., \`\`\`), comments, or any text outside 
             {
               role: "system",
               content:
-                "You are EduGen AI, a helpful assistant for students. Generate educational quiz questions in the exact JSON format specified, ensuring clear and accurate content.",
+                "You are EduGen AI, a helpful assistant for students. Generate educational quiz questions in the exact JSON format specified, ensuring clear and accurate content with no additional text.",
             },
             { role: "user", content: prompt },
           ],
@@ -114,21 +121,24 @@ Do not include code block markers (e.g., \`\`\`), comments, or any text outside 
 
     if (!content) throw new Error("Empty response from AI");
 
-    // Strip code block if present
-    if (content.startsWith("```")) {
-      content = content
-        .replace(/^```[a-zA-Z]*\n/, "")
-        .replace(/```$/, "")
-        .trim();
+    // Attempt to parse directly, fallback to stripping code blocks if needed
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch (e) {
+      if (content.startsWith("```")) {
+        content = content
+          .replace(/^```[a-zA-Z]*\n/, "")
+          .replace(/```$/, "")
+          .trim();
+      }
+      const start = content.indexOf("[");
+      const end = content.lastIndexOf("]");
+      if (start === -1 || end === -1)
+        throw new Error("AI response is not valid JSON");
+      const quizJson = content.substring(start, end + 1);
+      parsed = JSON.parse(quizJson);
     }
-
-    const start = content.indexOf("[");
-    const end = content.lastIndexOf("]");
-    if (start === -1 || end === -1)
-      throw new Error("AI response is not valid JSON");
-
-    const quizJson = content.substring(start, end + 1);
-    const parsed = JSON.parse(quizJson);
 
     const validated = parsed.map((q, i) => {
       if (!q.text || !q.options || !q.correctAnswer)
@@ -155,7 +165,7 @@ app.all("*", (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 10000; // Match Render's PORT
 app.listen(PORT, () => {
   console.log(`EduGen backend listening on port ${PORT}`);
 });

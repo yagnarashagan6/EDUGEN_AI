@@ -48,8 +48,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
     setError("");
     try {
       const API_URL =
-        process.env.REACT_APP_API_URL ||
-        "https://your-service-name.onrender.com"; // Replace with your Render service URL
+        process.env.REACT_APP_API_URL || "https://edugen-backend.onrender.com"; // Update with your Render service URL
       const res = await fetch(`${API_URL}/api/generate-quiz`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
