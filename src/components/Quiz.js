@@ -50,9 +50,8 @@ const Quiz = ({ topic, handleQuizComplete }) => {
 
     try {
       const API_URL =
-        process.env.REACT_APP_API_URL ||
-        "https://edugen-backend-zbjr.onrender.com";
-      const response = await fetch(`${API_URL}/api/generate-quiz`, {
+        "https://edugen-backend-zbjr.onrender.com/api/generate-quiz";
+      const response = await fetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
