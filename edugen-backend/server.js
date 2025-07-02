@@ -11,22 +11,23 @@ const app = express();
 const allowedOrigins = [
   "https://edugen-ai-zeta.vercel.app",
   "http://localhost:3000",
-  "https://edugen-backend.onrender.com",
+  "https://edugen-backend-zbjr.onrender.com",
 ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 200,
-};
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 200,
+  })
+);
 app.use(express.json());
 
 // Health check endpoint
@@ -108,27 +109,22 @@ app.post("/api/generate-quiz", async (req, res) => {
     });
   }
 
-  const prompt = `Generate exactly ${questionCount} multiple choice quiz questions on the topic "${topic}". Follow these strict rules:
-1. Each question must have:
-   - A clear question text
-   - Exactly 4 options (A, B, C, D)
-   - One correct answer (must match exactly one option)
-2. Format each question as JSON with:
-   - "text": The question
-   - "options": Array of 4 options (prefix with A), B), etc.)
-   - "correctAnswer": The full correct option text
-3. Return only a valid JSON array with no extra text
+  if (!process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({ error: "Missing OpenRouter API key." });
+  }
 
-Example:
+  const prompt = `Generate exactly ${questionCount} multiple choice quiz questions on the topic "${topic}". Each question must strictly follow this format:
+- A question text
+- Four options prefixed with "A)", "B)", "C)", "D)"
+- One correctAnswer matching an option
+Return ONLY valid JSON like:
 [
   {
-    "text": "What is the capital of France?",
-    "options": ["A) London", "B) Paris", "C) Berlin", "D) Madrid"],
-    "correctAnswer": "B) Paris"
+    "text": "Sample question?",
+    "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+    "correctAnswer": "B) Option 2"
   }
-]
-
-Now generate ${questionCount} questions about "${topic}":`;
+]`;
 
   try {
     const response = await fetch(
@@ -147,83 +143,92 @@ Now generate ${questionCount} questions about "${topic}":`;
             {
               role: "system",
               content:
-                "You are a quiz generator. Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations.",
+                "You are a strict quiz generator that replies only in JSON.",
             },
-            { role: "user", content: prompt },
+            {
+              role: "user",
+              content: prompt,
+            },
           ],
-          temperature: 0.7,
-          response_format: { type: "json_object" },
+          temperature: 0.5,
         }),
-        timeout: 120000,
       }
     );
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error("OpenRouter API Error:", response.status, errText);
-      throw new Error(`API Error: ${response.status} - ${errText}`);
+      const text = await response.text();
+      console.error("OpenRouter API Error:", text);
+      return res
+        .status(500)
+        .json({ error: "OpenRouter API error", details: text });
     }
 
     const data = await response.json();
-    let content = data.choices?.[0]?.message?.content?.trim();
+    const content = data.choices?.[0]?.message?.content;
 
-    if (!content) throw new Error("Empty response from AI");
-
-    let questions;
-    try {
-      // Strip markdown and parse JSON
-      content = content.replace(/```json\n|\n```/g, "").trim();
-      questions = JSON.parse(content);
-      if (!Array.isArray(questions)) {
-        throw new Error("Response is not a valid array");
-      }
-    } catch (parseError) {
-      console.error(
-        "JSON parse error:",
-        parseError.message,
-        "Raw content:",
-        content
-      );
-      throw new Error("Failed to parse quiz data");
+    if (!content) {
+      return res
+        .status(500)
+        .json({ error: "No content received from AI.", raw: data });
     }
 
-    // Validate each question
-    const validated = questions.map((q, i) => {
-      if (!q.text || typeof q.text !== "string") {
-        throw new Error(`Question ${i + 1} missing text`);
+    // Clean content from backticks if needed
+    let cleaned = content.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned
+        .replace(/^```[a-zA-Z]*\n/, "")
+        .replace(/```$/, "")
+        .trim();
+    }
+
+    const firstBracket = cleaned.indexOf("[");
+    const lastBracket = cleaned.lastIndexOf("]");
+    if (firstBracket === -1 || lastBracket === -1) {
+      return res
+        .status(500)
+        .json({ error: "Invalid JSON format", raw: cleaned });
+    }
+
+    const jsonString = cleaned.substring(firstBracket, lastBracket + 1);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (e) {
+      return res
+        .status(500)
+        .json({ error: "Failed to parse JSON", raw: jsonString });
+    }
+
+    // Validate & transform
+    const transformed = parsed.map((q, i) => {
+      const { text, options, correctAnswer } = q;
+      if (!text || !options || options.length !== 4 || !correctAnswer) {
+        throw new Error(`Invalid question ${i + 1}`);
       }
-      if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
-        throw new Error(`Question ${i + 1} must have exactly 4 options`);
+
+      const formattedOptions = options.map((opt, i) => {
+        const prefix = `${String.fromCharCode(65 + i)}) `;
+        return opt.startsWith(prefix) ? opt : `${prefix}${opt}`;
+      });
+
+      if (!formattedOptions.includes(correctAnswer)) {
+        throw new Error(`Correct answer mismatch in question ${i + 1}`);
       }
-      if (!q.correctAnswer || typeof q.correctAnswer !== "string") {
-        throw new Error(`Question ${i + 1} missing correctAnswer`);
-      }
-      if (!q.options.includes(q.correctAnswer)) {
-        throw new Error(
-          `Question ${i + 1} correctAnswer doesn't match any option`
-        );
-      }
+
       return {
-        text: q.text.trim(),
-        options: q.options.map((opt) => opt.trim()),
-        correctAnswer: q.correctAnswer.trim(),
+        text,
+        options: formattedOptions,
+        correctAnswer,
       };
     });
 
-    if (validated.length !== questionCount) {
-      throw new Error(
-        `Expected ${questionCount} questions, got ${validated.length}`
-      );
-    }
-
-    console.log("Successfully generated quiz:", validated);
-    res.json({ questions: validated });
-  } catch (error) {
-    console.error("Quiz generation error:", error.message);
+    res.json({ questions: transformed });
+  } catch (err) {
+    console.error("Quiz generation error:", err.message);
     res.status(500).json({
       error: "Failed to generate quiz",
-      message: error.message,
-      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      message: err.message,
     });
   }
 });
