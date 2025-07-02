@@ -62,12 +62,20 @@ const Quiz = ({ topic, handleQuizComplete }) => {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      console.log("Quiz API response status:", response.status);
+      console.log("Quiz API raw response:", text);
 
       if (!response.ok) {
-        throw new Error(
-          data.message || data.error || "Failed to generate quiz"
-        );
+        throw new Error(text || `Server error: ${response.status}`);
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error("JSON parse error:", parseErr);
+        throw new Error("Invalid JSON response from server");
       }
 
       if (!data.questions || !Array.isArray(data.questions)) {

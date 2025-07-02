@@ -152,7 +152,6 @@ Now generate ${questionCount} questions about "${topic}":`;
             { role: "user", content: prompt },
           ],
           temperature: 0.7,
-          response_format: { type: "json_object" },
         }),
         timeout: 120000,
       }
@@ -175,6 +174,7 @@ Now generate ${questionCount} questions about "${topic}":`;
       content = content.replace(/```json\n|\n```/g, "").trim();
       questions = JSON.parse(content);
       if (!Array.isArray(questions)) {
+        console.error("Invalid response format:", content);
         throw new Error("Response is not a valid array");
       }
     } catch (parseError) {
