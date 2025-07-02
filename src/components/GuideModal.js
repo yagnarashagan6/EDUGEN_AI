@@ -1,10 +1,39 @@
-import React from 'react';
-import '../styles/GuideModal.css';
+import React, { useCallback, useEffect } from "react";
+import "../styles/GuideModal.css";
 
 const GuideModal = ({ isOpen, onClose, role }) => {
+  // Move hooks before the conditional return
+  const handleEscapeKey = useCallback(
+    (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  // Add event listeners
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscapeKey);
+      return () => {
+        document.removeEventListener("keydown", handleEscapeKey);
+      };
+    }
+  }, [handleEscapeKey, isOpen]);
+
+  // Handle clicking outside modal
+  const handleOverlayClick = (event) => {
+    if (event.target.className === "modal-overlay") {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
-  const guideContent = role === 'staff' ? `
+  const guideContent =
+    role === "staff"
+      ? `
 # Staff Feature Guide
 
 ## Dashboard Overview
@@ -42,7 +71,8 @@ const GuideModal = ({ isOpen, onClose, role }) => {
 
 ## Chatbot
 - **AI Assistance**: Use EduGen AI Chatbot for support. Toggle on mobile.
-  ` : `
+  `
+      : `
 # Student Feature Guide
 
 ## Dashboard Overview
@@ -92,17 +122,22 @@ const GuideModal = ({ isOpen, onClose, role }) => {
   `;
 
   return (
-    <div className="modal-overlay">
+    <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-content">
-        <h2>{role === 'staff' ? 'Staff' : 'Student'} Feature Guide</h2>
+        <div className="modal-header">
+          <h2>{role === "staff" ? "Staff" : "Student"} Feature Guide</h2>
+          <button className="close-icon" onClick={onClose}>
+            &times;
+          </button>
+        </div>
         <div className="modal-body">
-          {guideContent.split('\n').map((line, index) => {
-            if (line.startsWith('# ')) {
-              return <h3 key={index}>{line.replace('# ', '')}</h3>;
-            } else if (line.startsWith('## ')) {
-              return <h4 key={index}>{line.replace('## ', '')}</h4>;
-            } else if (line.startsWith('- ')) {
-              return <li key={index}>{line.replace('- ', '')}</li>;
+          {guideContent.split("\n").map((line, index) => {
+            if (line.startsWith("# ")) {
+              return <h3 key={index}>{line.replace("# ", "")}</h3>;
+            } else if (line.startsWith("## ")) {
+              return <h4 key={index}>{line.replace("## ", "")}</h4>;
+            } else if (line.startsWith("- ")) {
+              return <li key={index}>{line.replace("- ", "")}</li>;
             } else if (line.trim()) {
               return <p key={index}>{line}</p>;
             }
@@ -110,7 +145,7 @@ const GuideModal = ({ isOpen, onClose, role }) => {
           })}
         </div>
         <button className="modal-close-btn" onClick={onClose}>
-          Close
+          Close Guide
         </button>
       </div>
     </div>

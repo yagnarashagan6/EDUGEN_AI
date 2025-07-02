@@ -63,8 +63,6 @@ const Quiz = ({ topic, handleQuizComplete }) => {
       });
 
       const text = await response.text();
-      console.log("Quiz API response status:", response.status);
-      console.log("Quiz API raw response:", text);
 
       if (!response.ok) {
         throw new Error(text || `Server error: ${response.status}`);
@@ -219,9 +217,13 @@ const Quiz = ({ topic, handleQuizComplete }) => {
                 <div className="result-question">
                   Q{idx + 1}: {q.text}
                 </div>
-                <div className="result-answer">
-                  Your Answer: {userAnswer || "None"}{" "}
-                  {userAnswer && (isCorrect ? "✅" : "❌")}
+                <div
+                  className={`result-answer ${
+                    isCorrect ? "correct" : "incorrect"
+                  }`}
+                >
+                  Your Answer: {userAnswer}{" "}
+                  {userAnswer && (isCorrect ? "✓" : "✗")}
                 </div>
                 {!isCorrect && (
                   <div className="result-correct">
@@ -246,8 +248,20 @@ const Quiz = ({ topic, handleQuizComplete }) => {
   const currentQ = questions[currentQuestion];
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
+  const containerStyle = {
+    maxHeight: "100vh",
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch", // For smooth scrolling on iOS
+  };
+
+  const questionContainerStyle = {
+    maxHeight: "60vh",
+    overflowY: "auto",
+    paddingRight: "0.5rem",
+  };
+
   return (
-    <div className="quiz-container">
+    <div className="quiz-container" style={containerStyle}>
       <div className="quiz-header">
         <h2 className="quiz-title">Quiz: {topic}</h2>
         <div className="progress-bar">
@@ -265,6 +279,7 @@ const Quiz = ({ topic, handleQuizComplete }) => {
         </div>
         <div
           className="question-text"
+          style={questionContainerStyle}
           onCopy={(e) => {
             e.preventDefault();
             alert("Copying questions is not allowed.");
