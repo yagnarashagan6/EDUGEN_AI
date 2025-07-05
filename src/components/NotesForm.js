@@ -396,41 +396,43 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
               )}
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="form-footer">
-        <div className="form-buttons">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={uploading}
-            className="btn btn-secondary"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={uploading}
-            className="btn btn-primary"
-          >
-            {uploading ? (
-              <>
-                <span className="btn-icon spinning">⏳</span>
-                Uploading...
-              </>
-            ) : (
-              <>
-                <span className="btn-icon">✨</span>
-                Submit Resources
-              </>
-            )}
-          </button>
-        </div>
+          {/* Action Buttons moved below upload */}
+          <div className="form-actions">
+            <div className="form-buttons">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={uploading}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={uploading}
+                className="btn btn-primary"
+              >
+                {uploading ? (
+                  <>
+                    <span className="btn-icon spinning">⏳</span>
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <span className="btn-icon">✨</span>
+                    Submit Resources
+                  </>
+                )}
+              </button>
+            </div>
 
-        <div className="form-attribution">
-          <span className="attribution-icon">👤</span>
-          <strong>By: {senderName}</strong>
+            {/* Attribution below buttons */}
+            <div className="form-attribution">
+              <span className="attribution-icon">👤</span>
+              <strong>By: {senderName}</strong>
+            </div>
+          </div>
         </div>
       </div>
     </form>

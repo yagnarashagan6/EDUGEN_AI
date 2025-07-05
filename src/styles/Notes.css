@@ -1,10 +1,17 @@
 /* Notes.css */
 
 .notes-container {
-  padding: 20px;
-  background-color: #f9f9f9;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  background-color: #f9f9fa;
   box-sizing: border-box;
+}
+
+/* When form is active, keep within container bounds */
+.notes-container.form-active {
+  height: 80vh;
+  overflow: hidden;
 }
 
 .container-header {
@@ -14,27 +21,69 @@
   font-size: 22px;
   font-weight: 600;
   margin-bottom: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .close-btn {
-  background-color: #e74c3c;
+  background-color: rgba(255, 255, 255, 0.2);
   color: white;
-  border: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .close-btn:hover {
-  background-color: #c0392b;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
 }
 
 .container-body {
+  flex: 1;
   background-color: #fff;
-  padding: 20px;
+  padding: 0;
   border-radius: 12px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Container body states */
+.container-body:not(.form-active) {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.container-body.form-active {
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  margin: 0;
+  position: relative;
+}
+
+/* Hide notes container header when form is active */
+.notes-container.form-active .container-header {
+  display: none;
+}
+
+.notes-container.form-active .container-body {
+  height: calc(100vh - 40px);
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  margin-top: 0;
 }
 
 .notes-controls {
@@ -95,7 +144,7 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
-  padding-bottom: 30px; /* Add space for meta info */
+  padding-bottom: 56px; /* Add space for meta info */
 }
 
 .note-card:hover {
@@ -234,6 +283,13 @@
     flex-direction: column;
     gap: 10px;
     text-align: center;
+  }
+
+  /* Mobile form handling */
+
+  .notes-container.form-active .container-body {
+    height: calc(100vh - 20px);
+    border-radius: 8px;
   }
 }
 

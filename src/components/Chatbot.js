@@ -412,23 +412,6 @@ const Chatbot = ({
   if (isPdfView) {
     return (
       <div className="pdf-view-container">
-        <div className="pdf-view-header">
-          <button
-            className="pdf-back-btn"
-            onClick={() => setIsPdfView(false)}
-            title="Back to chat"
-          >
-            <i className="fas fa-arrow-left"></i> Back to Chat
-          </button>
-          <h2>EduGen AI Conversation</h2>
-          <button
-            className="pdf-download-btn"
-            onClick={downloadChatAsPdf}
-            title="Download as PDF"
-          >
-            <i className="fas fa-download"></i> Download PDF
-          </button>
-        </div>
         <div className="pdf-view-content">
           {messages.map((msg, index) => (
             <div
@@ -447,6 +430,15 @@ const Chatbot = ({
               </div>
             </div>
           ))}
+          <div className="pdf-back-btn-container">
+            <button
+              className="pdf-back-btn"
+              onClick={() => setIsPdfView(false)}
+              title="Back to chat"
+            >
+              <i className="fas fa-arrow-left"></i> Back to Chat
+            </button>
+          </div>
         </div>
       </div>
     );

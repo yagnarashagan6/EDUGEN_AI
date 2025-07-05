@@ -1183,7 +1183,7 @@
 .pdf-download-btn:hover {
   background: #032a8a;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(4, 56, 175, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .pdf-download-btn {
@@ -1195,42 +1195,33 @@
   box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
 }
 
-/* Desktop message hover effects */
-.bot-message-desktop:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
+/* PDF back button container at the end of the conversation */
+.pdf-back-btn-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  margin-top: 20px;
+  border-top: 1px solid #eee;
 }
 
-.user-message-desktop:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(4, 56, 175, 0.3);
-}
-
-/* Add a small hint for desktop users */
-.bot-message-desktop::after {
-  content: "Click for options";
-  position: absolute;
-  top: -25px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.8);
+.pdf-back-btn-container .pdf-back-btn {
+  background: #0438af;
   color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  white-space: nowrap;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.bot-message-desktop:hover::after {
-  opacity: 1;
-}
-
-/* Hide hint on mobile */
-@media (max-width: 768px) {
-  .bot-message-desktop::after {
-    display: none;
-  }
+.pdf-back-btn-container .pdf-back-btn:hover {
+  background: #032a8a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
