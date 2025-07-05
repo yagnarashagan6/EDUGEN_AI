@@ -2050,44 +2050,45 @@ const StudentDashboard = () => {
               }`}
             >
               <div className="container-body">
-                {/* Show quiz start notifications in chatbot */}
-                {notifications
-                  .filter((notif) => notif.type === "quiz-start")
-                  .map((notif, index) => (
-                    <Notification
-                      key={`${notif.id || "quiz-start"}-${index}`}
-                      message={notif.message}
-                      onClick={() => {
-                        // Show quiz setup modal
-                        setShowQuizSetup(true);
-                        setActiveContainer("tasks-container");
-                        // Remove this notification
-                        setNotifications((prev) =>
-                          prev.filter((_, i) => prev.indexOf(notif) !== i)
-                        );
-                      }}
-                      onClose={() => {
-                        // Remove this notification
-                        setNotifications((prev) =>
-                          prev.filter((_, i) => prev.indexOf(notif) !== i)
-                        );
-                        // Add helpful message
-                        setNotifications((prev) => [
-                          ...prev,
-                          {
-                            id: Date.now(),
-                            type: "info",
-                            message:
-                              "Quiz start cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
-                          },
-                        ]);
-                      }}
-                      isClickable={true}
-                      buttonText="Start Quiz"
-                    />
-                  ))}
+                {/* Show quiz start notifications in chatbot for mobile view only */}
+                {window.innerWidth <= 768 &&
+                  notifications
+                    .filter((notif) => notif.type === "quiz-start")
+                    .map((notif, index) => (
+                      <Notification
+                        key={`${notif.id || "quiz-start"}-${index}`}
+                        message={notif.message}
+                        onClick={() => {
+                          // Show quiz setup modal
+                          setShowQuizSetup(true);
+                          setActiveContainer("tasks-container");
+                          // Remove this notification
+                          setNotifications((prev) =>
+                            prev.filter((_, i) => prev.indexOf(notif) !== i)
+                          );
+                        }}
+                        onClose={() => {
+                          // Remove this notification
+                          setNotifications((prev) =>
+                            prev.filter((_, i) => prev.indexOf(notif) !== i)
+                          );
+                          // Add helpful message
+                          setNotifications((prev) => [
+                            ...prev,
+                            {
+                              id: Date.now(),
+                              type: "info",
+                              message:
+                                "Quiz start cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
+                            },
+                          ]);
+                        }}
+                        isClickable={true}
+                        buttonText="Start Quiz"
+                      />
+                    ))}
                 <Chatbot
-                  isVisible={true}
+                  isVisible={window.innerWidth <= 768}
                   copiedTopic={copiedTopic}
                   clearCopiedTopic={() => setCopiedTopic("")}
                   isInContainer={true}
@@ -2123,57 +2124,89 @@ const StudentDashboard = () => {
             )}
           </div>
           <div className="notifications">
-            {notifications
-              .filter((notif) => notif.type !== "quiz-start") // Exclude quiz-start notifications from general area
-              .map((notif, index) => {
-                if (notif.type === "overdue") {
-                  return (
-                    <OverdueTaskNotification
-                      key={`${notif.id}-${index}`}
-                      task={notif.task}
-                      onSubmitAndNavigate={sendOverdueReason}
-                      onClose={() =>
-                        setNotifications((prev) =>
-                          prev.filter((_, i) => i !== index)
-                        )
-                      }
-                    />
-                  );
-                } else if (notif.type === "quiz" && notif.task) {
-                  return (
-                    <Notification
-                      key={`${notif.id || "notif"}-${index}`}
-                      message={notif.message}
-                      onClick={() => {
-                        setCurrentTopic(notif.task.content);
-                        generateQuizQuestions(); // Generate AI quiz questions
-                        setNotifications((prev) =>
-                          prev.filter((_, i) => i !== index)
-                        );
-                      }}
-                      onClose={() =>
-                        setNotifications((prev) =>
-                          prev.filter((_, i) => i !== index)
-                        )
-                      }
-                      isClickable={true}
-                      buttonText="Start Quiz"
-                    />
-                  );
-                } else {
-                  return (
-                    <Notification
-                      key={`${notif.id || "notif"}-${index}`}
-                      message={notif.message}
-                      onClose={() =>
-                        setNotifications((prev) =>
-                          prev.filter((_, i) => i !== index)
-                        )
-                      }
-                    />
-                  );
-                }
-              })}
+            {notifications.map((notif, index) => {
+              if (notif.type === "overdue") {
+                return (
+                  <OverdueTaskNotification
+                    key={`${notif.id}-${index}`}
+                    task={notif.task}
+                    onSubmitAndNavigate={sendOverdueReason}
+                    onClose={() =>
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      )
+                    }
+                  />
+                );
+              } else if (notif.type === "quiz" && notif.task) {
+                return (
+                  <Notification
+                    key={`${notif.id || "notif"}-${index}`}
+                    message={notif.message}
+                    onClick={() => {
+                      setCurrentTopic(notif.task.content);
+                      generateQuizQuestions(); // Generate AI quiz questions
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      );
+                    }}
+                    onClose={() =>
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      )
+                    }
+                    isClickable={true}
+                    buttonText="Start Quiz"
+                  />
+                );
+              } else if (notif.type === "quiz-start") {
+                return (
+                  <Notification
+                    key={`${notif.id || "quiz-start"}-${index}`}
+                    message={notif.message}
+                    onClick={() => {
+                      // Show quiz setup modal
+                      setShowQuizSetup(true);
+                      setActiveContainer("tasks-container");
+                      // Remove this notification
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => prev.indexOf(notif) !== i)
+                      );
+                    }}
+                    onClose={() => {
+                      // Remove this notification
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => prev.indexOf(notif) !== i)
+                      );
+                      // Add helpful message
+                      setNotifications((prev) => [
+                        ...prev,
+                        {
+                          id: Date.now(),
+                          type: "info",
+                          message:
+                            "Quiz start cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
+                        },
+                      ]);
+                    }}
+                    isClickable={true}
+                    buttonText="Start Quiz"
+                  />
+                );
+              } else {
+                return (
+                  <Notification
+                    key={`${notif.id || "notif"}-${index}`}
+                    message={notif.message}
+                    onClose={() =>
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      )
+                    }
+                  />
+                );
+              }
+            })}
           </div>
           {window.innerWidth > 768 && (
             <Chatbot
