@@ -1,0 +1,313 @@
+/* Mobile Chat Styles */
+
+.chat-container-mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+  transition: all 0.3s ease;
+}
+
+.chat-container-mobile.fullscreen-mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header-mobile {
+  background: #0438af;
+  color: white;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chat-title-mobile {
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+  text-align: center;
+}
+
+.fullscreen-toggle-btn {
+  background: #f2ea05;
+  border: none;
+  color: white;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.pdf-button-mobile {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-button-mobile .pdf-button-label {
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+.chat-box-mobile {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.user-message-mobile {
+  background-color: #049eaf;
+  color: white;
+  align-self: flex-end;
+  padding: 10px 15px;
+  border-radius: 15px 15px 0 15px;
+  max-width: 80%;
+  width: fit-content;
+  word-wrap: break-word;
+  box-shadow: 0 2px 4px rgba(4, 56, 175, 0.2);
+  margin-left: auto;
+}
+
+.bot-message-mobile {
+  color: #1d1c1b;
+  align-self: flex-start;
+  padding: 12px 16px;
+  border-radius: 15px 15px 15px 0;
+  max-width: 80%;
+  width: fit-content;
+  word-wrap: break-word;
+  margin-right: auto;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  position: relative;
+}
+
+/* Message options container */
+.message-options {
+  position: absolute;
+  bottom: -45px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  z-index: 100;
+}
+
+.message-options button {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #1d1c1b;
+  transition: background-color 0.2s;
+}
+
+.message-options button:hover {
+  background-color: #f0f0f0;
+}
+
+.message-options button i {
+  font-size: 16px;
+}
+
+/* Add styles for active state when speaking */
+.bot-message-mobile.speaking {
+  background-color: #e3f2fd;
+}
+
+.loading-mobile {
+  align-self: center;
+  color: #666;
+  font-style: italic;
+  padding: 10px;
+}
+
+.chat-input-mobile {
+  padding: 16px;
+  background: white;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+.input-wrapper-mobile {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 4px 8px;
+  border: 1px solid #e0e0e0;
+  transition: border-color 0.2s;
+}
+
+.input-wrapper-mobile:focus-within {
+  border-color: #0438af;
+}
+
+.chat-input-field-mobile {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 12px;
+  font-size: 16px;
+  background: transparent;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.send-btn-mobile {
+  background: #0438af;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 10px;
+}
+
+.send-btn-mobile:hover {
+  background: #032a8a;
+  transform: scale(1.05);
+}
+
+.send-btn-mobile:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mic button styles for mobile */
+.mic-btn-mobile {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 8px;
+  margin-bottom: 10px;
+}
+
+.mic-btn-mobile:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+.mic-btn-mobile:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mic-btn-mobile.listening {
+  background: #dc3545;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
+.chat-container-mobile.fullscreen-mobile .chat-box-mobile {
+  flex: 1;
+  height: calc(100vh - 60px - 80px); /* Subtract header and input heights */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  margin-bottom: 0;
+}
+
+.chat-box-mobile {
+  padding-bottom: 80px; /* Add padding to prevent content from being hidden behind input */
+}
+
+.chat-box-mobile::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-box-mobile::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-box-mobile::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+/* PDF view styles for mobile */
+.pdf-view-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: white;
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.pdf-view-content {
+  max-width: 100%;
+  margin: 0 auto;
+  background: white;
+}

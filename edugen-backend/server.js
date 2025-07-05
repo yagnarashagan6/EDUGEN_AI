@@ -59,7 +59,7 @@ app.post("/api/chat", async (req, res) => {
             {
               role: "system",
               content:
-                "You are EduGen AI, a helpful assistant for students. Provide clear, concise answers to educational questions.",
+                "You are EduGen AI 🎓, a helpful assistant for students. Provide clear, concise answers using appropriate emojis and symbols to make the content engaging and easier to understand. Use relevant emojis for different subjects (e.g., 🧮 for math, 🧪 for science, 📚 for literature, etc.) and ✨ to highlight important points. Format key information with symbols like ➡️, 📍, or 🔑 for better clarity.",
             },
             { role: "user", content: message },
           ],
@@ -147,7 +147,7 @@ Now generate ${questionCount} questions about "${topic}":`;
             {
               role: "system",
               content:
-                "You are a quiz generator. Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations.",
+                "You are a quiz generator 📝. Generate engaging quiz questions using subject-relevant emojis in the question text (e.g., 🧮 for math, 🧪 for science, 🌍 for geography, etc.). Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations. Format the questions with emojis where appropriate, but ensure the options remain clearly marked with A), B), C), D).",
             },
             { role: "user", content: prompt },
           ],

@@ -1,23 +1,86 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { marked } from 'marked';
-import '../styles/Chat.css';
-import html2pdf from 'html2pdf.js';
+import React, { useState, useEffect, useRef } from "react";
+import { marked } from "marked";
+import "../styles/Chat.css";
+import "../styles/ChatMobile.css";
+import html2pdf from "html2pdf.js";
 
-const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = false, isQuizActive = false }) => {
-  const [input, setInput] = useState('');
+const Chatbot = ({
+  isVisible,
+  copiedTopic,
+  clearCopiedTopic,
+  isInContainer = false,
+  isQuizActive = false,
+}) => {
+  const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
     {
-      sender: 'bot',
-      text: 'Hi! I’m EduGen AI. Ask me anything from your syllabus for a quick, clear answer.',
+      sender: "bot",
+      text: "Hi! I'm EduGen AI. Ask me anything from your syllabus for a quick, clear answer.",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [showOptionsForMessage, setShowOptionsForMessage] = useState(null);
   const [isPdfView, setIsPdfView] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  // State to manage mobile full screen mode
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const chatBoxRef = useRef(null);
   const longPressTimeout = useRef(null);
   const synth = useRef(window.speechSynthesis);
+  const recognition = useRef(null);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition.current = new SpeechRecognition();
+      recognition.current.continuous = false;
+      recognition.current.interimResults = false;
+      recognition.current.lang = "en-US";
+
+      recognition.current.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(
+          (prevInput) => prevInput + (prevInput ? " " : "") + transcript
+        );
+        setIsListening(false);
+      };
+
+      recognition.current.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognition.current) {
+        recognition.current.abort();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      // If switching from mobile to desktop, exit full screen
+      if (window.innerWidth > 768 && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isFullScreen]); // Depend on isFullScreen to re-evaluate on resize
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -40,28 +103,27 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       }
     };
 
-    window.addEventListener('popstate', handleBackButton);
-    return () => window.removeEventListener('popstate', handleBackButton);
+    window.addEventListener("popstate", handleBackButton);
+    return () => window.removeEventListener("popstate", handleBackButton);
   }, [isPdfView]);
 
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
     if (
-      lowerInput.includes('coxco') ||
-      lowerInput.includes('agni student portal') ||
-      lowerInput.includes('student')
+      lowerInput.includes("coxco") ||
+      lowerInput.includes("agni student portal")
     ) {
-      return 'Access the Agni Student Portal: https://coe.act.edu.in/students/';
+      return "Access the Agni Student Portal: https://coe.act.edu.in/students/";
     }
     if (
-      lowerInput.includes('gamma ai') ||
-      lowerInput.includes('presentation ai') ||
-      lowerInput.includes('ppt ai')
+      lowerInput.includes("gamma ai") ||
+      lowerInput.includes("presentation ai") ||
+      lowerInput.includes("ppt ai")
     ) {
-      return 'Try Gamma AI for presentations: https://gamma.app/';
+      return "Try Gamma AI for presentations: https://gamma.app/";
     }
-    if (lowerInput.includes('pdf')) {
-      return 'Use this PDF tool: https://www.ilovepdf.com/';
+    if (lowerInput.includes("pdf")) {
+      return "Use this PDF tool: https://www.ilovepdf.com/";
     }
     return null;
   };
@@ -69,14 +131,14 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const userMessage = { sender: 'user', text: input };
+    const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+    setInput("");
     setIsLoading(true);
 
     const quickResponse = getQuickResponse(userMessage.text);
     if (quickResponse) {
-      setMessages((prev) => [...prev, { sender: 'bot', text: quickResponse }]);
+      setMessages((prev) => [...prev, { sender: "bot", text: quickResponse }]);
       setIsLoading(false);
       return;
     }
@@ -85,12 +147,12 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     try {
-      const apiUrl = 'https://edugen-backend-zbjr.onrender.com/api/chat';
+      const apiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat";
 
       const response = await fetch(apiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         signal: controller.signal,
         body: JSON.stringify({ message: userMessage.text }),
@@ -106,31 +168,38 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       const data = await response.json();
 
       if (!data.response) {
-        throw new Error('No response content from server');
+        throw new Error("No response content from server");
       }
 
-      setMessages((prev) => [...prev, { sender: 'bot', text: data.response }]);
+      setMessages((prev) => [...prev, { sender: "bot", text: data.response }]);
     } catch (err) {
-      console.error('Chatbot error:', err.message);
-      let userErrorMessage = 'Something went wrong. Please try again.';
-      if (err.name === 'AbortError') {
-        userErrorMessage = 'The AI is taking too long to respond. Please wait a bit and try again.';
-      } else if (err.message.includes('Invalid JSON')) {
-        userErrorMessage = 'Server returned invalid data.';
+      console.error("Chatbot error:", err.message);
+      let userErrorMessage = "Something went wrong. Please try again.";
+      if (err.name === "AbortError") {
+        userErrorMessage =
+          "The AI is taking too long to respond. Please wait a bit and try again.";
+      } else if (err.message.includes("Invalid JSON")) {
+        userErrorMessage = "Server returned invalid data.";
       }
-      setMessages((prev) => [...prev, { sender: 'bot', text: userErrorMessage }]);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: userErrorMessage },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleEnter = (e) => {
-    if (e.key === 'Enter' && !isLoading) {
+    if (e.key === "Enter" && !isLoading) {
       sendMessage();
     }
   };
 
   const handleLongPressStart = (index) => {
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+    }
     longPressTimeout.current = setTimeout(() => {
       setShowOptionsForMessage(index);
     }, 500);
@@ -140,10 +209,23 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     clearTimeout(longPressTimeout.current);
   };
 
+  const handleRightClick = (e, index, message) => {
+    e.preventDefault();
+    if (message.sender === "bot") {
+      setShowOptionsForMessage(index);
+    }
+  };
+
+  const handleMessageClick = (index, message) => {
+    if (message.sender === "bot") {
+      setShowOptionsForMessage(showOptionsForMessage === index ? null : index);
+    }
+  };
+
   const handlePdfView = () => {
     setIsPdfView(true);
     setShowOptionsForMessage(null);
-    window.history.pushState({}, '');
+    window.history.pushState({}, "");
   };
 
   const handleReadAloud = (text) => {
@@ -165,39 +247,85 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     setShowOptionsForMessage(null);
   };
 
+  const handleSpeechToText = () => {
+    if (!recognition.current) {
+      alert(
+        "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari."
+      );
+      return;
+    }
+
+    if (isListening) {
+      recognition.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognition.current.start();
+      } catch (error) {
+        console.error("Error starting speech recognition:", error);
+        alert("Could not start speech recognition. Please try again.");
+      }
+    }
+  };
+
   const extractTopicForFilename = (text) => {
     // Common stop words to remove
     const stopWords = [
-      'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'how',
-      'in', 'is', 'it', 'of', 'on', 'or', 'that', 'the', 'to', 'what', 'when',
-      'where', 'which', 'who', 'why', 'with'
+      "a",
+      "an",
+      "and",
+      "are",
+      "as",
+      "at",
+      "be",
+      "by",
+      "for",
+      "from",
+      "how",
+      "in",
+      "is",
+      "it",
+      "of",
+      "on",
+      "or",
+      "that",
+      "the",
+      "to",
+      "what",
+      "when",
+      "where",
+      "which",
+      "who",
+      "why",
+      "with",
     ];
     // Split the text into words, remove stop words, and clean
     let words = text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+      .replace(/[^a-z0-9\s]/g, "") // Remove special characters
       .split(/\s+/)
-      .filter(word => word.length > 2 && !stopWords.includes(word));
-    
+      .filter((word) => word.length > 2 && !stopWords.includes(word));
+
     // Take up to 3 words to keep filename concise
     words = words.slice(0, 3);
-    
+
     // Join words with underscores and ensure non-empty
-    const topic = words.length > 0 ? words.join('_') : 'chat';
+    const topic = words.length > 0 ? words.join("_") : "chat";
     return `${topic}_edugen-ai.pdf`;
   };
 
   const downloadChatAsPdf = () => {
     // Find the last user message to use as the topic
-    const lastUserMessage = messages
-      .slice()
-      .reverse()
-      .find(msg => msg.sender === 'user')?.text || 'default';
-    
+    const lastUserMessage =
+      messages
+        .slice()
+        .reverse()
+        .find((msg) => msg.sender === "user")?.text || "default";
+
     // Generate filename based on the last user message
     const filename = extractTopicForFilename(lastUserMessage);
 
-    const element = document.createElement('div');
+    const element = document.createElement("div");
     element.innerHTML = `
       <style>
         .pdf-download-container {
@@ -231,12 +359,20 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
       </style>
       <div class="pdf-download-container">
         <h1>EduGen AI Chat Conversation</h1>
-        ${messages.map(msg => `
-          <div class="pdf-message ${msg.sender === 'user' ? 'pdf-user-message' : 'pdf-chatbot-message'}">
-            <div class="pdf-message-sender">${msg.sender === 'user' ? 'You' : 'EduGen AI'}:</div>
+        ${messages
+          .map(
+            (msg) => `
+          <div class="pdf-message ${
+            msg.sender === "user" ? "pdf-user-message" : "pdf-chatbot-message"
+          }">
+            <div class="pdf-message-sender">${
+              msg.sender === "user" ? "You" : "EduGen AI"
+            }:</div>
             <div class="pdf-message-content">${marked.parse(msg.text)}</div>
           </div>
-        `).join('')}
+        `
+          )
+          .join("")}
       </div>
     `;
 
@@ -248,6 +384,27 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
     return <div dangerouslySetInnerHTML={{ __html: marked.parse(text) }} />;
   };
 
+  // Function to toggle full screen mode for mobile
+  const toggleFullScreen = () => {
+    setIsFullScreen((prev) => !prev);
+  };
+
+  // Add click outside handler to close message options
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        showOptionsForMessage !== null &&
+        !event.target.closest(".message-options") &&
+        !event.target.closest(".message")
+      ) {
+        setShowOptionsForMessage(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showOptionsForMessage]);
+
   if (!isVisible || isQuizActive) {
     return null;
   }
@@ -255,13 +412,39 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   if (isPdfView) {
     return (
       <div className="pdf-view-container">
+        <div className="pdf-view-header">
+          <button
+            className="pdf-back-btn"
+            onClick={() => setIsPdfView(false)}
+            title="Back to chat"
+          >
+            <i className="fas fa-arrow-left"></i> Back to Chat
+          </button>
+          <h2>EduGen AI Conversation</h2>
+          <button
+            className="pdf-download-btn"
+            onClick={downloadChatAsPdf}
+            title="Download as PDF"
+          >
+            <i className="fas fa-download"></i> Download PDF
+          </button>
+        </div>
         <div className="pdf-view-content">
           {messages.map((msg, index) => (
             <div
               key={index}
-              className={`pdf-message ${msg.sender === 'user' ? 'pdf-user-message' : 'pdf-chatbot-message'}`}
+              className={`pdf-message ${
+                msg.sender === "user"
+                  ? "pdf-user-message"
+                  : "pdf-chatbot-message"
+              }`}
             >
-              <div className="pdf-message-content">{renderMessageContent(msg.text)}</div>
+              <div className="pdf-message-sender">
+                {msg.sender === "user" ? "You" : "EduGen AI"}:
+              </div>
+              <div className="pdf-message-content">
+                {renderMessageContent(msg.text)}
+              </div>
             </div>
           ))}
         </div>
@@ -270,82 +453,144 @@ const Chatbot = ({ isVisible, copiedTopic, clearCopiedTopic, isInContainer = fal
   }
 
   return (
-    <div className={`chat-container ${isInContainer ? 'sidebar' : ''}`}>
-      {!isInContainer && (
-        <div className="chat-header">
-          EduGen AI Chatbot
-          <div className="chat-actions">
-            <button onClick={downloadChatAsPdf} title="Download Chat as PDF">
-              <i className="fas fa-file-pdf"></i>
+    <>
+      <div
+        className={`
+            ${isMobile ? "chat-container-mobile" : "chat-container-desktop"}
+            ${!isVisible ? "hidden" : ""}
+            ${isInContainer ? "sidebar" : ""}
+            ${isMobile && isFullScreen ? "fullscreen-mobile" : ""}
+          `}
+      >
+        <div
+          className={isMobile ? "chat-header-mobile" : "chat-header-desktop"}
+        >
+          {isMobile && (
+            <button
+              className="fullscreen-toggle-btn"
+              onClick={toggleFullScreen}
+            >
+              <i
+                className={`fas ${
+                  isFullScreen ? "fa-compress-alt" : "fa-expand-alt"
+                }`}
+              ></i>
             </button>
-          </div>
-        </div>
-      )}
-      {isInContainer && (
-        <div className="chat-header sidebar-header">
-          EduGen AI Chatbot
-          <div className="chat-actions">
-            <button onClick={downloadChatAsPdf} title="Download Chat as PDF">
-              <i className="fas fa-file-pdf"></i>
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="chat-box" ref={chatBoxRef}>
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={msg.sender === 'user' ? 'user-message' : 'chatbot-message'}
-            onMouseDown={() => handleLongPressStart(index)}
-            onMouseUp={handleLongPressEnd}
-            onTouchStart={() => handleLongPressStart(index)}
-            onTouchEnd={handleLongPressEnd}
+          )}
+          <span
+            className={isMobile ? "chat-title-mobile" : "chat-title-desktop"}
           >
-            <div className="message-content">{renderMessageContent(msg.text)}</div>
-            {showOptionsForMessage === index && (
-              <div className="message-options">
-                {isSpeaking ? (
-                  <div className="option-item" onClick={handleStopAudio}>
-                    <i className="fas fa-stop"></i> Stop Audio
-                  </div>
-                ) : (
-                  <div className="option-item" onClick={() => handleReadAloud(msg.text)}>
-                    <i className="fas fa-volume-up"></i> Read Aloud
-                  </div>
-                )}
-                <div className="option-item" onClick={handlePdfView}>
-                  <i className="fas fa-file-alt"></i> PDF View
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="chatbot-message loading">
-            <div className="message-content">EduGen AI is thinking... (this may take up to 2 mins)</div>
-          </div>
-        )}
-      </div>
-      <div className="chat-input">
-        <div className="input-wrapper">
-          <input
-            type="text"
-            placeholder="Ask EduGen AI..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleEnter}
-            disabled={isLoading}
-          />
+            EduGen AI 🤖
+          </span>
+
           <button
+            className={isMobile ? "pdf-button-mobile" : "pdf-button-desktop"}
+            onClick={downloadChatAsPdf}
+            title="Download PDF"
+          >
+            <i className="fas fa-file-pdf"></i>
+            <span className="pdf-button-label"></span>
+          </button>
+        </div>
+
+        <div
+          ref={chatBoxRef}
+          className={isMobile ? "chat-box-mobile" : "chat-box-desktop"}
+        >
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`message ${
+                message.sender === "user"
+                  ? isMobile
+                    ? "user-message-mobile"
+                    : "user-message-desktop"
+                  : isMobile
+                  ? "bot-message-mobile"
+                  : "bot-message-desktop"
+              } ${
+                isSpeaking && showOptionsForMessage === index ? "speaking" : ""
+              }`}
+              onTouchStart={() => handleLongPressStart(index)}
+              onTouchEnd={handleLongPressEnd}
+              onTouchMove={handleLongPressEnd}
+              onMouseDown={() => handleLongPressStart(index)}
+              onMouseUp={handleLongPressEnd}
+              onMouseLeave={handleLongPressEnd}
+              onContextMenu={(e) => handleRightClick(e, index, message)}
+              onClick={() => handleMessageClick(index, message)}
+              style={{
+                cursor: message.sender === "bot" ? "pointer" : "default",
+              }}
+            >
+              {renderMessageContent(message.text)}
+              {showOptionsForMessage === index && message.sender === "bot" && (
+                <div className="message-options">
+                  <button onClick={() => handleReadAloud(message.text)}>
+                    <i className="fas fa-volume-up"></i>
+                    {!isMobile && "Read"}
+                  </button>
+                  <button onClick={handlePdfView}>
+                    <i className="fas fa-file-pdf"></i>
+                    {!isMobile && "PDF"}
+                  </button>
+                  {isSpeaking && (
+                    <button onClick={handleStopAudio}>
+                      <i className="fas fa-stop"></i>
+                      {!isMobile && "Stop"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div className={isMobile ? "loading-mobile" : "loading-desktop"}>
+              EduGen AI is thinking... (this may take up to 2 mins)
+            </div>
+          )}
+        </div>
+
+        <div className={isMobile ? "chat-input-mobile" : "chat-input-desktop"}>
+          <div
+            className={
+              isMobile ? "input-wrapper-mobile" : "input-wrapper-desktop"
+            }
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              placeholder="Type your message..."
+              className={
+                isMobile
+                  ? "chat-input-field-mobile"
+                  : "chat-input-field-desktop"
+              }
+            />
+          </div>
+          <button
+            className={`${isMobile ? "mic-btn-mobile" : "mic-btn-desktop"} ${
+              isListening ? "listening" : ""
+            }`}
+            onClick={handleSpeechToText}
+            title={isListening ? "Stop listening" : "Voice input"}
+            disabled={isLoading}
+          >
+            <i className={`fas ${isListening ? "fa-stop" : "fa-mic"}`}></i>
+            <i className="fas fa-microphone"></i>
+          </button>
+          <button
+            className={isMobile ? "send-btn-mobile" : "send-btn-desktop"}
             onClick={sendMessage}
-            className="send-btn"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading}
           >
             <i className="fas fa-paper-plane"></i>
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

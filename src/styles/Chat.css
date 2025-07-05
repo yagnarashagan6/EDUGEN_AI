@@ -1,19 +1,17 @@
-/* Chat.css - Styles for Chatbot */
-
-/* Full-size chatbot */
-.chat-container {
+/* Chat.css - Desktop Styles */
+.chat-container-desktop {
   position: fixed;
   top: 0;
   right: 0;
   width: 350px;
   height: 100vh;
   background: white;
-  border-left: 2px solid #ddd;
+  border-left: 2px solid #eee;
   display: flex;
   flex-direction: column;
   z-index: 999;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
   overflow: hidden;
 }
 
@@ -35,8 +33,16 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   overflow: hidden; /* Ensure no overflow in mini view */
 }
-
-/* Minimized chat container hidden by default */
+/* When chatbot is in sidebar container */
+.chat-container.sidebar.chat-container-mobile {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: white;
+}
 .chat-container.mini.hidden {
   display: none;
 }
@@ -95,6 +101,49 @@
   border-radius: 8px 8px 0 0;
 }
 
+/* Desktop/Laptop Header Styles */
+.chat-header-desktop {
+  background: #0438af;
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chat-title-desktop {
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+  flex: 1;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+.pdf-button-desktop {
+  background: yellow;
+  border: none;
+  color: white;
+  width: 40px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.pdf-button-desktop .pdf-button-label {
+  font-size: 14px;
+}
+
+.pdf-button-desktop:hover {
+  background: rgba(237, 237, 3, 0.6);
+}
+
 .chat-box {
   flex-grow: 1;
   padding: 12px;
@@ -103,7 +152,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  height: calc(100% - 64px - 60px); /* Subtract header (44px + padding) and input (40px + padding) heights */
+  height: calc(
+    100% - 64px - 60px
+  ); /* Subtract header (44px + padding) and input (40px + padding) heights */
   box-sizing: border-box;
 }
 
@@ -113,108 +164,19 @@
   overflow-y: auto; /* Ensure scrollable in mini view */
 }
 
-/* Sent message bubble (user) */
-.user-message {
-  background-color: #d1e7ff;
-  color: #000;
-  align-self: flex-end;
-  text-align: right;
-  border-radius: 16px 16px 0 16px;
-  padding: 10px 15px;
-  margin: 8px 0;
-  max-width: 70%;
-  word-wrap: break-word;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: relative;
-}
-
-/* Received message (chatbot) */
-.chatbot-message {
-  color: #000; /* Black text color for chatbot messages */
-  align-self: flex-start;
-  text-align: left;
-  padding: 10px 15px;
-  margin: 8px 0;
-  max-width: 70%;
-  word-wrap: break-word;
-  position: relative;
-}
-
-/* Hover effect for user messages */
-.user-message:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.chatbot-message.loading {
-  font-style: italic;
-  color: #666;
-}
-
-/* PDF option styling */
-.pdf-option {
-  position: absolute;
-  bottom: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #0438af;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  z-index: 10;
-}
-
-.pdf-option:hover {
-  background: #032a8a;
-}
-
-/* PDF view styling */
-.pdf-view-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: white;
-  z-index: 1000;
+/* Desktop/Laptop Chat Box Styles */
+.chat-box-desktop {
+  flex: 1;
+  padding: 20px;
+  padding-bottom: 60px; /* Extra space for message options */
+  overflow-y: auto;
+  background: #f8f9fa;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  gap: 16px;
+  position: relative;
 }
 
-.pdf-view-content {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 20px;
-  background: white;
-  border: 1px solid #ddd;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.pdf-message {
-  margin: 10px 0;
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-}
-
-.pdf-user-message {
-  text-align: right;
-  color: #333;
-}
-
-.pdf-chatbot-message {
-  text-align: left;
-  color: #333;
-}
-
-.pdf-message-content {
-  font-size: 16px;
-  line-height: 1.5;
-  word-wrap: break-word;
-}
-
-/* Chat input container */
 .chat-input {
   display: flex;
   align-items: center;
@@ -293,6 +255,112 @@
   font-size: 14px;
 }
 
+/* Desktop/Laptop Input Styles */
+.chat-input-desktop {
+  padding: 16px;
+  background: white;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.input-wrapper-desktop {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  border-radius: 24px;
+  padding: 4px 8px;
+  border: 1px solid #e0e0e0;
+  transition: border-color 0.2s;
+}
+
+.input-wrapper-desktop:focus-within {
+  border-color: #0438af;
+}
+
+.chat-input-field-desktop {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 12px;
+  font-size: 15px;
+  background: transparent;
+  color: #2c3e50;
+}
+
+.send-btn-desktop {
+  background: #0438af;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 10px;
+}
+
+.send-btn-desktop:hover {
+  background: #032a8a;
+  transform: scale(1.05);
+}
+
+.send-btn-desktop:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mic button styles for desktop */
+.mic-btn-desktop {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 8px;
+  margin-bottom: 10px;
+}
+
+.mic-btn-desktop:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+.mic-btn-desktop:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mic-btn-desktop.listening {
+  background: #dc3545;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
 /* Sidebar container adjustments */
 .chat-container.sidebar {
   position: relative;
@@ -301,428 +369,255 @@
   border: none;
   box-shadow: none;
   border-radius: 0;
-  overflow: hidden; /* Ensure no overflow in sidebar view */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease-in-out;
+}
+
+.chat-container.sidebar.hidden {
+  transform: translateX(-100%);
 }
 
 .chat-container.sidebar .chat-header {
-  background-color: #f4f4f4;
-  border-bottom: 1px solid #ddd;
+  background-color: #0438af;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 11;
 }
 
 .chat-container.sidebar .chat-box {
-  height: calc(100% - 64px - 60px); /* Adjust for header (44px + padding) and input (40px + padding) */
+  flex: 1;
+  height: auto;
   max-height: none;
   overflow-y: auto;
   box-sizing: border-box;
+  padding: 16px;
+  background: #f8f9fa;
 }
 
 .chat-container.sidebar .chat-input {
   border-top: 1px solid #ddd;
-  padding: 10px;
+  padding: 12px;
+  background: white;
   position: sticky;
   bottom: 0;
+  width: 100%;
   z-index: 10;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  /* Full-size chat hidden by default */
-  .chat-container:not(.mini):not(.sidebar) {
-    display: none;
-  }
-
-  /* Show mini chat when active */
-  .chat-container.mini.active {
-    display: flex;
-    overflow: hidden; /* Prevent overflow in mini view */
-  }
-
-  /* Always show toggle button in minimized view */
-  .chat-toggle-btn {
-    display: flex;
-  }
-
-  .chat-header {
-    font-size: 14px;
-    padding: 8px;
-  }
-
-  .chat-box {
-    padding: 8px;
-    gap: 6px;
-    height: calc(100% - 56px - 52px); /* Adjusted for smaller header (32px + padding) and input (36px + padding) */
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .user-message {
-    max-width: 80%;
-    font-size: 10px;
-    padding: 6px 10px;
-  }
-
-  .chatbot-message {
-    max-width: 80%;
-    font-size: 10px;
-    padding: 6px 10px;
-  }
-
-  .chat-input {
-    padding: 8px;
-  }
-
-  .chat-input input {
-    height: 36px;
-    padding: 8px 40px 8px 10px;
-    font-size: 12px;
-  }
-
-  .send-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    right: 8px;
-  }
-
-  .chat-toggle-btn {
-    width: 35px;
-    height: 35px;
-    font-size: 16px;
-  }
-
-  .pdf-option {
-    font-size: 10px;
-    padding: 4px 8px;
-    bottom: -25px;
-  }
-
-  .pdf-view-content {
-    margin: 10px;
-    padding: 10px;
-  }
-
-  .pdf-message-content {
-    font-size: 14px;
-  }
-
-  /* Sidebar container for mobile */
-  .chat-container.sidebar {
-    height: 100%; /* Full height */
-    position: relative;
-    width: 100%;
-    overflow: hidden; /* Prevent overflow */
-  }
-
-  .chat-container.sidebar .chat-box {
-    height: calc(100% - 56px - 52px); /* Adjust for header (32px + padding) and input (36px + padding) */
-    max-height: none;
-    padding: 8px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.sidebar .chat-input {
-    padding: 8px;
-    position: sticky;
-    bottom: 0;
-    background: #fff;
-    z-index: 10;
-  }
-
-  .chat-container.sidebar .chat-input input {
-    height: 36px;
-    padding: 8px 40px 8px 10px;
-    font-size: 12px;
-  }
-
-  .chat-container.sidebar .send-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    right: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .chat-container.mini {
-    width: 220px;
-    height: 250px;
-    bottom: 50px;
-    right: 8px;
-    overflow: hidden; /* Prevent overflow */
-  }
-
-  .chat-container.mini .chat-box {
-    max-height: 160px;
-    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
-    padding: 6px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.mini .chat-header {
-    font-size: 12px;
-    padding: 6px;
-  }
-
-  .chat-container.mini .user-message {
-    font-size: 9px;
-    padding: 5px 8px;
-  }
-
-  .chat-container.mini .chatbot-message {
-    font-size: 9px;
-    padding: 5px 8px;
-  }
-
-  .chat-container.mini .chat-input {
-    padding: 6px;
-  }
-
-  .chat-container.mini .chat-input input {
-    height: 34px;
-    padding: 6px 35px 6px 8px;
-    font-size: 11px;
-  }
-
-  .chat-container.mini .send-btn {
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
-    right: 6px;
-  }
-
-  .chat-toggle-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 14px;
-  }
-
-  .pdf-option {
-    font-size: 9px;
-    padding: 3px 6px;
-    bottom: -20px;
-  }
-
-  .pdf-view-content {
-    margin: 5px;
-    padding: 8px;
-  }
-
-  .pdf-message-content {
-    font-size: 12px;
-  }
-
-  /* Sidebar container for smaller screens */
-  .chat-container.sidebar {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .chat-container.sidebar .chat-box {
-    height: calc(100% - 52px - 48px); /* Adjust for header (28px + padding) and input (34px + padding) */
-    max-height: none;
-    padding: 6px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.sidebar .chat-input {
-    padding: 6px;
-  }
-
-  .chat-container.sidebar .chat-input input {
-    height: 34px;
-    padding: 6px 35px 6px 8px;
-    font-size: 11px;
-  }
-
-  .chat-container.sidebar .send-btn {
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
-    right: 6px;
-  }
-}
-
-@media (max-width: 320px) {
-  .chat-container.mini {
-    width: 200px;
-    height: 220px;
-    bottom: 45px;
-    overflow: hidden;
-  }
-
-  .chat-container.mini .chat-box {
-    max-height: 140px;
-    height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
-    padding: 5px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.mini .chat-header {
-    font-size: 11px;
-    padding: 5px;
-  }
-
-  .chat-container.mini .user-message {
-    font-size: 8px;
-    padding: 4px 6px;
-  }
-
-  .chat-container.mini .chatbot-message {
-    font-size: 8px;
-    padding: 4px 6px;
-  }
-
-  .chat-container.mini .chat-input {
-    padding: 5px;
-  }
-
-  .chat-container.mini .chat-input input {
-    height: 32px;
-    padding: 5px 30px 5px 6px;
-    font-size: 10px;
-  }
-
-  .chat-container.mini .send-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 10px;
-    right: 5px;
-  }
-
-  .chat-toggle-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-    bottom: 10px;
-    right: 10px;
-  }
-
-  .pdf-option {
-    font-size: 8px;
-    padding: 2px 5px;
-    bottom: -18px;
-  }
-
-  .pdf-view-content {
-    margin: 3px;
-    padding: 6px;
-  }
-
-  .pdf-message-content {
-    font-size: 11px;
-  }
-
-  /* Sidebar container for very small screens */
-  .chat-container.sidebar {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .chat-container.sidebar .chat-box {
-    height: calc(100% - 48px - 44px); /* Adjust for header (26px + padding) and input (32px + padding) */
-    max-height: none;
-    padding: 5px;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
-  .chat-container.sidebar .chat-input {
-    padding: 5px;
-  }
-
-  .chat-container.sidebar .chat-input input {
-    height: 32px;
-    padding: 5px 30px 5px 6px;
-    font-size: 10px;
-  }
-
-  .chat-container.sidebar .send-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 10px;
-    right: 5px;
-  }
-}
-/* Existing Chat.css styles... */
-
-/* Styles for message options (Read Aloud, PDF View) */
-.message-options {
-  position: absolute;
-  bottom: -30px; /* Adjust as needed */
-  left: 50%;
-  transform: translateX(-50%);
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
-  font-size: 12px;
-  z-index: 10;
-  white-space: nowrap; /* Prevent options from wrapping */
+  gap: 8px;
+  align-items: center;
 }
 
-.option-item {
-  padding: 5px 10px;
-  cursor: pointer;
+.chat-container.sidebar .input-wrapper {
+  flex: 1;
+  background: #f0f2f5;
+  border-radius: 20px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  gap: 5px;
 }
 
-.option-item:hover {
-  background: #f0f0f0;
+.chat-container.sidebar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  outline: none;
+  padding: 8px 0;
 }
 
-.option-item + .option-item {
-  border-left: 1px solid #eee;
-}
-
-/* New styles for PDF view header */
-.pdf-view-header {
-  display: flex;
-  align-items: center;
-  padding: 10px;
+.chat-container.sidebar .send-btn-mobile {
+  width: 40px;
+  height: 40px;
   background: #0438af;
   color: white;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.pdf-view-header h2 {
-  flex-grow: 1;
-  text-align: center;
-  margin: 0;
-  font-size: 18px;
-}
-
-.back-to-chat-btn {
-  background: none;
   border: none;
-  color: white;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 5px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.back-to-chat-btn:hover {
-  opacity: 0.8;
+/* Mobile sidebar specific styles */
+@media screen and (max-width: 768px) {
+  .chat-container.sidebar {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: white;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-container.sidebar .chat-box {
+    flex: 1;
+    padding: 12px;
+    height: calc(100% - 130px);
+  }
+
+  .chat-container.sidebar .chat-input {
+    height: 70px;
+    padding: 12px;
+    box-sizing: border-box;
+  }
 }
 
-/* Styles for the chat header actions (Download PDF button) */
-.chat-header {
-  /* Keep existing styles */
-  display: flex; /* Make it a flex container */
-  justify-content: space-between; /* Space out items */
-  align-items: center; /* Vertically align items */
+/* Base Mobile Container */
+.chat-container-mobile {
+  display: flex !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: white;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100; /* Default z-index for mobile chatbot, allowing sidebar to open over it */
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Fullscreen mode for mobile - highest z-index */
+.chat-container-mobile.fullscreen-mobile {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1000; /* Highest z-index for true full screen */
+  border-radius: 0;
+  transition: all 0.3s ease;
+}
+
+/* Handle transition from fullscreen to normal */
+.chat-container-mobile:not(.fullscreen-mobile) {
+  position: relative;
+
+  transition: all 0.3s ease;
+}
+
+.chat-header-mobile {
+  background: #0438af;
+  color: white;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Fullscreen toggle button */
+.fullscreen-toggle-btn {
+  background: #f2ea05;
+  border: 2px solid #bfe70e;
+  color: white;
+  font-size: 18px;
+  padding: 4px;
+  width: 60px;
+  cursor: pointer;
+  border-radius: 20%;
+  transition: all 0.2s ease;
+  margin-right: 40px; /* Space between button and title */
+}
+
+.fullscreen-toggle-btn:hover {
+  background-color: rgba(238, 223, 13, 0.919);
+  transform: scale(1.1);
+}
+
+.chat-box-mobile {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  height: calc(100% - 130px); /* Subtract header and input heights */
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+/* Adjust chat box height in fullscreen mobile */
+.chat-container-mobile.fullscreen-mobile .chat-box-mobile {
+  height: calc(100vh - 60px - 70px); /* Header (60px) + Input (70px) */
+  padding-bottom: 16px; /* Reset padding for full screen */
+}
+
+/* Adjust chat box for non-fullscreen mode */
+.chat-container-mobile:not(.fullscreen-mobile) .chat-box-mobile {
+  height: calc(100% - 60px - 70px);
+  padding-bottom: 400px;
+}
+
+.message-mobile {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  word-wrap: break-word;
+  position: relative;
+  animation: fadeIn 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+.user-message-mobile {
+  background-color: #0438af;
+  color: white;
+  align-self: flex-end;
+  border-radius: 16px 16px 0 16px;
+  box-shadow: 0 2px 4px rgba(4, 56, 175, 0.2);
+  margin-left: auto;
+}
+
+.bot-message-mobile {
+  background-color: white;
+  color: #2c3e50;
+  align-self: flex-start;
+  border-radius: 16px 16px 16px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-right: auto;
+  border: 1px solid #eee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* Mobile loading indicator */
+.loading-mobile {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #666;
+  align-self: center;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  margin: 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* PDF Actions */
+.chat-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
 }
 
 .chat-actions button {
@@ -730,116 +625,612 @@
   border: none;
   color: white;
   font-size: 18px;
+  padding: 8px;
   cursor: pointer;
-  margin-left: 10px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .chat-actions button:hover {
-  opacity: 0.8;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
 }
 
-/* Adjustments for sidebar header if needed */
-.chat-container.sidebar .sidebar-header {
-  background-color: #f4f4f4;
-  color: #000;
-  border-bottom: 1px solid #ddd;
+/* Mobile PDF and action buttons */
+.chat-header-mobile .chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
-.chat-container.sidebar .sidebar-header .chat-actions button {
-  color: #000;
+.chat-header-mobile .pdf-button-mobile {
+  color: white;
+  background: #f2ea05;
+  border: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  width: 60px;
+  gap: 10px;
+  cursor: pointer;
 }
 
-/* Ensure existing PDF view styles are compatible with new header */
+.chat-header-mobile .pdf-button-mobile i {
+  font-size: 16px;
+}
+
+.chat-header-mobile .pdf-button-mobile:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile view transitions */
+@media screen and (max-width: 768px) {
+  .chat-container-mobile {
+    transform: translateX(0);
+  }
+
+  .chat-container-mobile.hidden {
+    transform: translateX(100%);
+  }
+}
+
+/* Message styles for sidebar view */
+.chat-container.sidebar .message {
+  max-width: 85%;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+.chat-container.sidebar .user-message-mobile {
+  background-color: #0438af;
+  color: white;
+  align-self: flex-end;
+  border-radius: 12px 12px 0 12px;
+}
+
+.chat-container.sidebar .chatbot-message-mobile {
+  background-color: white;
+  color: #2c3e50;
+  align-self: flex-start;
+  border-radius: 12px 12px 12px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chat-container.sidebar .pdf-button-mobile {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Mini to full-screen transitions */
+.chat-container-desktop,
+.chat-container-mobile {
+  transition: all 0.3s ease-in-out;
+}
+
+.chat-container.mini {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ensure proper stacking for transitions */
+.chat-container-desktop:not(.mini) {
+  z-index: 1002;
+}
+
+/* Handle mini to full transitions */
+@media screen and (min-width: 769px) {
+  .chat-container.mini:hover {
+    transform: scale(1.02);
+  }
+
+  .chat-container-desktop:not(.mini) {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile-specific styles */
+@media screen and (max-width: 768px) {
+  /* Container styles */
+  .chat-container-mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: white;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* When chatbot is in sidebar container */
+  .chat-container.sidebar.chat-container-mobile {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    z-index: 1;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  /* Fullscreen mode for mobile */
+  .chat-container-mobile.fullscreen-mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    border-radius: 0;
+  }
+
+  /* Chat box styles */
+  .chat-box-mobile {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f8f9fa;
+    height: calc(100vh - 130px); /* Subtract header (60px) and input (70px) */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Input area styles */
+  .chat-input-mobile {
+    position: relative;
+    bottom: 0px;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 12px 16px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 101;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  /* Input area styles for fullscreen mode */
+  .chat-container-mobile.fullscreen-mobile .chat-input-mobile {
+    position: fixed;
+  }
+
+  /* Header styles */
+  .chat-header-mobile {
+    position: relative;
+    background: #0438af;
+    color: white;
+    padding: 16px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 101;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  /* Header styles for fullscreen mode */
+  .chat-container-mobile.fullscreen-mobile .chat-header-mobile {
+    position: fixed;
+  }
+
+  /* Toggle button */
+  .chat-toggle-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    box-shadow: 0 2px 10px rgba(4, 56, 175, 0.3);
+    z-index: 9999;
+  }
+
+  /* Hide desktop elements */
+  .chat-container-desktop,
+  .chat-header-desktop,
+  .chat-box-desktop,
+  .chat-input-desktop {
+    display: none !important;
+  }
+}
+
+/* Ensure proper emoji sizing and alignment */
+.message img.emoji,
+.bot-message-mobile img.emoji,
+.user-message-mobile img.emoji {
+  height: 1.2em;
+  width: 1.2em;
+  margin: 0 0.05em 0 0.1em;
+  vertical-align: -0.1em;
+  display: inline-block;
+}
+
+/* Ensure emojis display properly in mobile view */
+@media screen and (max-width: 768px) {
+  .message img.emoji,
+  .bot-message-mobile img.emoji,
+  .user-message-mobile img.emoji {
+    height: 1.1em;
+    width: 1.1em;
+  }
+}
+
+/* Desktop message styles */
+.message {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  word-wrap: break-word;
+  position: relative;
+  animation: fadeIn 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+.user-message-desktop {
+  background-color: #0438af;
+  color: white;
+  align-self: flex-end;
+  border-radius: 16px 16px 0 16px;
+  box-shadow: 0 2px 4px rgba(4, 56, 175, 0.2);
+  margin-left: auto;
+}
+
+.bot-message-desktop {
+  background-color: white;
+  color: #2c3e50;
+  align-self: flex-start;
+  border-radius: 16px 16px 16px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-right: auto;
+  border: 1px solid #eee;
+}
+
+/* Desktop loading indicator */
+.loading-desktop {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #666;
+  align-self: center;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  margin: 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Message options for both mobile and desktop */
+.message-options {
+  position: absolute;
+  bottom: -50px;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 1000;
+  border: 1px solid #e0e0e0;
+  animation: slideUp 0.2s ease;
+  min-width: 200px;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-options button {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-weight: 500;
+  flex: 1;
+  justify-content: center;
+}
+
+.message-options button:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-options button i {
+  font-size: 16px;
+}
+
+/* Responsive adjustments for message options */
+@media (max-width: 768px) {
+  .message-options {
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+    flex-direction: row;
+    min-width: 180px;
+  }
+
+  .message-options button {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .message-options button span {
+    display: none; /* Hide text on mobile, show only icons */
+  }
+}
+
+/* Desktop specific adjustments */
+@media (min-width: 769px) {
+  .message-options {
+    right: 0;
+    transform: none;
+  }
+
+  /* Make sure options don't overflow on small desktop screens */
+  .message-options {
+    max-width: 250px;
+  }
+}
+
+/* Ensure proper z-index stacking */
+.chat-container-desktop,
+.chat-container-mobile {
+  z-index: 999;
+}
+
+.message-options {
+  z-index: 1000;
+}
+
 .pdf-view-container {
-  /* Keep existing styles */
-  padding-top: 50px; /* Adjust if your header height changes */
+  z-index: 1001;
 }
 
-.pdf-download-container {
-  font-family: Arial, sans-serif;
-  padding: 20px;
+.pdf-view-header {
+  z-index: 1002;
 }
+
+/* Speaking animation for messages */
+.message.speaking {
+  animation: speakingPulse 1.5s infinite;
+}
+
+@keyframes speakingPulse {
+  0%,
+  100% {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(4, 56, 175, 0.3);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* PDF view styles */
+.pdf-view-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: white;
+  z-index: 1001;
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.pdf-view-content {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 .pdf-message {
-  margin-bottom: 10px;
-  padding: 10px;
+  margin-bottom: 20px;
+  padding: 15px;
   border-radius: 8px;
   word-wrap: break-word;
 }
+
 .pdf-user-message {
   background-color: #e6f7ff;
-  text-align: right;
-  color: #000;
+  margin-left: 20%;
 }
+
 .pdf-chatbot-message {
-  background-color: #f0f0f0;
-  text-align: left;
-  color: #000;
+  background-color: #f8f9fa;
+  margin-right: 20%;
 }
+
 .pdf-message-sender {
   font-weight: bold;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  color: #2c3e50;
 }
+
+.pdf-message-content {
+  line-height: 1.6;
+  color: #2c3e50;
+}
+
+.pdf-message-content h1,
+.pdf-message-content h2,
+.pdf-message-content h3 {
+  color: #2c3e50;
+  margin-top: 0;
+}
+
 .pdf-message-content p {
-    margin: 0;
-    padding: 0;
+  margin: 8px 0;
 }
 
+.pdf-message-content ul,
+.pdf-message-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
 
-/* Add responsive styles for new elements if necessary */
+.pdf-message-content code {
+  background: #f1f3f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: "Courier New", monospace;
+}
+
+.pdf-message-content pre {
+  background: #f1f3f4;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+/* PDF view header styles */
+.pdf-view-header {
+  position: sticky;
+  top: 0;
+  background: white;
+  border-bottom: 2px solid #e0e0e0;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1002;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-view-header h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.pdf-back-btn,
+.pdf-download-btn {
+  background: #0438af;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.pdf-back-btn:hover,
+.pdf-download-btn:hover {
+  background: #032a8a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(4, 56, 175, 0.3);
+}
+
+.pdf-download-btn {
+  background: #28a745;
+}
+
+.pdf-download-btn:hover {
+  background: #218838;
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+/* Desktop message hover effects */
+.bot-message-desktop:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.user-message-desktop:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(4, 56, 175, 0.3);
+}
+
+/* Add a small hint for desktop users */
+.bot-message-desktop::after {
+  content: "Click for options";
+  position: absolute;
+  top: -25px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.bot-message-desktop:hover::after {
+  opacity: 1;
+}
+
+/* Hide hint on mobile */
 @media (max-width: 768px) {
-  .message-options {
-    font-size: 10px;
-    bottom: -25px;
-  }
-  .option-item {
-    padding: 4px 8px;
-    gap: 3px;
-  }
-  .pdf-view-header h2 {
-    font-size: 16px;
-  }
-  .back-to-chat-btn {
-    font-size: 16px;
-  }
-  .chat-actions button {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .message-options {
-    font-size: 9px;
-    bottom: -20px;
-  }
-  .option-item {
-    padding: 3px 6px;
-  }
-  .pdf-view-header h2 {
-    font-size: 14px;
-  }
-  .back-to-chat-btn {
-    font-size: 14px;
-  }
-  .chat-actions button {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 320px) {
-  .message-options {
-    font-size: 8px;
-    bottom: -18px;
-  }
-  .option-item {
-    padding: 2px 5px;
-  }
-  .pdf-view-header h2 {
-    font-size: 12px;
-  }
-  .back-to-chat-btn {
-    font-size: 12px;
-  }
-  .chat-actions button {
-    font-size: 12px;
+  .bot-message-desktop::after {
+    display: none;
   }
 }

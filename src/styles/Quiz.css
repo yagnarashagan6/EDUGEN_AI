@@ -1,4 +1,6 @@
-.quiz-container {
+/* Rename all quiz-related classes to use the prefix edugen-quiz- for uniqueness */
+
+.edugen-quiz-container {
   background: linear-gradient(135deg, #ffffff, #f9f9f9);
   padding: 1.5rem;
   border-radius: 12px;
@@ -8,37 +10,36 @@
   margin: 2rem auto;
   font-family: "Roboto", Arial, sans-serif;
   box-sizing: border-box;
-  max-height: 90vh; /* Limit height to enable scrolling */
-  overflow-y: auto; /* Enable vertical scrolling */
-  overflow-x: hidden; /* Hide horizontal scrolling */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Add custom scrollbar styling */
-.quiz-container::-webkit-scrollbar {
+.edugen-quiz-container::-webkit-scrollbar {
   width: 8px;
 }
 
-.quiz-container::-webkit-scrollbar-track {
+.edugen-quiz-container::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
 
-.quiz-container::-webkit-scrollbar-thumb {
+.edugen-quiz-container::-webkit-scrollbar-thumb {
   background: #888;
   border-radius: 4px;
 }
 
-.quiz-container::-webkit-scrollbar-thumb:hover {
+.edugen-quiz-container::-webkit-scrollbar-thumb:hover {
   background: #666;
 }
 
-.quiz-header {
+.edugen-quiz-header {
   text-align: center;
   margin-bottom: 1.5rem;
 }
 
-.quiz-title {
+.edugen-quiz-title {
   font-size: 1.5rem;
   font-weight: 700;
   color: #1a237e;
@@ -46,7 +47,7 @@
   word-wrap: break-word;
 }
 
-.progress-bar {
+.edugen-quiz-progress-bar {
   width: 100%;
   height: 8px;
   background: #e0e0e0;
@@ -55,19 +56,19 @@
   margin-bottom: 0.5rem;
 }
 
-.progress-fill {
+.edugen-quiz-progress-fill {
   height: 100%;
   background: linear-gradient(to right, #4caf50, #81c784);
   transition: width 1s linear;
 }
 
-.timer {
+.edugen-quiz-timer {
   font-size: 0.9rem;
   color: #555;
   font-weight: 500;
 }
 
-.question-text {
+.edugen-quiz-question-text {
   font-size: 1.2rem;
   font-weight: 500;
   color: #333;
@@ -78,14 +79,10 @@
   max-height: 150px;
   overflow-y: auto;
   padding-right: 0.5rem;
-}
-
-/* Update question container styles */
-.question-text {
-  max-height: 150px;
-  overflow-y: auto;
-  padding-right: 0.5rem;
-  margin-bottom: 1rem;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 @keyframes slideIn {
@@ -99,14 +96,15 @@
   }
 }
 
-.options {
+.edugen-quiz-options-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 2.5rem;
 }
 
-.option {
+.edugen-quiz-option-btn {
   padding: 0.75rem 1rem;
   background: #f5f5f5;
   border: 2px solid #e0e0e0;
@@ -118,20 +116,26 @@
   transition: all 0.3s ease;
 }
 
-.option:hover {
+.edugen-quiz-option-btn:hover {
   background: #e8f0fe;
   border-color: #3f51b5;
   transform: translateY(-2px);
 }
 
-.option.selected {
+.edugen-quiz-option-btn.selected {
   background: #e3f2fd;
   border-color: #2196f3;
   color: #1565c0;
   font-weight: 600;
 }
 
-.next-button {
+.edugen-quiz-next-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.edugen-quiz-next-button {
   padding: 0.75rem 1.5rem;
   background: #3f51b5;
   color: white;
@@ -147,30 +151,30 @@
   transition: background 0.3s, transform 0.2s;
 }
 
-.next-button:hover:not(:disabled) {
+.edugen-quiz-next-button:hover:not(:disabled) {
   background: #303f9f;
   transform: scale(1.05);
 }
 
-.next-button:disabled {
+.edugen-quiz-next-button:disabled {
   background: #bdbdbd;
   cursor: not-allowed;
 }
 
-.result {
+.edugen-quiz-result {
   text-align: center;
   padding: 1.5rem;
   animation: fadeIn 0.5s ease;
 }
 
-.result-title {
+.edugen-quiz-result-title {
   font-size: 1.8rem;
   font-weight: 700;
   color: #2e7d32;
   margin-bottom: 1rem;
 }
 
-.score-circle {
+.edugen-quiz-score-circle {
   width: 100px;
   height: 100px;
   background: #e8f0fe;
@@ -198,158 +202,21 @@
   }
 }
 
-.result-message {
-  font-size: 1.1rem;
-  color: #555;
-  margin-bottom: 0.5rem;
-}
-
-.result-info {
-  font-size: 0.9rem;
-  color: #777;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .quiz-container {
-    margin: 1rem auto;
-    max-height: 85vh;
-    padding: 1rem;
-    max-width: 95%;
-  }
-
-  .results-list {
-    max-height: 55vh;
-  }
-}
-
-@media (max-width: 480px) {
-  .quiz-container {
-    margin: 0.5rem auto;
-    max-height: 90vh;
-    padding: 0.75rem;
-    max-width: 100%;
-    border-radius: 8px;
-  }
-
-  .results-list {
-    max-height: 50vh;
-  }
-}
-
-/* Score animation */
-.score-circle {
-  width: 100px;
-  height: 100px;
-  background: #e8f0fe;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 1.5rem auto;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1a237e;
-  border: 4px solid #3f51b5;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.result-message {
+.edugen-quiz-result-message {
   font-size: 1.2rem;
   font-weight: 500;
   color: #4caf50;
   margin-bottom: 0.5rem;
 }
 
-.result-info {
-  font-size: 1rem;
-  color: #555;
-}
-
-.options-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-  margin-bottom: 2.5rem; /* Add more space below the options */
-}
-
-/* Move the next button further down */
-.quiz-next-btn-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1.5rem; /* More space below options */
-}
-
-/* Always keep blue for selected, even after timer or next */
-.option-btn.selected,
-.option-btn.selected:disabled {
-  background-color: #1976d2 !important; /* Blue */
-  border-color: #1976d2 !important;
-  color: #fff !important; /* White text when selected */
-}
-
-/* Other options stay normal even if disabled */
-.option-btn[disabled]:not(.selected) {
-  color: #111;
-  background-color: #f5f5f5;
-}
-
-/* Countdown timer styling */
-.quiz-countdown {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1976d2;
-  margin-bottom: 0.5rem;
-  letter-spacing: 1px;
-}
-
-/* Timer bar at top of each question */
-.timer-bar {
-  height: 10px;
-  background: #eee;
-  border-radius: 5px;
-  overflow: hidden;
-  margin-bottom: 1rem;
-  animation: fadeIn 0.3s ease-in;
-}
-
-.timer-bar .fill {
-  height: 100%;
-  background: linear-gradient(to right, #f44336, #ff9800);
-  transition: width 1s linear;
-}
-
-/* Prevent copying quiz question */
-.question-text {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-}
-
-/* Update results list styles */
-.results-list {
+.edugen-quiz-results-list {
   max-height: 60vh;
   overflow-y: auto;
   padding-right: 0.5rem;
   margin: 1rem 0;
 }
 
-/* Result item styling */
-.result-item {
+.edugen-quiz-result-item {
   background: #fff;
   border-radius: 8px;
   padding: 1rem;
@@ -358,24 +225,24 @@
   transition: all 0.3s ease;
 }
 
-.result-item.correct {
+.edugen-quiz-result-item.correct {
   border-left: 4px solid #4caf50;
   background: linear-gradient(to right, rgba(76, 175, 80, 0.1), transparent);
 }
 
-.result-item.incorrect {
+.edugen-quiz-result-item.incorrect {
   border-left: 4px solid #f44336;
   background: linear-gradient(to right, rgba(244, 67, 54, 0.1), transparent);
 }
 
-.result-question {
+.edugen-quiz-result-question {
   font-size: 1rem;
   font-weight: 500;
   color: #333;
   margin-bottom: 0.5rem;
 }
 
-.result-answer {
+.edugen-quiz-result-answer {
   font-size: 0.95rem;
   margin-bottom: 0.25rem;
   padding: 0.75rem;
@@ -385,18 +252,19 @@
   gap: 0.5rem;
 }
 
-.result-answer.correct {
+.edugen-quiz-result-answer.correct {
   color: #2e7d32;
   background-color: rgba(76, 175, 80, 0.1);
   border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
-.result-answer.incorrect {
+.edugen-quiz-result-answer.incorrect {
   color: #d32f2f;
   background-color: rgba(244, 67, 54, 0.1);
   border: 1px solid rgba(244, 67, 54, 0.2);
 }
-.result-correct {
+
+.edugen-quiz-result-correct {
   color: #2e7d32;
   background-color: rgba(76, 175, 80, 0.1);
   border: 1px solid rgba(76, 175, 80, 0.2);
@@ -404,39 +272,39 @@
 }
 
 /* Add icons for correct/incorrect answers */
-.result-answer::before {
+.edugen-quiz-result-answer::before {
   font-family: "Font Awesome 5 Free";
   font-weight: 900;
 }
 
-.result-answer.correct::before {
+.edugen-quiz-result-answer.correct::before {
   content: "✓";
   color: #4caf50;
 }
 
-.result-answer.incorrect::before {
+.edugen-quiz-result-answer.incorrect::before {
   content: "✗";
   color: #f44336;
 }
 
 /* Update mobile styles to maintain color scheme */
 @media (max-width: 480px) {
-  .result-answer {
+  .edugen-quiz-result-answer {
     font-size: 0.85rem;
     padding: 0.5rem;
   }
 
-  .result-answer.correct {
+  .edugen-quiz-result-answer.correct {
     color: #2e7d32;
   }
 
-  .result-answer.incorrect {
+  .edugen-quiz-result-answer.incorrect {
     color: #d32f2f;
   }
 }
 
 /* Add at the bottom of the file */
-.quiz-container {
+.edugen-quiz-container {
   height: 100%;
   min-height: 100%;
   margin: 0;
@@ -445,10 +313,182 @@
   box-shadow: none;
 }
 
-.container-body .quiz-container {
+.container-body .edugen-quiz-container {
   height: 100vh;
   max-height: 100vh;
   border-radius: 0;
   margin: 0;
   padding: 1rem;
+}
+
+/* Cancel quiz button styling */
+.cancel-quiz-btn:hover {
+  background: #d32f2f !important;
+  transform: scale(1.05);
+}
+
+.cancel-button:hover {
+  background: #d32f2f !important;
+  transform: scale(1.05);
+}
+
+/* Quiz actions container */
+.edugen-quiz-actions {
+  margin-bottom: 1rem;
+}
+
+.edugen-quiz-download-pdf-btn {
+  padding: 0.75rem 1.5rem;
+  background: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0;
+  display: inline-block;
+  transition: background 0.3s, transform 0.2s;
+  text-align: center;
+}
+
+.edugen-quiz-download-pdf-btn:hover:not(:disabled) {
+  background: #b71c1c;
+  transform: scale(1.05);
+}
+
+/* New styles for result actions row */
+.edugen-quiz-result-actions-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 32px;
+  width: 100%;
+  gap: 16px;
+}
+
+.edugen-quiz-result-actions-row .edugen-quiz-download-pdf-btn {
+  min-width: 180px;
+  max-width: 220px;
+  margin: 0;
+  display: inline-block;
+  order: 1;
+}
+
+.edugen-quiz-result-actions-row .edugen-quiz-back-button {
+  min-width: 180px;
+  max-width: 220px;
+  margin: 0;
+  display: inline-block;
+  order: 2;
+}
+
+.edugen-quiz-back-button {
+  background-color: #0438af !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 6px 18px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  min-width: 120px !important;
+  max-width: 180px !important;
+  margin: 0 !important;
+  display: inline-block !important;
+  transition: background-color 0.2s, transform 0.2s !important;
+  box-shadow: 0 2px 6px rgba(4, 56, 175, 0.08) !important;
+  width: auto !important;
+}
+
+.edugen-quiz-back-button:hover {
+  background-color: #032a7a !important;
+  transform: scale(1.05) !important;
+}
+
+@media (max-width: 600px) {
+  .edugen-quiz-result-actions-row {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .edugen-quiz-result-actions-row .edugen-quiz-download-pdf-btn,
+  .edugen-quiz-result-actions-row .edugen-quiz-back-button {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+/* Ensure quiz-specific buttons are not affected by the global button style */
+button {
+  background: #3128a7;
+  color: white;
+  font-size: 16px;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 15px;
+}
+
+.edugen-quiz-back-button,
+.edugen-quiz-download-pdf-btn {
+  width: auto !important;
+  margin-top: 0 !important;
+  font-size: 15px !important;
+  padding: 6px 18px !important;
+  border-radius: 6px !important;
+  background: #0438af !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(4, 56, 175, 0.08);
+  display: inline-block !important;
+}
+
+.edugen-quiz-download-pdf-btn {
+  background: #d32f2f !important;
+}
+
+.edugen-quiz-back-button:hover {
+  background: #032a7a !important;
+}
+
+.edugen-quiz-download-pdf-btn:hover {
+  background: #b71c1c !important;
+}
+
+/* Timer Bar Styling */
+.timer-bar {
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.timer-fill {
+  height: 100%;
+  background: linear-gradient(to right, #f44336, #ff8a80);
+  transition: width 1s linear;
+  border-radius: 3px;
+}
+
+@keyframes timerPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.timer-fill {
+  animation: timerPulse 2s infinite;
 }

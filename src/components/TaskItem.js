@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-const TaskItem = ({ task, role, onDelete, onCopy }) => {
+const TaskItem = ({ task, role, onDelete, onCopy, onStartQuiz }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -11,30 +11,40 @@ const TaskItem = ({ task, role, onDelete, onCopy }) => {
   };
 
   return (
-    <div className={`task-item ${copied ? 'copied' : ''}`}>
-      <p>{task.content} <small>({task.subject || 'No Subject'})</small></p>
+    <div className={`task-item ${copied ? "copied" : ""}`}>
+      <p>
+        {task.content} <small>({task.subject || "No Subject"})</small>
+      </p>
       <small>Posted on: {task.date}</small>
 
-      {role === 'student' ? (
-        <div style={{ display: 'flex', gap: '10px' }}>
+      {role === "student" ? (
+        <div style={{ display: "flex", gap: "10px" }}>
           <button
             className="copy-topic-btn"
             onClick={handleCopy}
-            style={{ fontSize: '12px', padding: '6px 10px', lineHeight: '1', whiteSpace: 'nowrap' }}
+            style={{
+              fontSize: "12px",
+              padding: "6px 10px",
+              lineHeight: "1",
+              whiteSpace: "nowrap",
+            }}
           >
-            <i className={copied ? 'fas fa-check' : 'fas fa-copy'} style={{ marginRight: '4px' }}></i>
-            {copied ? 'Copied!' : 'Copy & Ask AI'}
+            <i
+              className={copied ? "fas fa-check" : "fas fa-copy"}
+              style={{ marginRight: "4px" }}
+            ></i>
+            {copied ? "Copied!" : "Copy & Ask AI"}
           </button>
         </div>
       ) : (
         <button
           className="copy-topic-btn"
           style={{
-            backgroundColor: '#f44336',
-            fontSize: '12px',
-            padding: '6px 10px',
-            lineHeight: '1',
-            whiteSpace: 'nowrap',
+            backgroundColor: "#f44336",
+            fontSize: "12px",
+            padding: "6px 10px",
+            lineHeight: "1",
+            whiteSpace: "nowrap",
           }}
           onClick={() => onDelete(task.id)}
         >

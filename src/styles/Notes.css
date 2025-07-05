@@ -34,7 +34,7 @@
   background-color: #fff;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 .notes-controls {
@@ -55,7 +55,7 @@
 
 .notes-filter:focus,
 .notes-search:focus {
-  border-color: #4CAF50;
+  border-color: #4caf50;
   outline: none;
 }
 
@@ -66,7 +66,7 @@
 
 .add-notes-btn {
   padding: 10px 20px;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 6px;
@@ -92,15 +92,15 @@
   border: 1px solid #ddd;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
-  padding-bottom: 54px; /* Add space for meta info */
+  padding-bottom: 30px; /* Add space for meta info */
 }
 
 .note-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 .note-card h3 {
@@ -122,7 +122,7 @@
 }
 
 .note-link {
-  color: #2196F3;
+  color: #2196f3;
   font-weight: 500;
   text-decoration: none;
 }
