@@ -1,7 +1,7 @@
 // StaffDashboard.js
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import PropTypes from 'prop-types';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import PropTypes from "prop-types";
 import {
   onSnapshot,
   doc,
@@ -16,23 +16,27 @@ import {
   limit,
   Timestamp,
   getDocsFromServer,
-} from 'firebase/firestore';
-import { auth, db } from '../firebase';
-import { signOut } from 'firebase/auth';
-import Sidebar from '../components/Sidebar';
-import Chatbot from '../components/Chatbot';
-import TaskItem from '../components/TaskItem';
-import GuideModal from '../components/GuideModal';
-import StudentMonitor from '../components/StudentMonitor';
-import Notification from '../components/Notification';
-import '../styles/Dashboard.css';
-import '../styles/StaffInteraction.css';
-import '../styles/Chat.css';
+} from "firebase/firestore";
+import { auth, db } from "../firebase";
+import { signOut } from "firebase/auth";
+import Sidebar from "../components/Sidebar";
+import Chatbot from "../components/Chatbot";
+import TaskItem from "../components/TaskItem";
+import GuideModal from "../components/GuideModal";
+import StudentMonitor from "../components/StudentMonitor";
+import Notification from "../components/Notification";
+import "../styles/Dashboard.css";
+import "../styles/StaffInteraction.css";
+import "../styles/Chat.css";
 
 const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
   if (hasError) {
-    return <div className="error-fullpage">Something went wrong. Please refresh the page.</div>;
+    return (
+      <div className="error-fullpage">
+        Something went wrong. Please refresh the page.
+      </div>
+    );
   }
   return children;
 };
@@ -70,9 +74,14 @@ const ChatInterface = ({
     yesterday.setDate(yesterday.getDate() - 1);
     const messageDate = new Date(dateString);
 
-    if (messageDate.toDateString() === today.toDateString()) return 'Today';
-    if (messageDate.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return messageDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    if (messageDate.toDateString() === today.toDateString()) return "Today";
+    if (messageDate.toDateString() === yesterday.toDateString())
+      return "Yesterday";
+    return messageDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   const groupedMessages = useMemo(() => {
@@ -96,20 +105,23 @@ const ChatInterface = ({
               studentList.map((student) => (
                 <div
                   key={`student-${student.id}`}
-                  className={`contact-item ${selectedStudentId === student.id ? 'active' : ''}`}
+                  className={`contact-item ${
+                    selectedStudentId === student.id ? "active" : ""
+                  }`}
                   onClick={() => selectStudent(student)}
                   role="button"
                   tabIndex={0}
-                  onKeyPress={(e) => e.key === 'Enter' && selectStudent(student)}
+                  onKeyPress={(e) =>
+                    e.key === "Enter" && selectStudent(student)
+                  }
                 >
                   <div className="contact-info">
-                    <h4>{student.name || 'Anonymous'}</h4>
-                    <p>{student.role || 'Student'}</p>
+                    <h4>{student.name || "Anonymous"}</h4>
+                    <p>{student.role || "Student"}</p>
                   </div>
                 </div>
               ))
-            )
-            }
+            )}
           </div>
         </div>
       ) : (
@@ -123,7 +135,7 @@ const ChatInterface = ({
               Back to List
             </button>
             {selectedStudentName && (
-              <div className="recipient-info" style={{ marginLeft: 'auto' }}>
+              <div className="recipient-info" style={{ marginLeft: "auto" }}>
                 <h3>{selectedStudentName}</h3>
                 <p className="status">Online</p>
               </div>
@@ -131,9 +143,13 @@ const ChatInterface = ({
           </div>
           <div className="messages-container scrollable">
             {selectedStudentId && Object.keys(groupedMessages).length === 0 ? (
-              <p className="empty-message">No messages yet. Start the conversation!</p>
+              <p className="empty-message">
+                No messages yet. Start the conversation!
+              </p>
             ) : !selectedStudentId ? (
-              <p className="empty-message">Select a student to view messages.</p>
+              <p className="empty-message">
+                Select a student to view messages.
+              </p>
             ) : (
               Object.entries(groupedMessages).map(([date, dateMessages]) => (
                 <div key={`date-${date}`}>
@@ -141,35 +157,55 @@ const ChatInterface = ({
                   {dateMessages.map((msg) => (
                     <div
                       key={`msg-${msg.timestamp}-${msg.originalIndex}`}
-                      className={`message-bubble ${msg.sender === 'staff' ? 'sent' : 'received'}`}
+                      className={`message-bubble ${
+                        msg.sender === "staff" ? "sent" : "received"
+                      }`}
                       onClick={() => {
-                        if (msg.sender === 'staff' && window.confirm('Delete this message?')) {
+                        if (
+                          msg.sender === "staff" &&
+                          window.confirm("Delete this message?")
+                        ) {
                           deleteMessage(msg.originalIndex);
                         }
                       }}
                       role="button"
                       tabIndex={0}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter' && msg.sender === 'staff' && window.confirm('Delete this message?')) {
+                        if (
+                          e.key === "Enter" &&
+                          msg.sender === "staff" &&
+                          window.confirm("Delete this message?")
+                        ) {
                           deleteMessage(msg.originalIndex);
                         }
                       }}
                     >
-                      <div className="message-sender" style={{ fontSize: '0.8em', color: '#777', marginBottom: '2px' }}>
-                        {msg.sender === 'staff'
-                          ? (userNames[currentUserId] || 'You')
-                          : (userNames[msg.senderId] || selectedStudentName || 'Student')}
+                      <div
+                        className="message-sender"
+                        style={{
+                          fontSize: "0.8em",
+                          color: "#777",
+                          marginBottom: "2px",
+                        }}
+                      >
+                        {msg.sender === "staff"
+                          ? userNames[currentUserId] || "You"
+                          : userNames[msg.senderId] ||
+                            selectedStudentName ||
+                            "Student"}
                       </div>
                       <div className="message-content">{msg.text}</div>
                       <div className="message-meta">
                         <span className="message-time">
                           {new Date(msg.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </span>
-                        {msg.sender === 'staff' && (
-                          <span className="message-status">{msg.read ? '✓✓' : '✓'}</span>
+                        {msg.sender === "staff" && (
+                          <span className="message-status">
+                            {msg.read ? "✓✓" : "✓"}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -184,11 +220,15 @@ const ChatInterface = ({
                 type="text"
                 id="staff-message-input"
                 placeholder="Type your message..."
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
                 className="message-input-field"
                 aria-label="Message input"
               />
-              <button onClick={sendMessage} className="send-message-button" aria-label="Send message">
+              <button
+                onClick={sendMessage}
+                className="send-message-button"
+                aria-label="Send message"
+              >
                 <i className="fas fa-paper-plane"></i>
               </button>
             </div>
@@ -246,7 +286,7 @@ const StaffDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
-  const [selectedStudentName, setSelectedStudentName] = useState('');
+  const [selectedStudentName, setSelectedStudentName] = useState("");
   const [showContactList, setShowContactList] = useState(true);
   const [results, setResults] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -258,17 +298,21 @@ const StaffDashboard = () => {
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
   const [filterType, setFilterType] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
-  const [newAssignmentSubject, setNewAssignmentSubject] = useState('');
-  const [newAssignmentLink, setNewAssignmentLink] = useState('');
-  const [newAssignmentDeadline, setNewAssignmentDeadline] = useState('');
+  const [newAssignmentSubject, setNewAssignmentSubject] = useState("");
+  const [newAssignmentLink, setNewAssignmentLink] = useState("");
+  const [newAssignmentDeadline, setNewAssignmentDeadline] = useState("");
   const [latestActivity, setLatestActivity] = useState(null);
   const [showMarkingUI, setShowMarkingUI] = useState(false);
-  const [selectedStudentForMarking, setSelectedStudentForMarking] = useState('');
-  const [selectedAssignmentForMarking, setSelectedAssignmentForMarking] = useState('');
-  const [assignmentMarks, setAssignmentMarks] = useState('');
+  const [selectedStudentForMarking, setSelectedStudentForMarking] =
+    useState("");
+  const [selectedAssignmentForMarking, setSelectedAssignmentForMarking] =
+    useState("");
+  const [assignmentMarks, setAssignmentMarks] = useState("");
   const [userNames, setUserNames] = useState({});
+  const [showAbout, setShowAbout] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  const addNotification = useCallback((message, type = 'info') => {
+  const addNotification = useCallback((message, type = "info") => {
     setNotifications((prev) => [...prev, { id: Date.now(), message, type }]);
   }, []);
 
@@ -276,60 +320,69 @@ const StaffDashboard = () => {
     return /^https:\/\/(drive\.google\.com|docs\.google\.com)/.test(url);
   };
 
-  const fetchUserNames = useCallback(async (idsToFetch, currentStaffId) => {
-    const newNamesMap = {};
-    const allIds = [...new Set(idsToFetch)];
+  const fetchUserNames = useCallback(
+    async (idsToFetch, currentStaffId) => {
+      const newNamesMap = {};
+      const allIds = [...new Set(idsToFetch)];
 
-    const promises = allIds.map(id => {
-      return getDoc(doc(db, 'students', id));
-    });
-
-    try {
-      const docSnaps = await Promise.all(promises);
-      docSnaps.forEach((docSnap, index) => {
-        const id = allIds[index];
-        if (docSnap.exists()) {
-          newNamesMap[id] = docSnap.data().name || 'Anonymous';
-        } else {
-          newNamesMap[id] = 'Anonymous';
-        }
+      const promises = allIds.map((id) => {
+        return getDoc(doc(db, "students", id));
       });
 
-      if (currentStaffId && !userNames[currentStaffId]) {
-        const staffDoc = await getDoc(doc(db, 'staff', currentStaffId));
-        if (staffDoc.exists()) {
-          newNamesMap[currentStaffId] = staffDoc.data().name || 'Staff';
-        } else {
-          newNamesMap[currentStaffId] = 'Staff';
+      try {
+        const docSnaps = await Promise.all(promises);
+        docSnaps.forEach((docSnap, index) => {
+          const id = allIds[index];
+          if (docSnap.exists()) {
+            newNamesMap[id] = docSnap.data().name || "Anonymous";
+          } else {
+            newNamesMap[id] = "Anonymous";
+          }
+        });
+
+        if (currentStaffId && !userNames[currentStaffId]) {
+          const staffDoc = await getDoc(doc(db, "staff", currentStaffId));
+          if (staffDoc.exists()) {
+            newNamesMap[currentStaffId] = staffDoc.data().name || "Staff";
+          } else {
+            newNamesMap[currentStaffId] = "Staff";
+          }
         }
+        setUserNames((prevNames) => ({ ...prevNames, ...newNamesMap }));
+      } catch (e) {
+        console.error("Error fetching user names:", e);
+        addNotification("Failed to load some user names.", "error");
       }
-      setUserNames(prevNames => ({ ...prevNames, ...newNamesMap }));
-    } catch (e) {
-      console.error('Error fetching user names:', e);
-      addNotification('Failed to load some user names.', 'error');
-    }
-  }, [addNotification]);
+    },
+    [addNotification]
+  );
 
   useEffect(() => {
     const fetchInitialDashboardData = async () => {
-      setLoading(prev => ({ ...prev, dashboard: true, students: true }));
+      setLoading((prev) => ({ ...prev, dashboard: true, students: true }));
       try {
         const user = auth.currentUser;
         if (!user) {
-          addNotification('No authenticated user. Redirecting to login.', 'error');
-          navigate('/staff-login');
+          addNotification(
+            "No authenticated user. Redirecting to login.",
+            "error"
+          );
+          navigate("/staff-login");
           return;
         }
 
-        const staffDocRef = doc(db, 'staff', user.uid);
+        const staffDocRef = doc(db, "staff", user.uid);
         const staffDocSnap = await getDoc(staffDocRef);
         if (!staffDocSnap.exists()) {
-          addNotification('Staff profile not found. Redirecting to form.', 'error');
-          navigate('/staff-form');
+          addNotification(
+            "Staff profile not found. Redirecting to form.",
+            "error"
+          );
+          navigate("/staff-form");
           return;
         }
         if (!staffDocSnap.data().formFilled) {
-          navigate('/staff-form');
+          navigate("/staff-form");
           return;
         }
         setUserData(staffDocSnap.data());
@@ -337,43 +390,62 @@ const StaffDashboard = () => {
           fetchUserNames([], user.uid);
         }
 
-        const studentsRef = collection(db, 'students');
+        const studentsRef = collection(db, "students");
         const studentSnapshot = await getDocsFromServer(studentsRef);
         const studentsData = studentSnapshot.docs.map((sDoc) => ({
           id: sDoc.id,
           ...sDoc.data(),
           streak: sDoc.data().streak || 0,
           progress: sDoc.data().progress || 0,
-          photoURL: sDoc.data().photoURL || '/default-student.png',
+          photoURL: sDoc.data().photoURL || "/default-student.png",
         }));
         setStudentStats(studentsData.sort((a, b) => b.streak - a.streak));
-        setLoading(prev => ({ ...prev, students: false }));
+        setLoading((prev) => ({ ...prev, students: false }));
 
-        const studentIds = studentsData.map(s => s.id);
+        const studentIds = studentsData.map((s) => s.id);
         if (studentIds.length > 0) {
           await fetchUserNames(studentIds, user.uid);
         }
 
         // Only count students with a valid name (not "Unknown User")
         const totalStudents = studentsData.filter(
-          (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+          (student) =>
+            student.name &&
+            student.name !== "Anonymous" &&
+            student.name !== "Unknown" &&
+            student.name !== "Unknown User"
         ).length;
 
         const today = new Date();
         const activeStudents = studentsData.filter((student) => {
-          const lastLoginDate = student.lastLogin?.toDate ? student.lastLogin.toDate() : (student.lastLogin ? new Date(student.lastLogin) : null);
-          return lastLoginDate && (today.getTime() - lastLoginDate.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+          const lastLoginDate = student.lastLogin?.toDate
+            ? student.lastLogin.toDate()
+            : student.lastLogin
+            ? new Date(student.lastLogin)
+            : null;
+          return (
+            lastLoginDate &&
+            (today.getTime() - lastLoginDate.getTime()) /
+              (1000 * 60 * 60 * 24) <=
+              7
+          );
         }).length;
-        const overallPerformance = totalStudents > 0
-          ? Math.round(studentsData.reduce((sum, s) => sum + (s.progress || 0), 0) / totalStudents)
-          : 0;
+        const overallPerformance =
+          totalStudents > 0
+            ? Math.round(
+                studentsData.reduce((sum, s) => sum + (s.progress || 0), 0) /
+                  totalStudents
+              )
+            : 0;
         setQuickStats({ totalStudents, activeStudents, overallPerformance });
-
       } catch (err) {
-        console.error('Error fetching initial dashboard data:', err);
-        addNotification('Failed to load dashboard data: ' + err.message, 'error');
+        console.error("Error fetching initial dashboard data:", err);
+        addNotification(
+          "Failed to load dashboard data: " + err.message,
+          "error"
+        );
       } finally {
-        setLoading(prev => ({ ...prev, dashboard: false }));
+        setLoading((prev) => ({ ...prev, dashboard: false }));
       }
     };
 
@@ -381,16 +453,50 @@ const StaffDashboard = () => {
   }, [navigate, addNotification, fetchUserNames]);
 
   useEffect(() => {
-    setLoading(prev => ({ ...prev, tasks: true }));
-    const tasksRef = doc(db, 'tasks', 'shared');
-    const unsubscribe = onSnapshot(tasksRef, (tasksSnap) => {
-      setTasks(tasksSnap.exists() ? tasksSnap.data().tasks || [] : []);
-      setLoading(prev => ({ ...prev, tasks: false }));
-    }, (error) => {
-      console.error("Error fetching tasks:", error);
-      addNotification('Failed to load tasks: ' + error.message, 'error');
-      setLoading(prev => ({ ...prev, tasks: false }));
-    });
+    setLoading((prev) => ({ ...prev, tasks: true }));
+    const tasksRef = doc(db, "tasks", "shared");
+    const unsubscribe = onSnapshot(
+      tasksRef,
+      (tasksSnap) => {
+        const allTasks = tasksSnap.exists() ? tasksSnap.data().tasks || [] : [];
+        const currentStaffId = auth.currentUser?.uid;
+
+        if (!currentStaffId) {
+          console.warn("No authenticated user found");
+          setTasks([]);
+          setLoading((prev) => ({ ...prev, tasks: false }));
+          return;
+        }
+
+        // Filter tasks to show only the ones posted by the current staff member
+        const staffTasks = allTasks.filter((task) => {
+          // Debug log to see what's happening
+          console.log(
+            "Task:",
+            task.id,
+            "Staff ID:",
+            task.staffId,
+            "Current Staff:",
+            currentStaffId
+          );
+          return task.staffId === currentStaffId;
+        });
+
+        console.log(
+          "Filtered tasks for current staff:",
+          staffTasks.length,
+          "out of",
+          allTasks.length
+        );
+        setTasks(staffTasks);
+        setLoading((prev) => ({ ...prev, tasks: false }));
+      },
+      (error) => {
+        console.error("Error fetching tasks:", error);
+        addNotification("Failed to load tasks: " + error.message, "error");
+        setLoading((prev) => ({ ...prev, tasks: false }));
+      }
+    );
     return () => unsubscribe();
   }, [addNotification]);
 
@@ -398,27 +504,35 @@ const StaffDashboard = () => {
     setLoading((prev) => ({ ...prev, assignments: true }));
     const user = auth.currentUser;
     if (!user) {
-      addNotification('User not authenticated for assignments.', 'error');
+      addNotification("User not authenticated for assignments.", "error");
       setLoading((prev) => ({ ...prev, assignments: false }));
       return () => {};
     }
-    const q = query(collection(db, 'assignments'), orderBy('postedAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const staffAssignments = snapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          postedAt: doc.data().postedAt?.toDate ? doc.data().postedAt.toDate() : new Date(),
-          deadline: doc.data().deadline?.toDate ? doc.data().deadline.toDate() : null,
-        }))
-        .filter((assignment) => assignment.staffId === user.uid);
-      setAssignments(staffAssignments);
-      setLoading((prev) => ({ ...prev, assignments: false }));
-    }, (err) => {
-      console.error('Error fetching assignments snapshot:', err);
-      addNotification('Failed to load assignments: ' + err.message, 'error');
-      setLoading((prev) => ({ ...prev, assignments: false }));
-    });
+    const q = query(collection(db, "assignments"), orderBy("postedAt", "desc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const staffAssignments = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            postedAt: doc.data().postedAt?.toDate
+              ? doc.data().postedAt.toDate()
+              : new Date(),
+            deadline: doc.data().deadline?.toDate
+              ? doc.data().deadline.toDate()
+              : null,
+          }))
+          .filter((assignment) => assignment.staffId === user.uid);
+        setAssignments(staffAssignments);
+        setLoading((prev) => ({ ...prev, assignments: false }));
+      },
+      (err) => {
+        console.error("Error fetching assignments snapshot:", err);
+        addNotification("Failed to load assignments: " + err.message, "error");
+        setLoading((prev) => ({ ...prev, assignments: false }));
+      }
+    );
     return unsubscribe;
   }, [addNotification]);
 
@@ -431,9 +545,14 @@ const StaffDashboard = () => {
     if (!loading.students && !loading.tasks) {
       const resultsData = studentStats.map((student) => ({
         id: student.id,
-        name: student.name || 'Anonymous',
-        completedTasks: tasks.filter((task) => task.completedBy?.includes(student.id)).length,
-        totalTasks: tasks.length,
+        name: student.name || "Anonymous",
+        // Only count tasks completed by this student that were posted by the current staff member
+        completedTasks: tasks.filter(
+          (task) =>
+            task.completedBy?.includes(student.id) &&
+            task.staffId === auth.currentUser?.uid
+        ).length,
+        totalTasks: tasks.length, // This will now be the count of tasks posted by current staff
       }));
       setResults(resultsData);
     }
@@ -441,7 +560,7 @@ const StaffDashboard = () => {
 
   useEffect(() => {
     // Temporarily disable fetching latest activity from Firebase
-    setLatestActivity('Monitor fetch is temporarily disabled.');
+    setLatestActivity("Monitor fetch is temporarily disabled.");
     // If you want to re-enable, restore the code below:
     /*
     const fetchLatestActivity = async () => {
@@ -471,17 +590,22 @@ const StaffDashboard = () => {
   }, [addNotification, fetchUserNames, userNames]);
 
   useEffect(() => {
-    const hasSeenGuide = localStorage.getItem('hasSeenStaffGuide');
+    const hasSeenGuide = localStorage.getItem("hasSeenStaffGuide");
     if (!hasSeenGuide) {
       setShowGuide(true);
-      localStorage.setItem('hasSeenStaffGuide', 'true');
+      localStorage.setItem("hasSeenStaffGuide", "true");
     }
   }, []);
 
   useEffect(() => {
-    const handleResize = () => setIsChatbotOpen(window.innerWidth > 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      setIsChatbotOpen(!mobile); // Show chatbot on desktop, hide on mobile
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -493,39 +617,58 @@ const StaffDashboard = () => {
     if (!staffUserId) return;
 
     const chatId = `${staffUserId}_${selectedStudentId}`;
-    const messagesRef = doc(db, 'messages', chatId);
-    const unsubscribe = onSnapshot(messagesRef, async (docSnap) => {
-      try {
-        if (docSnap.exists()) {
-          const currentMessages = docSnap.data().messages || [];
-          setMessages(currentMessages);
-          const updatedMessages = currentMessages.map((msg) =>
-            msg.sender === 'student' && !msg.read ? { ...msg, read: true } : msg
-          );
-          if (JSON.stringify(currentMessages) !== JSON.stringify(updatedMessages)) {
-            await setDoc(messagesRef, { messages: updatedMessages }, { merge: true });
+    const messagesRef = doc(db, "messages", chatId);
+    const unsubscribe = onSnapshot(
+      messagesRef,
+      async (docSnap) => {
+        try {
+          if (docSnap.exists()) {
+            const currentMessages = docSnap.data().messages || [];
+            setMessages(currentMessages);
+            const updatedMessages = currentMessages.map((msg) =>
+              msg.sender === "student" && !msg.read
+                ? { ...msg, read: true }
+                : msg
+            );
+            if (
+              JSON.stringify(currentMessages) !==
+              JSON.stringify(updatedMessages)
+            ) {
+              await setDoc(
+                messagesRef,
+                { messages: updatedMessages },
+                { merge: true }
+              );
+            }
+            const senderIds = currentMessages
+              .map((msg) => msg.senderId)
+              .filter((id) => id && !userNames[id]);
+            if (senderIds.length > 0) {
+              fetchUserNames(senderIds, staffUserId);
+            }
+          } else {
+            setMessages([]);
           }
-          const senderIds = currentMessages.map(msg => msg.senderId).filter(id => id && !userNames[id]);
-          if (senderIds.length > 0) {
-            fetchUserNames(senderIds, staffUserId);
-          }
-        } else {
-          setMessages([]);
+        } catch (err) {
+          console.error("Error processing message snapshot:", err);
+          addNotification("Failed to load messages.", "error");
         }
-      } catch (err) {
-        console.error('Error processing message snapshot:', err);
-        addNotification('Failed to load messages.', 'error');
+      },
+      (err) => {
+        console.error("Error subscribing to messages:", err);
+        addNotification("Failed to load messages: " + err.message, "error");
       }
-    }, (err) => {
-      console.error('Error subscribing to messages:', err);
-      addNotification('Failed to load messages: ' + err.message, 'error');
-    });
+    );
     return () => unsubscribe();
   }, [selectedStudentId, addNotification, fetchUserNames, userNames]);
 
   useEffect(() => {
     setMobileHamburger(
-      <button className="mobile-hamburger" onClick={toggleSidebar} aria-label="Toggle sidebar">
+      <button
+        className="mobile-hamburger"
+        onClick={toggleSidebar}
+        aria-label="Toggle sidebar"
+      >
         <i className="fas fa-bars"></i>
       </button>
     );
@@ -536,14 +679,24 @@ const StaffDashboard = () => {
     if (activeContainer && filterType) {
       const today = new Date();
       switch (filterType) {
-        case 'active':
+        case "active":
           list = studentStats.filter((student) => {
-            const lastLogin = student.lastLogin?.toDate ? student.lastLogin.toDate() : (student.lastLogin ? new Date(student.lastLogin) : null);
-            return lastLogin && (today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+            const lastLogin = student.lastLogin?.toDate
+              ? student.lastLogin.toDate()
+              : student.lastLogin
+              ? new Date(student.lastLogin)
+              : null;
+            return (
+              lastLogin &&
+              (today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <=
+                7
+            );
           });
           break;
-        case 'performance':
-          list = studentStats.filter((student) => (student.progress || 0) >= 50);
+        case "performance":
+          list = studentStats.filter(
+            (student) => (student.progress || 0) >= 50
+          );
           break;
         default:
           break;
@@ -551,14 +704,34 @@ const StaffDashboard = () => {
     }
     // Only filter out "Unknown User"
     return list.filter(
-      (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+      (student) =>
+        student.name &&
+        student.name !== "Anonymous" &&
+        student.name !== "Unknown" &&
+        student.name !== "Unknown User"
     );
   }, [filterType, studentStats, activeContainer]);
 
-  const toggleContainer = useCallback((containerId, filter = null) => {
-    setActiveContainer((prev) => (prev === containerId && filter === filterType ? null : containerId));
-    setFilterType(filter);
-  }, [filterType]);
+  const toggleContainer = useCallback(
+    (containerId, filter = null) => {
+      setActiveContainer((prev) =>
+        prev === containerId && filter === filterType ? null : containerId
+      );
+      setFilterType(filter);
+
+      // Handle chatbot container specifically
+      if (containerId === "chatbot-container") {
+        if (isMobile) {
+          // On mobile, show chatbot in container
+          setIsChatbotOpen(false); // Hide floating chatbot
+        } else {
+          // On desktop, this shouldn't happen as option is hidden
+          setIsChatbotOpen(true);
+        }
+      }
+    },
+    [filterType, isMobile]
+  );
 
   const toggleSidebar = () => {
     setSidebarVisible((prev) => !prev);
@@ -566,12 +739,20 @@ const StaffDashboard = () => {
 
   const postTask = async () => {
     try {
-      const contentInput = document.getElementById('task-content');
+      const contentInput = document.getElementById("task-content");
       const content = contentInput?.value.trim();
       if (!content) {
-        addNotification('Please enter a topic for the task.', 'warning');
+        addNotification("Please enter a topic for the task.", "warning");
         return;
       }
+
+      // Make sure to include the current staff's UID
+      const currentStaffId = auth.currentUser?.uid;
+      if (!currentStaffId) {
+        addNotification("User not authenticated to post task.", "error");
+        return;
+      }
+
       const newTask = {
         id: Date.now().toString(),
         content,
@@ -579,69 +760,82 @@ const StaffDashboard = () => {
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         completed: false,
         completedBy: [],
-        subject: userData?.subject || 'General',
-        staffId: auth.currentUser?.uid,
+        subject: userData?.subject || "General",
+        staffId: currentStaffId, // Ensure this is always set
+        staffName: userData?.name || "Staff", // Optional: add staff name for reference
       };
-      const tasksRef = doc(db, 'tasks', 'shared');
+
+      const tasksRef = doc(db, "tasks", "shared");
       const tasksSnap = await getDoc(tasksRef);
-      const existingTasks = tasksSnap.exists() ? tasksSnap.data().tasks || [] : [];
+      const existingTasks = tasksSnap.exists()
+        ? tasksSnap.data().tasks || []
+        : [];
       await setDoc(tasksRef, { tasks: [...existingTasks, newTask] });
 
-      if (contentInput) contentInput.value = '';
-      addNotification('Task posted successfully!', 'success');
+      if (contentInput) contentInput.value = "";
+      addNotification("Task posted successfully!", "success");
     } catch (err) {
-      console.error('Error posting task:', err);
-      addNotification('Failed to post task: ' + err.message, 'error');
+      console.error("Error posting task:", err);
+      addNotification("Failed to post task: " + err.message, "error");
     }
   };
 
   const deleteTask = async (taskId) => {
     try {
-      if (!window.confirm('Are you sure you want to delete this task?')) return;
-      const tasksRef = doc(db, 'tasks', 'shared');
+      if (!window.confirm("Are you sure you want to delete this task?")) return;
+      const tasksRef = doc(db, "tasks", "shared");
       const tasksSnap = await getDoc(tasksRef);
       if (tasksSnap.exists()) {
         const existingTasks = tasksSnap.data().tasks || [];
         const updatedTasks = existingTasks.filter((task) => task.id !== taskId);
         await setDoc(tasksRef, { tasks: updatedTasks });
-        addNotification('Task deleted successfully!', 'success');
+        addNotification("Task deleted successfully!", "success");
       }
     } catch (err) {
-      console.error('Error deleting task:', err);
-      addNotification('Failed to delete task: ' + err.message, 'error');
+      console.error("Error deleting task:", err);
+      addNotification("Failed to delete task: " + err.message, "error");
     }
   };
 
   const sendMessage = useCallback(async () => {
     try {
-      const input = document.getElementById('staff-message-input');
+      const input = document.getElementById("staff-message-input");
       const text = input?.value.trim();
       if (!text || !selectedStudentId) {
-        addNotification('Please select a student and type a message.', 'warning');
+        addNotification(
+          "Please select a student and type a message.",
+          "warning"
+        );
         return;
       }
       const staffUserId = auth.currentUser?.uid;
       if (!staffUserId) {
-        addNotification('User not authenticated to send message.', 'error');
+        addNotification("User not authenticated to send message.", "error");
         return;
       }
       const chatId = `${staffUserId}_${selectedStudentId}`;
       const newMessage = {
         text,
-        sender: 'staff',
+        sender: "staff",
         senderId: staffUserId,
         timestamp: new Date().toISOString(),
         read: false,
       };
-      const messagesRef = doc(db, 'messages', chatId);
+      const messagesRef = doc(db, "messages", chatId);
       const messagesSnap = await getDoc(messagesRef);
-      const existingMessages = messagesSnap.exists() ? messagesSnap.data().messages || [] : [];
-      await setDoc(messagesRef, { messages: [...existingMessages, newMessage] }, { merge: true });
+      const existingMessages = messagesSnap.exists()
+        ? messagesSnap.data().messages || []
+        : [];
+      await setDoc(
+        messagesRef,
+        { messages: [...existingMessages, newMessage] },
+        { merge: true }
+      );
 
-      if (input) input.value = '';
+      if (input) input.value = "";
     } catch (err) {
-      console.error('Error sending message:', err);
-      addNotification('Failed to send message: ' + err.message, 'error');
+      console.error("Error sending message:", err);
+      addNotification("Failed to send message: " + err.message, "error");
     }
   }, [selectedStudentId, addNotification]);
 
@@ -651,17 +845,17 @@ const StaffDashboard = () => {
         if (!selectedStudentId) return;
         const staffUserId = auth.currentUser?.uid;
         if (!staffUserId) {
-          addNotification('User not authenticated to delete message.', 'error');
+          addNotification("User not authenticated to delete message.", "error");
           return;
         }
         const chatId = `${staffUserId}_${selectedStudentId}`;
         const updatedMessages = messages.filter((_, i) => i !== originalIndex);
-        const messagesRef = doc(db, 'messages', chatId);
+        const messagesRef = doc(db, "messages", chatId);
         await setDoc(messagesRef, { messages: updatedMessages });
-        addNotification('Message deleted.', 'info');
+        addNotification("Message deleted.", "info");
       } catch (err) {
-        console.error('Error deleting message:', err);
-        addNotification('Failed to delete message: ' + err.message, 'error');
+        console.error("Error deleting message:", err);
+        addNotification("Failed to delete message: " + err.message, "error");
       }
     },
     [selectedStudentId, messages, addNotification]
@@ -671,20 +865,29 @@ const StaffDashboard = () => {
     try {
       const user = auth.currentUser;
       if (!user) {
-        addNotification('No authenticated user. Cannot post assignment.', 'error');
+        addNotification(
+          "No authenticated user. Cannot post assignment.",
+          "error"
+        );
         return;
       }
-      const staffDocSnap = await getDoc(doc(db, 'staff', user.uid));
+      const staffDocSnap = await getDoc(doc(db, "staff", user.uid));
       if (!staffDocSnap.exists() || !staffDocSnap.data().formFilled) {
-        addNotification('Staff profile incomplete or not found.', 'error');
+        addNotification("Staff profile incomplete or not found.", "error");
         return;
       }
       if (!newAssignmentSubject.trim() || !newAssignmentLink.trim()) {
-        addNotification('Please enter assignment subject and Google Drive link.', 'warning');
+        addNotification(
+          "Please enter assignment subject and Google Drive link.",
+          "warning"
+        );
         return;
       }
       if (!isValidDriveLink(newAssignmentLink)) {
-        addNotification('Please enter a valid Google Drive or Google Docs link.', 'warning');
+        addNotification(
+          "Please enter a valid Google Drive or Google Docs link.",
+          "warning"
+        );
         return;
       }
 
@@ -692,7 +895,7 @@ const StaffDashboard = () => {
       if (newAssignmentDeadline) {
         const deadlineDate = new Date(newAssignmentDeadline + "T23:59:59");
         if (isNaN(deadlineDate.getTime())) {
-          addNotification('Invalid deadline date provided.', 'warning');
+          addNotification("Invalid deadline date provided.", "warning");
           return;
         }
         deadlineTimestamp = Timestamp.fromDate(deadlineDate);
@@ -702,109 +905,140 @@ const StaffDashboard = () => {
         subject: newAssignmentSubject.trim(),
         driveLink: newAssignmentLink.trim(),
         staffId: user.uid,
-        staffName: staffDocSnap.data().name || 'Staff',
+        staffName: staffDocSnap.data().name || "Staff",
         postedAt: Timestamp.now(),
         deadline: deadlineTimestamp,
         isPublic: true,
       };
-      const assignmentRef = await addDoc(collection(db, 'assignments'), newAssignmentData);
-      addNotification('Assignment posted successfully!', 'success');
+      const assignmentRef = await addDoc(
+        collection(db, "assignments"),
+        newAssignmentData
+      );
+      addNotification("Assignment posted successfully!", "success");
 
-      const studentsRef = collection(db, 'students');
+      const studentsRef = collection(db, "students");
       const studentSnapshot = await getDocs(studentsRef);
       studentSnapshot.forEach(async (studentDoc) => {
-        const studentNotifRef = collection(db, 'students', studentDoc.id, 'notifications');
+        const studentNotifRef = collection(
+          db,
+          "students",
+          studentDoc.id,
+          "notifications"
+        );
         await addDoc(studentNotifRef, {
           message: `New assignment posted: ${newAssignmentSubject}`,
-          type: 'assignment',
+          type: "assignment",
           assignmentId: assignmentRef.id,
           timestamp: Timestamp.now(),
         });
       });
 
-      setNewAssignmentSubject('');
-      setNewAssignmentLink('');
-      setNewAssignmentDeadline('');
+      setNewAssignmentSubject("");
+      setNewAssignmentLink("");
+      setNewAssignmentDeadline("");
     } catch (err) {
-      console.error('Error posting assignment:', err);
-      addNotification('Failed to post assignment: ' + err.message, 'error');
+      console.error("Error posting assignment:", err);
+      addNotification("Failed to post assignment: " + err.message, "error");
     }
   };
 
   const deleteAssignment = async (assignmentId) => {
     try {
-      if (!window.confirm('Are you sure you want to delete this assignment? This action cannot be undone.')) return;
-      await deleteDoc(doc(db, 'assignments', assignmentId));
-      addNotification('Assignment deleted successfully!', 'success');
+      if (
+        !window.confirm(
+          "Are you sure you want to delete this assignment? This action cannot be undone."
+        )
+      )
+        return;
+      await deleteDoc(doc(db, "assignments", assignmentId));
+      addNotification("Assignment deleted successfully!", "success");
     } catch (err) {
-      console.error('Error deleting assignment:', err);
-      addNotification('Failed to delete assignment: ' + err.message, 'error');
+      console.error("Error deleting assignment:", err);
+      addNotification("Failed to delete assignment: " + err.message, "error");
     }
   };
 
   const handleSendMarks = async () => {
-    if (!selectedStudentForMarking || !selectedAssignmentForMarking || !assignmentMarks.trim()) {
-      addNotification('Please select student, assignment, and enter marks.', 'warning');
+    if (
+      !selectedStudentForMarking ||
+      !selectedAssignmentForMarking ||
+      !assignmentMarks.trim()
+    ) {
+      addNotification(
+        "Please select student, assignment, and enter marks.",
+        "warning"
+      );
       return;
     }
     const staffUserId = auth.currentUser?.uid;
     if (!staffUserId) {
-      addNotification('User not authenticated to send marks.', 'error');
+      addNotification("User not authenticated to send marks.", "error");
       return;
     }
 
     // Move this line here so it's available in both try blocks
-    const selectedAssignmentDetails = assignments.find((a) => a.id === selectedAssignmentForMarking);
+    const selectedAssignmentDetails = assignments.find(
+      (a) => a.id === selectedAssignmentForMarking
+    );
 
     try {
       const marksPath = `students/${selectedStudentForMarking}/marks/${selectedAssignmentForMarking}`;
       const marksRef = doc(db, marksPath);
 
-      await setDoc(marksRef, {
-        marks: assignmentMarks.trim(),
-        assignmentSubject: selectedAssignmentDetails?.subject || 'N/A',
-        assignmentId: selectedAssignmentForMarking,
-        staffId: staffUserId,
-        staffName: userData?.name || userNames[staffUserId] || 'Staff',
-        markedAt: Timestamp.now(),
-      }, { merge: true });
+      await setDoc(
+        marksRef,
+        {
+          marks: assignmentMarks.trim(),
+          assignmentSubject: selectedAssignmentDetails?.subject || "N/A",
+          assignmentId: selectedAssignmentForMarking,
+          staffId: staffUserId,
+          staffName: userData?.name || userNames[staffUserId] || "Staff",
+          markedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
 
-      addNotification('Marks sent successfully!', 'success');
-      setSelectedStudentForMarking('');
-      setSelectedAssignmentForMarking('');
-      setAssignmentMarks('');
+      addNotification("Marks sent successfully!", "success");
+      setSelectedStudentForMarking("");
+      setSelectedAssignmentForMarking("");
+      setAssignmentMarks("");
     } catch (err) {
-      console.error('Error sending marks:', err);
-      addNotification(`Failed to send marks: ${err.message}`, 'error');
+      console.error("Error sending marks:", err);
+      addNotification(`Failed to send marks: ${err.message}`, "error");
       return;
     }
 
     // Try sending notification, but don't show error if it fails
     try {
-      const studentNotifRef = collection(db, 'students', selectedStudentForMarking, 'notifications');
+      const studentNotifRef = collection(
+        db,
+        "students",
+        selectedStudentForMarking,
+        "notifications"
+      );
       await addDoc(studentNotifRef, {
         message: `Marks received for assignment "${selectedAssignmentDetails?.subject}": ${assignmentMarks}`,
-        type: 'marks',
+        type: "marks",
         assignmentId: selectedAssignmentForMarking,
         timestamp: Timestamp.now(),
       });
     } catch (err) {
-      console.warn('Failed to send notification to student:', err);
+      console.warn("Failed to send notification to student:", err);
       // Optionally: addNotification('Failed to send notification to student.', 'warning');
     }
   };
 
   const handleEditProfile = () => {
-    navigate('/staff-form', { state: { isEdit: true, userData } });
+    navigate("/staff-form", { state: { isEdit: true, userData } });
   };
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigate('/');
+      navigate("/");
     } catch (err) {
-      console.error('Error logging out:', err);
-      addNotification('Failed to log out.', 'error');
+      console.error("Error logging out:", err);
+      addNotification("Failed to log out.", "error");
     }
   };
 
@@ -815,7 +1049,11 @@ const StaffDashboard = () => {
   const isDashboardLoading = loading.dashboard || loading.students;
 
   if (isDashboardLoading) {
-    return <div className="loading-dashboard text-center p-8">Loading Staff Dashboard...</div>;
+    return (
+      <div className="loading-dashboard text-center p-8">
+        Loading Staff Dashboard...
+      </div>
+    );
   }
 
   return (
@@ -833,8 +1071,11 @@ const StaffDashboard = () => {
           isVisible={sidebarVisible}
           toggleSidebar={toggleSidebar}
           setMobileHamburger={setMobileHamburger}
+          activeContainer={activeContainer}
         />
-        <div className={`main-content ${sidebarVisible ? 'sidebar-active' : ''}`}>
+        <div
+          className={`main-content ${sidebarVisible ? "sidebar-active" : ""}`}
+        >
           <div className="header">
             {mobileHamburger}
             <input
@@ -850,7 +1091,11 @@ const StaffDashboard = () => {
                 key={`notif-area-${notif.id}`}
                 message={notif.message}
                 type={notif.type}
-                onClose={() => setNotifications((prev) => prev.filter((n) => n.id !== notif.id))}
+                onClose={() =>
+                  setNotifications((prev) =>
+                    prev.filter((n) => n.id !== notif.id)
+                  )
+                }
               />
             ))}
           </div>
@@ -859,37 +1104,128 @@ const StaffDashboard = () => {
               <div id="default-content" className="quick-stats">
                 <h2>Quick Stats</h2>
                 <div className="stats-container">
-                  <div className="stat-box" onClick={() => toggleContainer('quick-stats-container', 'total')} role="button" tabIndex={0} onKeyPress={(e) => e.key === 'Enter' && toggleContainer('quick-stats-container', 'total')}>
+                  <div
+                    className="stat-box"
+                    onClick={() =>
+                      toggleContainer("quick-stats-container", "total")
+                    }
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      toggleContainer("quick-stats-container", "total")
+                    }
+                  >
                     <i className="fas fa-users"></i>
                     <h3>Total Students</h3>
                     <p>{quickStats.totalStudents}</p>
                   </div>
-                  <div className="stat-box" onClick={() => toggleContainer('quick-stats-container', 'active')} role="button" tabIndex={0} onKeyPress={(e) => e.key === 'Enter' && toggleContainer('quick-stats-container', 'active')}>
+                  <div
+                    className="stat-box"
+                    onClick={() =>
+                      toggleContainer("quick-stats-container", "active")
+                    }
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      toggleContainer("quick-stats-container", "active")
+                    }
+                  >
                     <i className="fas fa-user-check"></i>
                     <h3>Active Students</h3>
                     <p>{quickStats.activeStudents}</p>
                   </div>
-                  <div className="stat-box" onClick={() => toggleContainer('tasks-container')} role="button" tabIndex={0} onKeyPress={(e) => e.key === 'Enter' && toggleContainer('tasks-container')}>
+                  <div
+                    className="stat-box"
+                    onClick={() => toggleContainer("tasks-container")}
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && toggleContainer("tasks-container")
+                    }
+                  >
                     <i className="fas fa-tasks"></i>
                     <h3>Tasks</h3>
-                    <p>{loading.tasks ? 'Loading...' : `${tasks.length} Active`}</p>
+                    <p>
+                      {loading.tasks ? "Loading..." : `${tasks.length} Active`}
+                    </p>
                   </div>
-                  <div className="stat-box" onClick={() => toggleContainer('quick-stats-container', 'performance')} role="button" tabIndex={0} onKeyPress={(e) => e.key === 'Enter' && toggleContainer('quick-stats-container', 'performance')}>
+                  <div
+                    className="stat-box"
+                    onClick={() =>
+                      toggleContainer("quick-stats-container", "performance")
+                    }
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      toggleContainer("quick-stats-container", "performance")
+                    }
+                  >
                     <i className="fas fa-chart-line"></i>
                     <h3>Overall Performance</h3>
                     <p>{quickStats.overallPerformance}%</p>
                   </div>
-                  <div className="stat-box" onClick={() => toggleContainer('monitor-container')} role="button" tabIndex={0} onKeyPress={(e) => e.key === 'Enter' && toggleContainer('monitor-container')}>
+                  <div
+                    className="stat-box"
+                    onClick={() => toggleContainer("monitor-container")}
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && toggleContainer("monitor-container")
+                    }
+                  >
                     <i className="fas fa-history"></i>
                     <h3>Latest Activity</h3>
-                    <p style={{ fontSize: '0.8em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {latestActivity || 'Loading...'}
+                    <p
+                      style={{
+                        fontSize: "0.8em",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {latestActivity || "Loading..."}
                     </p>
                   </div>
                 </div>
               </div>
             )}
-            <div id="tasks-container" className={`toggle-container ${activeContainer === 'tasks-container' ? 'active' : ''}`}>
+
+            {/* Only show chatbot container on mobile */}
+            {isMobile && (
+              <div
+                id="chatbot-container"
+                className={`toggle-container ${
+                  activeContainer === "chatbot-container" ? "active" : ""
+                }`}
+              >
+                <div
+                  className="container-body"
+                  style={{
+                    height: "calc(100vh - 200px)",
+                    display: "flex",
+                    flexDirection: "column",
+                    padding: "0",
+                  }}
+                >
+                  <Chatbot
+                    role="staff"
+                    isMinimized={false}
+                    isVisible={true}
+                    toggleChatbot={() => setActiveContainer(null)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div
+              id="tasks-container"
+              className={`toggle-container ${
+                activeContainer === "tasks-container" ? "active" : ""
+              }`}
+            >
               <div className="container-header">Tasks Management</div>
               <div className="container-body">
                 <div className="task-form">
@@ -901,16 +1237,25 @@ const StaffDashboard = () => {
                     className="goal-input"
                     aria-label="Task content"
                   />
-                  <button onClick={postTask} className="add-goal-btn" aria-label="Post task">
+                  <button
+                    onClick={postTask}
+                    className="add-goal-btn"
+                    aria-label="Post task"
+                  >
                     Post Task
                   </button>
                 </div>
                 {loading.tasks ? (
                   <p>Loading tasks...</p>
                 ) : tasks.length === 0 ? (
-                  <p className="empty-message">No tasks posted yet. Add one above!</p>
+                  <p className="empty-message">
+                    No tasks posted yet. Add one above!
+                  </p>
                 ) : (
-                  <div className="tasks-list scrollable" style={{ maxHeight: '300px', marginBottom: '20px' }}>
+                  <div
+                    className="tasks-list scrollable"
+                    style={{ maxHeight: "300px", marginBottom: "20px" }}
+                  >
                     {tasks.map((task) => (
                       <TaskItem
                         key={`task-item-${task.id}`}
@@ -923,10 +1268,13 @@ const StaffDashboard = () => {
                 )}
               </div>
             </div>
-            <div id="assignments-container" className={`toggle-container ${activeContainer === 'assignments-container' ? 'active' : ''}`}>
-              <div className="container-header">
-                Assignments
-              </div>
+            <div
+              id="assignments-container"
+              className={`toggle-container ${
+                activeContainer === "assignments-container" ? "active" : ""
+              }`}
+            >
+              <div className="container-header">Assignments</div>
               <div className="container-body">
                 <div className="assignment-form post-new-assignment">
                   <h3>Post a New Assignment</h3>
@@ -954,36 +1302,59 @@ const StaffDashboard = () => {
                     title="Optional: Set a deadline for the assignment"
                     aria-label="New assignment deadline"
                   />
-                  <button onClick={postAssignment} className="add-goal-btn" aria-label="Post new assignment button">
+                  <button
+                    onClick={postAssignment}
+                    className="add-goal-btn"
+                    aria-label="Post new assignment button"
+                  >
                     Post Assignment
                   </button>
                 </div>
-                <div className="assignment-form marking-ui" style={{ marginTop: '30px' }}>
+                <div
+                  className="assignment-form marking-ui"
+                  style={{ marginTop: "30px" }}
+                >
                   <h3>Mark Student Assignment</h3>
                   <select
                     value={selectedStudentForMarking}
-                    onChange={(e) => setSelectedStudentForMarking(e.target.value)}
+                    onChange={(e) =>
+                      setSelectedStudentForMarking(e.target.value)
+                    }
                     className="goal-input"
                     aria-label="Select student for marking"
                   >
                     <option value="">-- Select Student --</option>
-                    {studentStats.filter(
-                      (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
-                    ).map((student) => (
-                      <option key={`mark-student-option-${student.id}`} value={student.id}>
-                        {student.name} ({student.id.substring(0, 5)})
-                      </option>
-                    ))}
+                    {studentStats
+                      .filter(
+                        (student) =>
+                          student.name &&
+                          student.name !== "Anonymous" &&
+                          student.name !== "Unknown" &&
+                          student.name !== "Unknown User"
+                      )
+                      .map((student) => (
+                        <option
+                          key={`mark-student-option-${student.id}`}
+                          value={student.id}
+                        >
+                          {student.name} ({student.id.substring(0, 5)})
+                        </option>
+                      ))}
                   </select>
                   <select
                     value={selectedAssignmentForMarking}
-                    onChange={(e) => setSelectedAssignmentForMarking(e.target.value)}
+                    onChange={(e) =>
+                      setSelectedAssignmentForMarking(e.target.value)
+                    }
                     className="goal-input"
                     aria-label="Select assignment for marking"
                   >
                     <option value="">-- Select Assignment --</option>
                     {assignments.map((assignment) => (
-                      <option key={`mark-assignment-option-${assignment.id}`} value={assignment.id}>
+                      <option
+                        key={`mark-assignment-option-${assignment.id}`}
+                        value={assignment.id}
+                      >
                         {assignment.subject}
                       </option>
                     ))}
@@ -996,43 +1367,73 @@ const StaffDashboard = () => {
                     className="goal-input"
                     aria-label="Assignment marks input"
                   />
-                  <button onClick={handleSendMarks} className="add-goal-btn" aria-label="Send marks button">
+                  <button
+                    onClick={handleSendMarks}
+                    className="add-goal-btn"
+                    aria-label="Send marks button"
+                  >
                     Send Marks
                   </button>
                 </div>
-                <h4 style={{ marginTop: '30px' }}>Your Posted Assignments:</h4>
+                <h4 style={{ marginTop: "30px" }}>Your Posted Assignments:</h4>
                 {loading.assignments ? (
                   <p>Loading your assignments...</p>
                 ) : assignments.length === 0 ? (
-                  <p className="empty-message">You have not posted any assignments yet.</p>
+                  <p className="empty-message">
+                    You have not posted any assignments yet.
+                  </p>
                 ) : (
-                  <div className="assignment-list scrollable" style={{ maxHeight: '300px' }}>
+                  <div
+                    className="assignment-list scrollable"
+                    style={{ maxHeight: "300px" }}
+                  >
                     {assignments.map((assignment) => (
-                      <div key={`posted-assignment-${assignment.id}`} className="assignment-item task-item">
+                      <div
+                        key={`posted-assignment-${assignment.id}`}
+                        className="assignment-item task-item"
+                      >
                         <p style={{ flexGrow: 1 }}>
                           {assignment.subject}
                           <small className="assignment-meta">
-                            {' '}
-                            (Posted:{' '}
+                            {" "}
+                            (Posted:{" "}
                             {assignment.postedAt?.toDate
                               ? assignment.postedAt.toLocaleDateString()
-                              : 'N/A'})
+                              : "N/A"}
+                            )
                           </small>
                           {assignment.deadline && (
-                            <small className="assignment-meta" style={{ color: new Date(assignment.deadline) < new Date() ? 'red' : 'darkorange' }}>
-                              {' '}
-                              (Deadline:{' '}
+                            <small
+                              className="assignment-meta"
+                              style={{
+                                color:
+                                  new Date(assignment.deadline) < new Date()
+                                    ? "red"
+                                    : "darkorange",
+                              }}
+                            >
+                              {" "}
+                              (Deadline:{" "}
                               {assignment.deadline?.toDate
                                 ? assignment.deadline.toLocaleDateString()
-                                : 'N/A'})
-                              {new Date(assignment.deadline) < new Date() ? ' - Expired' : ''}
+                                : "N/A"}
+                              )
+                              {new Date(assignment.deadline) < new Date()
+                                ? " - Expired"
+                                : ""}
                             </small>
                           )}
                         </p>
                         <div className="assignment-actions">
                           <button
                             className="action-btn view-btn"
-                            onClick={() => window.open(assignment.driveLink, '_blank', 'noopener,noreferrer')}
+                            onClick={() =>
+                              window.open(
+                                assignment.driveLink,
+                                "_blank",
+                                "noopener,noreferrer"
+                              )
+                            }
                             aria-label={`Open assignment ${assignment.subject}`}
                           >
                             <i className="fas fa-external-link-alt"></i> Open
@@ -1053,50 +1454,102 @@ const StaffDashboard = () => {
                 )}
               </div>
             </div>
-            <div id="results-container" className={`toggle-container ${activeContainer === 'results-container' ? 'active' : ''}`}>
+            <div
+              id="results-container"
+              className={`toggle-container ${
+                activeContainer === "results-container" ? "active" : ""
+              }`}
+            >
               <div className="container-header">Student Results Overview</div>
               <div className="container-body scrollable">
                 {results.length === 0 ? (
-                  <p className="empty-message">No student results to display yet. Ensure tasks and student data are loaded.</p>
+                  <p className="empty-message">
+                    No student results to display yet. Ensure tasks and student
+                    data are loaded.
+                  </p>
                 ) : (
                   <ul className="results-list">
-                    {results.filter(
-                      r => r.name && r.name !== 'Anonymous' && r.name !== 'Unknown' && r.name !== 'Unknown User'
-                    ).map((result) => (
-                      <li key={`result-item-${result.id}`} className="result-item">
-                        <strong>{result.name}:</strong> {result.completedTasks} / {result.totalTasks} tasks completed.
-                        (Progress: {result.totalTasks > 0 ? Math.round((result.completedTasks / result.totalTasks) * 100) : 0}%)
-                      </li>
-                    ))}
+                    {results
+                      .filter(
+                        (r) =>
+                          r.name &&
+                          r.name !== "Anonymous" &&
+                          r.name !== "Unknown" &&
+                          r.name !== "Unknown User"
+                      )
+                      .map((result) => (
+                        <li
+                          key={`result-item-${result.id}`}
+                          className="result-item"
+                        >
+                          <strong>{result.name}:</strong>{" "}
+                          {result.completedTasks} / {result.totalTasks} tasks
+                          completed. (Progress:{" "}
+                          {result.totalTasks > 0
+                            ? Math.round(
+                                (result.completedTasks / result.totalTasks) *
+                                  100
+                              )
+                            : 0}
+                          %)
+                        </li>
+                      ))}
                   </ul>
                 )}
               </div>
             </div>
-            <div id="monitor-container" className={`toggle-container ${activeContainer === 'monitor-container' ? 'active' : ''}`}>
+            <div
+              id="monitor-container"
+              className={`toggle-container ${
+                activeContainer === "monitor-container" ? "active" : ""
+              }`}
+            >
               <div className="container-header">
                 Student Activity Monitor
                 <button
                   onClick={() => setActiveContainer(null)}
                   className="back-btn small"
-                  style={{ float: 'right' }}
+                  style={{ float: "right" }}
                   aria-label="Back to dashboard from monitor"
                 >
                   Back to Dashboard
                 </button>
               </div>
               <div className="container-body scrollable" style={{ padding: 0 }}>
-                <div className="latest-activity-details" style={{ padding: '16px', borderBottom: '1px solid #eee', background: '#f9fafb' }}>
+                <div
+                  className="latest-activity-details"
+                  style={{
+                    padding: "16px",
+                    borderBottom: "1px solid #eee",
+                    background: "#f9fafb",
+                  }}
+                >
                   <strong>Latest Activity:</strong>
-                  <div style={{ marginTop: '6px', color: '#333' }}>
-                    {latestActivity || 'No recent activity.'}
+                  <div style={{ marginTop: "6px", color: "#333" }}>
+                    {latestActivity || "No recent activity."}
                   </div>
                 </div>
                 <StudentMonitor />
               </div>
             </div>
-            <div id="staff-interaction-container" className={`toggle-container ${activeContainer === 'staff-interaction-container' ? 'active' : ''}`}>
+            <div
+              id="staff-interaction-container"
+              className={`toggle-container ${
+                activeContainer === "staff-interaction-container"
+                  ? "active"
+                  : ""
+              }`}
+            >
               <div className="container-header">Student Chat</div>
-              <div className="container-body" style={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column', padding: '0' }}>
+              <div
+                className="container-body"
+                style={{
+                  height: "calc(100vh - 200px)",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "0",
+                }}
+              >
                 <ChatInterface
                   messages={messages}
                   sendMessage={sendMessage}
@@ -1107,7 +1560,11 @@ const StaffDashboard = () => {
                   setSelectedStudentName={setSelectedStudentName}
                   currentUserId={auth.currentUser?.uid}
                   studentList={studentStats.filter(
-                    (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
+                    (student) =>
+                      student.name &&
+                      student.name !== "Anonymous" &&
+                      student.name !== "Unknown" &&
+                      student.name !== "Unknown User"
                   )}
                   selectedStudentName={selectedStudentName}
                   selectedStudentId={selectedStudentId}
@@ -1115,66 +1572,183 @@ const StaffDashboard = () => {
                 />
               </div>
             </div>
-            <div id="quick-stats-container" className={`toggle-container ${activeContainer === 'quick-stats-container' ? 'active' : ''}`}>
+            <div
+              id="quick-stats-container"
+              className={`toggle-container ${
+                activeContainer === "quick-stats-container" ? "active" : ""
+              }`}
+            >
               <div className="container-header">
-                Student List ({filterType || 'All Students'})
+                Student List ({filterType || "All Students"})
                 <button
                   onClick={() => setActiveContainer(null)}
                   className="back-btn small"
-                  style={{ float: 'right' }}
+                  style={{ float: "right" }}
                   aria-label="Back to dashboard from student list"
                 >
                   Back to Dashboard
                 </button>
               </div>
               <div className="container-body scrollable">
-                {loading.students ? <p>Loading students...</p> :
-                filteredStudents.length === 0 ? (
-                  <p className="empty-message">No students match the current filter.</p>
+                {loading.students ? (
+                  <p>Loading students...</p>
+                ) : filteredStudents.length === 0 ? (
+                  <p className="empty-message">
+                    No students match the current filter.
+                  </p>
                 ) : (
                   <div className="student-list detailed-student-list">
-                    {filteredStudents.filter(
-                      (student) => student.name && student.name !== 'Anonymous' && student.name !== 'Unknown' && student.name !== 'Unknown User'
-                    ).map((student) => (
-                      <div key={`filtered-student-${student.id}`} className="student-item-detailed">
-                        <div className="student-info-detailed">
-                          <h4>{student.name || 'Anonymous'}</h4>
-                          <p><strong>Streak:</strong> {student.streak || 0} days</p>
-                          <p><strong>Progress:</strong> {student.progress || 0}%</p>
-                          <p><strong>Last Login:</strong> {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'N/A'}</p>
-                          {/* Removed the "Chat with student" button here */}
+                    {filteredStudents
+                      .filter(
+                        (student) =>
+                          student.name &&
+                          student.name !== "Anonymous" &&
+                          student.name !== "Unknown" &&
+                          student.name !== "Unknown User"
+                      )
+                      .map((student) => (
+                        <div
+                          key={`filtered-student-${student.id}`}
+                          className="student-item-detailed"
+                        >
+                          <div className="student-info-detailed">
+                            <h4>{student.name || "Anonymous"}</h4>
+                            <p>
+                              <strong>Streak:</strong> {student.streak || 0}{" "}
+                              days
+                            </p>
+                            <p>
+                              <strong>Progress:</strong> {student.progress || 0}
+                              %
+                            </p>
+                            <p>
+                              <strong>Last Login:</strong>{" "}
+                              {student.lastLogin?.toDate
+                                ? student.lastLogin
+                                    .toDate()
+                                    .toLocaleDateString()
+                                : "N/A"}
+                            </p>
+                            {/* Removed the "Chat with student" button here */}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
               </div>
             </div>
-            <div id="settings-container" className={`toggle-container ${activeContainer === 'settings-container' ? 'active' : ''}`}>
+            <div
+              id="settings-container"
+              className={`toggle-container ${
+                activeContainer === "settings-container" ? "active" : ""
+              }`}
+            >
               <div className="container-header">Settings</div>
               <div className="container-body">
                 <h3>Profile Options</h3>
-                <button onClick={handleEditProfile} className="add-goal-btn" aria-label="Edit profile">
+                <button
+                  onClick={handleEditProfile}
+                  className="add-goal-btn"
+                  aria-label="Edit profile"
+                >
                   Edit Profile
                 </button>
-                <button onClick={handleLogout} className="add-goal-btn logout-btn" aria-label="Logout" style={{ backgroundColor: '#dc3545', color: 'white' }}>
+                <button
+                  onClick={handleLogout}
+                  className="add-goal-btn logout-btn"
+                  aria-label="Logout"
+                  style={{ backgroundColor: "#dc3545", color: "white" }}
+                >
                   Logout
                 </button>
+
+                <h3 style={{ marginTop: "30px" }}>App Information</h3>
+                <button
+                  onClick={() => setShowAbout(true)}
+                  className="add-goal-btn"
+                  aria-label="About the app"
+                  style={{ backgroundColor: "#17a2b8", color: "white" }}
+                >
+                  About the App
+                </button>
+
+                {showAbout && (
+                  <div
+                    className="about-modal-overlay"
+                    onClick={() => setShowAbout(false)}
+                  >
+                    <div
+                      className="about-modal"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="about-modal-header">
+                        <h2>📱 About the App</h2>
+                        <button
+                          className="close-about-btn"
+                          onClick={() => setShowAbout(false)}
+                          aria-label="Close about modal"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="about-modal-content">
+                        <p>
+                          <strong>EduGen AI</strong> is an innovative
+                          educational platform developed by{" "}
+                          <strong>Yagnarashagan</strong> that bridges the gap
+                          between students and educators using smart automation.
+                          This app is designed to enhance academic performance,
+                          engagement, and communication in an intuitive and
+                          interactive way.
+                        </p>
+
+                        <h3>It features:</h3>
+                        <ul>
+                          <li>
+                            <strong>Smart Chatbot Assistance</strong> for
+                            real-time academic help
+                          </li>
+                          <li>
+                            <strong>AI-Generated Quizzes</strong> to test
+                            knowledge based on selected topics
+                          </li>
+                          <li>
+                            <strong>Goal Setting and Self Analysis</strong> to
+                            boost productivity
+                          </li>
+                          <li>
+                            <strong>Interactive Dashboard</strong> for both
+                            students and staff to manage tasks, assignments, and
+                            performance
+                          </li>
+                        </ul>
+
+                        <p>
+                          EduGen AI empowers students to learn effectively and
+                          helps staff monitor, guide, and support learners
+                          efficiently. With built-in chat functionality,
+                          assignment distribution, and performance tracking,
+                          EduGen AI is your all-in-one AI-powered education
+                          assistant.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-        {window.innerWidth <= 768 && (
-          <button className="chat-toggle-btn mobile-chat-toggle" onClick={toggleChatbot} aria-label="Toggle chatbot">
-            <i className="fas fa-comment-dots"></i>
-          </button>
+
+        {/* Only show floating chatbot on desktop */}
+        {!isMobile && (
+          <Chatbot
+            role="staff"
+            isMinimized={false}
+            isVisible={isChatbotOpen}
+            toggleChatbot={toggleChatbot}
+          />
         )}
-        <Chatbot
-          role="staff"
-          isMinimized={window.innerWidth <= 768 && !isChatbotOpen}
-          isVisible={isChatbotOpen}
-          toggleChatbot={toggleChatbot}
-        />
       </div>
     </ErrorBoundary>
   );

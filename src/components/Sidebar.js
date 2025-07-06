@@ -19,11 +19,22 @@ const Sidebar = ({
 
   // State to track the active option (synced with activeContainer)
   const [activeOption, setActiveOption] = useState(activeContainer || "");
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Sync activeOption with activeContainer prop
   useEffect(() => {
     setActiveOption(activeContainer || "");
   }, [activeContainer]);
+
+  // Track window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const redirectToProfile = () => {
     navigate("/profile", { state: { role } });
@@ -38,7 +49,7 @@ const Sidebar = ({
       label: "Assignments",
     },
     { id: "streak-container", icon: "fas fa-fire", label: "Streaks" },
-    { id: "circular-container", icon: "fas fa-bullhorn", label: "Circular" },
+    { id: "news-container", icon: "fas fa-newspaper", label: "News" }, // Changed from circular to news
     {
       id: "staff-interaction-container",
       icon: "fas fa-users",
@@ -49,12 +60,16 @@ const Sidebar = ({
       icon: "fas fa-chart-bar",
       label: "Self Analysis",
     },
-    {
-      id: "chatbot-container",
-      icon: "fas fa-comment",
-      label: "Chatbot",
-      mobileOnly: true,
-    },
+    // Only show chatbot option on mobile
+    ...(isMobile
+      ? [
+          {
+            id: "chatbot-container",
+            icon: "fas fa-comment",
+            label: "Chatbot",
+          },
+        ]
+      : []),
     { id: "notes-container", icon: "fas fa-sticky-note", label: "Notes" },
     { id: "settings-container", icon: "fas fa-cog", label: "Settings" },
   ];
@@ -67,7 +82,7 @@ const Sidebar = ({
       label: "Assignments",
     },
     { id: "results-container", icon: "fas fa-chart-line", label: "Results" },
-    { id: "monitor-container", icon: "fas fa-history", label: "Monitor" }, // <-- FIXED LINE
+    { id: "monitor-container", icon: "fas fa-history", label: "Monitor" },
     {
       id: "staff-interaction-container",
       icon: "fas fa-users",
@@ -78,6 +93,16 @@ const Sidebar = ({
       icon: "fas fa-chart-bar",
       label: "Quick Stats",
     },
+    // Only show chatbot option on mobile
+    ...(isMobile
+      ? [
+          {
+            id: "chatbot-container",
+            icon: "fas fa-comment",
+            label: "Chatbot",
+          },
+        ]
+      : []),
     { id: "settings-container", icon: "fas fa-cog", label: "Settings" },
   ];
 
@@ -189,14 +214,9 @@ const Sidebar = ({
               toggleSidebar(); // Close sidebar on mobile after selection
               setActiveOption(item.id); // Update active option
             }}
-            className={`${item.mobileOnly ? "mobile-only" : ""} ${
+            className={`${
               activeOption === item.id ? "active-option" : ""
             }`}
-            style={
-              item.id === "chatbot-container" && window.innerWidth > 768
-                ? { display: "none" }
-                : {}
-            }
             title={window.innerWidth > 768 ? item.label : ""}
           >
             <i className={item.icon}></i> <span>{item.label}</span>
