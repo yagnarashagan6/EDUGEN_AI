@@ -7,6 +7,7 @@ const Quiz = ({
   handleQuizComplete,
   handleQuizCancel,
   questions: initialQuestions,
+  isInContainer = false,
 }) => {
   const [questions, setQuestions] = useState(initialQuestions || []);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -17,32 +18,41 @@ const Quiz = ({
   const [timer, setTimer] = useState(30);
   const [userAnswers, setUserAnswers] = useState([]);
   const [showCorrect, setShowCorrect] = useState(false);
+  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const timerRef = useRef(null);
 
   const handleNext = useCallback(
     (isTimeout = false) => {
+      // Record the answer
+      setUserAnswers((prev) => {
+        const updated = [...prev];
+        updated[currentQuestion] = selectedOption;
+        return updated;
+      });
+
+      // Check if answer is correct and update score
       if (
+        !isAnswerSubmitted &&
         !isTimeout &&
         selectedOption === questions[currentQuestion]?.correctAnswer
       ) {
         setScore((s) => s + 1);
       }
 
-      setShowCorrect(true);
-      setTimeout(() => {
-        if (currentQuestion + 1 === questions.length) {
-          setQuizCompleted(true);
-          clearInterval(timerRef.current);
-        } else {
-          setCurrentQuestion((i) => i + 1);
-          setSelectedOption(null);
-        }
-      }, 1000);
+      // Move to next question or complete quiz immediately
+      if (currentQuestion + 1 === questions.length) {
+        setQuizCompleted(true);
+        clearInterval(timerRef.current);
+      } else {
+        setCurrentQuestion((i) => i + 1);
+        setSelectedOption(null);
+        setIsAnswerSubmitted(false);
+        setShowCorrect(false);
+      }
     },
-    [selectedOption, questions, currentQuestion]
+    [selectedOption, questions, currentQuestion, isAnswerSubmitted]
   );
 
-  // Effect to handle when quiz is started with initial questions
   useEffect(() => {
     if (initialQuestions && initialQuestions.length > 0) {
       setQuestions(initialQuestions);
@@ -51,13 +61,14 @@ const Quiz = ({
       setCurrentQuestion(0);
       setScore(0);
       setQuizCompleted(false);
+      setShowCorrect(false);
+      setIsAnswerSubmitted(false);
     }
   }, [initialQuestions]);
 
   useEffect(() => {
     if (quizStarted && !quizCompleted && questions.length > 0) {
       setTimer(30);
-      setShowCorrect(false);
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 0) {
@@ -72,7 +83,6 @@ const Quiz = ({
     }
   }, [currentQuestion, quizStarted, quizCompleted, questions, handleNext]);
 
-  // Screenshot restriction
   useEffect(() => {
     const handlePrintScreen = (e) => {
       if (e.key === "PrintScreen") {
@@ -97,13 +107,8 @@ const Quiz = ({
   };
 
   const handleOptionSelect = (option) => {
-    if (!showCorrect) {
+    if (!isAnswerSubmitted) {
       setSelectedOption(option);
-      setUserAnswers((prev) => {
-        const updated = [...prev];
-        updated[currentQuestion] = option;
-        return updated;
-      });
     }
   };
 
@@ -111,37 +116,31 @@ const Quiz = ({
     handleQuizComplete(score);
   };
 
-  // If no questions provided, show error
+  const getTimerClass = () => {
+    if (timer <= 5) return "critical";
+    if (timer <= 10) return "warning";
+    return "";
+  };
+
   if (!initialQuestions || initialQuestions.length === 0) {
     return (
-      <div className="edugen-quiz-container">
-        <h2 className="edugen-quiz-title">
-          Quiz: {topic || "No Topic Selected"}
-        </h2>
-        <p>No quiz questions available. Please try again.</p>
-        <button
-          className="cancel-button"
-          onClick={handleCancelQuiz}
-          style={{
-            marginTop: "10px",
-            padding: "0.75rem 1.5rem",
-            background: "#f44336",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "1rem",
-            fontWeight: "500",
-            width: "100%",
-            maxWidth: "200px",
-            margin: "10px auto 0",
-            display: "block",
-            transition: "background 0.3s, transform 0.2s",
-          }}
-        >
-          <i className="fas fa-times" style={{ marginRight: "0.5rem" }}></i>
-          Back
-        </button>
+      <div
+        className={`edugen-quiz-container ${
+          isInContainer ? "container-quiz" : ""
+        }`}
+      >
+        <div className="edugen-quiz-content">
+          <div className="edugen-quiz-error">
+            <p>No quiz questions available. Please try again.</p>
+            <button
+              className="edugen-quiz-back-button"
+              onClick={handleCancelQuiz}
+            >
+              <i className="fas fa-arrow-left"></i>
+              Back to Tasks
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -182,64 +181,65 @@ const Quiz = ({
     };
 
     return (
-      <div className="edugen-quiz-container edugen-quiz-result">
-        <h2 className="edugen-quiz-result-title">Quiz Completed!</h2>
-        <div className="edugen-quiz-score-circle">
-          {score} / {questions.length}
-        </div>
-        <div className="edugen-quiz-result-message">Your Results:</div>
-        <div className="edugen-quiz-results-list">
-          {questions.map((q, idx) => {
-            const userAnswer = userAnswers[idx];
-            const isCorrect = userAnswer === q.correctAnswer;
-            return (
-              <div
-                key={idx}
-                className={`edugen-quiz-result-item ${
-                  isCorrect ? "correct" : "incorrect"
-                }`}
-              >
-                <div className="edugen-quiz-result-question">
-                  Q{idx + 1}: {q.text}
-                </div>
-                <div
-                  className={`edugen-quiz-result-answer ${
-                    isCorrect ? "correct" : "incorrect"
-                  }`}
-                >
-                  Your Answer: {userAnswer}{" "}
-                  {userAnswer && (isCorrect ? "✓" : "✗")}
-                </div>
-                {!isCorrect && (
-                  <div className="edugen-quiz-result-correct">
-                    Correct Answer: {q.correctAnswer}
+      <div
+        className={`edugen-quiz-container ${
+          isInContainer ? "container-quiz" : ""
+        }`}
+      >
+        <div className="edugen-quiz-content">
+          <div className="edugen-quiz-result">
+            <h2 className="edugen-quiz-result-title">Quiz Completed!</h2>
+            <div className="edugen-quiz-score-circle">
+              {score} / {questions.length}
+            </div>
+            <div className="edugen-quiz-result-message">Your Results:</div>
+            <div className="edugen-quiz-results-list">
+              {questions.map((q, idx) => {
+                const userAnswer = userAnswers[idx];
+                const isCorrect = userAnswer === q.correctAnswer;
+                return (
+                  <div
+                    key={idx}
+                    className={`edugen-quiz-result-item ${
+                      isCorrect ? "correct" : "incorrect"
+                    }`}
+                  >
+                    <div className="edugen-quiz-result-question">
+                      Q{idx + 1}: {q.text}
+                    </div>
+                    <div
+                      className={`edugen-quiz-result-answer ${
+                        isCorrect ? "correct" : "incorrect"
+                      }`}
+                    >
+                      Your Answer: {userAnswer || "No answer"}
+                    </div>
+                    {!isCorrect && (
+                      <div className="edugen-quiz-result-correct">
+                        Correct Answer: {q.correctAnswer}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="edugen-quiz-result-actions-row">
-          <button
-            className="edugen-quiz-download-pdf-btn"
-            onClick={handleDownloadPDF}
-          >
-            <i
-              className="fas fa-file-pdf"
-              style={{ marginRight: "0.5rem" }}
-            ></i>
-            Download as PDF
-          </button>
-          <button
-            className="edugen-quiz-back-button"
-            onClick={handleBackToTasks}
-          >
-            <i
-              className="fas fa-arrow-left"
-              style={{ marginRight: "0.5rem" }}
-            ></i>
-            Back to Tasks
-          </button>
+                );
+              })}
+            </div>
+            <div className="edugen-quiz-result-actions-row">
+              <button
+                className="edugen-quiz-download-pdf-btn"
+                onClick={handleDownloadPDF}
+              >
+                <i className="fas fa-file-pdf"></i>
+                Download PDF
+              </button>
+              <button
+                className="edugen-quiz-back-button"
+                onClick={handleBackToTasks}
+              >
+                <i className="fas fa-arrow-left"></i>
+                Back to Tasks
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -248,79 +248,97 @@ const Quiz = ({
   const currentQ = questions[currentQuestion];
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
-  const containerStyle = {
-    maxHeight: "100vh",
-    overflowY: "auto",
-    WebkitOverflowScrolling: "touch",
-  };
-
-  const questionContainerStyle = {
-    maxHeight: "60vh",
-    overflowY: "auto",
-    paddingRight: "0.5rem",
-  };
-
   return (
-    <div className="edugen-quiz-container" style={containerStyle}>
-      <div className="edugen-quiz-header">
-        <h2 className="edugen-quiz-title">Quiz: {topic}</h2>
-        <div className="edugen-quiz-progress-bar">
+    <div
+      className={`edugen-quiz-container ${
+        isInContainer ? "container-quiz" : ""
+      }`}
+    >
+      <div className="edugen-quiz-content">
+        {/* Only show header when NOT in container */}
+        {!isInContainer && (
+          <div className="edugen-quiz-header">
+            <h2 className="edugen-quiz-title">Quiz: {topic}</h2>
+            <div className="edugen-quiz-progress-bar">
+              <div
+                className="edugen-quiz-progress-fill"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            <div className={`edugen-quiz-timer ${getTimerClass()}`}>
+              {timer} seconds left
+            </div>
+          </div>
+        )}
+
+        {/* Show progress and timer in container mode */}
+        {isInContainer && (
+          <div className="quiz-container-header">
+            <div className="quiz-progress-timer-row">
+              <div className="quiz-progress-section">
+                <div className="quiz-progress-label">
+                  Question {currentQuestion + 1} of {questions.length}
+                </div>
+                <div className="quiz-progress-bar-container">
+                  <div
+                    className="quiz-progress-bar-fill"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+              </div>
+              <div className={`quiz-timer-display ${getTimerClass()}`}>
+                <i className="fas fa-clock"></i>
+                {timer}s
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="edugen-quiz-question-container">
           <div
-            className="edugen-quiz-progress-fill"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="edugen-quiz-timer">{timer} seconds left</div>
-        <div className="timer-bar">
-          <div
-            className="timer-fill"
-            style={{
-              width: `${(timer / 30) * 100}%`,
-              transition: "width 1s linear",
+            className="edugen-quiz-question-text"
+            onCopy={(e) => {
+              e.preventDefault();
+              alert("Copying questions is not allowed.");
             }}
-          ></div>
-        </div>
-        <div
-          className="edugen-quiz-question-text"
-          style={questionContainerStyle}
-          onCopy={(e) => {
-            e.preventDefault();
-            alert("Copying questions is not allowed.");
-          }}
-        >
-          Q{currentQuestion + 1}/{questions.length}: {currentQ.text}
-        </div>
-      </div>
-      <div className="edugen-quiz-options-list">
-        {currentQ.options.map((opt, i) => (
-          <button
-            key={i}
-            className={`edugen-quiz-option-btn
-              ${selectedOption === opt ? " selected" : ""}
-              ${showCorrect && opt === currentQ.correctAnswer ? " correct" : ""}
-              ${
-                showCorrect &&
-                selectedOption === opt &&
-                opt !== currentQ.correctAnswer
-                  ? " incorrect"
-                  : ""
-              }
-            `}
-            onClick={() => handleOptionSelect(opt)}
-            disabled={showCorrect}
           >
-            {opt}
-          </button>
-        ))}
-      </div>
-      <div className="edugen-quiz-next-btn-row">
-        <button
-          className="edugen-quiz-next-button"
-          onClick={() => handleNext()}
-          disabled={!selectedOption && timer > 0}
-        >
-          {currentQuestion + 1 === questions.length ? "Finish" : "Next"}
-        </button>
+            Q{currentQuestion + 1}: {currentQ.text}
+          </div>
+
+          <div className="edugen-quiz-options-list">
+            {currentQ.options.map((opt, i) => {
+              let optionClass = "edugen-quiz-option-btn";
+
+              // Only show selected state, no correct/incorrect indication during quiz
+              if (selectedOption === opt) {
+                optionClass += " selected";
+              }
+
+              return (
+                <button
+                  key={i}
+                  className={optionClass}
+                  onClick={() => handleOptionSelect(opt)}
+                  disabled={isAnswerSubmitted}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="edugen-quiz-next-btn-container">
+            <button
+              className="edugen-quiz-next-button"
+              onClick={() => handleNext()}
+              disabled={!selectedOption && timer > 0}
+            >
+              {currentQuestion + 1 === questions.length
+                ? "Finish Quiz"
+                : "Next Question"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

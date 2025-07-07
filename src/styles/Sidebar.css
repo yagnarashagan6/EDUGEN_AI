@@ -1,111 +1,107 @@
-/* Sidebar.css - Styles specific to Sidebar component */
+/* Sidebar.css - Specific styles for sidebar component */
 
-/* Sidebar Base Styles */
-.sidebar ul li {
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  color: #fff;
-  font-size: 16px;
-}
-
-.sidebar ul li:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.sidebar ul li i {
-  margin-right: 12px;
-  font-size: 18px;
-  color: #fff;
-}
-
-/* Hamburger Menu Item in Sidebar (Laptop View) */
-.sidebar-toggle-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  cursor: pointer;
-  color: #fff;
-  font-size: 16px;
-}
-
-.sidebar-toggle-item .hamburger {
-  width: 20px;
-  height: 15px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  margin-right: 12px;
-}
-
-.sidebar-toggle-item .hamburger span {
-  display: block;
-  width: 100%;
-  height: 2px;
-  background-color: #fff; /* White for sidebar */
-  border-radius: 2px;
-  transition: all 0.3s ease;
-}
-
-.sidebar-toggle-item.active .hamburger span:nth-child(1) {
-  transform: translateY(6.5px) rotate(45deg);
-}
-
-.sidebar-toggle-item.active .hamburger span:nth-child(2) {
-  opacity: 0;
-}
-
-.sidebar-toggle-item.active .hamburger span:nth-child(3) {
-  transform: translateY(-6.5px) rotate(-45deg);
-}
-
-.sidebar-toggle-item span {
-  display: none;
-}
-
-.sidebar.active .sidebar-toggle-item span {
-  display: inline;
-}
-
-/* Sidebar Base */
+/* Make sidebar scrollable */
 .sidebar {
-  width: 70px;
-  background-color: #0438af;
-  color: white;
-  height: 100vh;
-  padding-top: 20px;
-  position: fixed;
-  left: 0;
-  top: 0;
-  transition: width 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-sizing: border-box;
-  /* Hide scrollbar but keep functionality */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
-  touch-action: pan-y pinch-zoom;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
+/* Custom scrollbar styling for webkit browsers */
 .sidebar::-webkit-scrollbar {
-  display: none;
+  width: 4px;
 }
 
-.sidebar.active {
-  width: 250px;
-  align-items: flex-start;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Ensure sidebar ul can scroll */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Sidebar Menu Items */
+.sidebar .sidebar-menu-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  transition: all 0.2s ease;
+  border-radius: 0;
+  margin: 0;
+  position: relative;
+  flex-shrink: 0; /* Prevent items from shrinking */
+}
+
+.sidebar .sidebar-menu-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
+
+/* Active menu item styling */
+.sidebar .sidebar-menu-item.active-option {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 8px !important;
+  border-left: 4px solid #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.sidebar .sidebar-menu-item.active-option i {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.sidebar .sidebar-menu-item.active-option span {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Sidebar Toggle Item */
+.sidebar .sidebar-toggle-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 10px;
+  flex-shrink: 0; /* Prevent from shrinking */
+}
+
+.sidebar .sidebar-toggle-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Profile section - fixed at top */
+.sidebar .profile {
+  flex-shrink: 0; /* Prevent profile from shrinking */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 10px;
+}
+
+/* Profile Image Styling */
 .sidebar-profile-img {
   width: 50px;
   height: 50px;
@@ -120,125 +116,168 @@
   transform: scale(1.05);
 }
 
-.sidebar-chatbot-container {
-  position: absolute;
-  bottom: 60px;
-  left: 0;
-  width: 100%;
-  height: 300px;
-  z-index: 1001;
+/* Icon and text spacing */
+.sidebar ul li i {
+  font-size: 20px;
+  margin-left: 10px;
+  min-width: 30px;
+  transition: color 0.2s ease;
 }
 
-/* Hide chatbot menu item in desktop view */
-@media (min-width: 769px) {
-  .sidebar ul li.mobile-only {
-    display: none;
-  }
+.sidebar.active ul li i {
+  margin-left: 20px;
 }
 
-/* Responsive Adjustments */
+.sidebar ul li span {
+  display: none;
+  margin-left: 35px; /* Increased from 10px to 15px */
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.sidebar.active ul li span {
+  display: inline;
+  color: white;
+}
+
+/* Mobile specific adjustments */
 @media (max-width: 768px) {
   .sidebar {
-    transform: translateX(-100%);
-    width: 250px;
+    overflow-y: auto;
+    max-height: 100vh;
   }
 
-  .sidebar.active {
-    transform: translateX(0);
+  .sidebar .sidebar-menu-item {
+    padding: 15px 20px;
+    margin: 2px 0;
   }
 
-  .sidebar-chatbot-container {
-    width: 100%;
-    height: 250px;
-    bottom: 50px;
+  .sidebar .sidebar-menu-item.active-option {
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-left: 5px solid #ffffff !important;
+    margin-left: 0 !important;
   }
 
-  .sidebar ul li.mobile-only {
-    display: flex;
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar ul li {
-    padding: 10px 15px;
-    font-size: 14px;
+  .sidebar .sidebar-toggle-item {
+    padding: 15px 20px;
+    margin-bottom: 15px;
   }
 
-  .sidebar ul li i {
-    margin-right: 10px;
-    font-size: 16px;
-  }
-
-  .sidebar {
-    width: 200px;
-  }
-
-  .sidebar-chatbot-container {
-    width: 100%;
-    height: 220px;
-    bottom: 45px;
+  /* Ensure mobile sidebar can scroll */
+  .sidebar ul {
+    max-height: calc(100vh - 120px); /* Account for profile section */
+    overflow-y: auto;
   }
 }
 
-.sidebar ul li[title] {
-  position: relative;
+/* Animation for active state changes */
+.sidebar .sidebar-menu-item {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar ul li[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 4px;
-  white-space: nowrap;
-  font-size: 12px;
-  z-index: 10;
-  margin-left: 10px;
-  opacity: 1;
-  transition: opacity 0.2s ease-in-out;
-}
-
-.sidebar ul li[title]:hover::before {
+.sidebar .sidebar-menu-item.active-option::before {
   content: "";
   position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 5px solid transparent;
-  border-left-color: rgba(0, 0, 0, 0.8);
-  margin-left: 5px;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #ffffff;
+  border-radius: 0 2px 2px 0;
+  animation: slideIn 0.3s ease-out;
 }
 
-/* Highlight active sidebar option */
-.sidebar ul li.active-option {
-  background-color: rgba(255, 255, 255, 0.3); /* Slightly lighter background */
-  color: #ffffff; /* Ensure text remains visible */
-  font-weight: bold; /* Optional: Make the text bold */
-  border-left: 4px solid #ffffff; /* Optional: Add a left border for emphasis */
+@keyframes slideIn {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 4px;
+    opacity: 1;
+  }
 }
 
-/* Landscape mode adjustments */
-@media (max-height: 480px) {
-  .sidebar {
-    padding-top: 10px;
-  }
+/* Ensure proper spacing and alignment */
+.sidebar ul li {
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0; /* Prevent menu items from shrinking */
+}
 
-  .sidebar ul li {
-    padding: 8px 15px;
-  }
+/* Remove default li styling that might interfere */
+.sidebar ul li:not(.sidebar-menu-item):not(.sidebar-toggle-item) {
+  padding: 12px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
 
-  .sidebar-profile-img {
-    width: 40px;
-    height: 40px;
-    margin-bottom: 5px;
-  }
+.sidebar ul li:not(.sidebar-menu-item):not(.sidebar-toggle-item):hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
 
-  .sidebar-chatbot-container {
-    height: 150px;
-    bottom: 40px;
-  }
+/* Smooth scrolling behavior */
+.sidebar {
+  scroll-behavior: smooth;
+}
+
+.sidebar ul {
+  scroll-behavior: smooth;
+}
+
+/* Hamburger menu styling */
+.sidebar .hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 20px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.sidebar .hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: #ffffff;
+  border-radius: 1px;
+  transition: all 0.3s ease;
+}
+
+/* Hamburger animation when active */
+.sidebar .hamburger.active span:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.sidebar .hamburger.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.sidebar .hamburger.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Sidebar toggle button (for mobile) */
+.sidebar-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-toggle-btn .hamburger span {
+  background-color: #2d0ef1;
 }

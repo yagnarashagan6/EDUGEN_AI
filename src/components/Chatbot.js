@@ -10,7 +10,7 @@ const Chatbot = ({
   clearCopiedTopic,
   isInContainer = false,
   isQuizActive = false,
-  onMessageSent = null, // Add new prop
+  onMessageSent = null,
 }) => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
@@ -21,10 +21,10 @@ const Chatbot = ({
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [showOptionsForMessage, setShowOptionsForMessage] = useState(null);
+  const [optionsPosition, setOptionsPosition] = useState({ x: 0, y: 0 }); // NEW: Track position
   const [isPdfView, setIsPdfView] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  // State to manage mobile full screen mode
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const chatBoxRef = useRef(null);
@@ -110,22 +110,37 @@ const Chatbot = ({
 
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
+
+    // Existing quick responses
     if (
       lowerInput.includes("coxco") ||
       lowerInput.includes("agni student portal")
     ) {
       return "Access the Agni Student Portal: https://coe.act.edu.in/students/";
     }
-    if (
-      lowerInput.includes("gamma ai") ||
-      lowerInput.includes("presentation ai") ||
-      lowerInput.includes("ppt ai")
-    ) {
+    if (lowerInput.includes("gamma ai") || lowerInput.includes("ppt ai")) {
       return "Try Gamma AI for presentations: https://gamma.app/";
     }
     if (lowerInput.includes("pdf")) {
       return "Use this PDF tool: https://www.ilovepdf.com/";
     }
+
+    // New educational resource quick responses
+    if (
+      lowerInput.includes("khan academy") ||
+      lowerInput.includes("free courses")
+    ) {
+      return "🎓 **Free Learning Resources:**\n\n📺 **Khan Academy**: https://www.khanacademy.org/\n📚 **Coursera**: https://www.coursera.org/\n🎯 **edX**: https://www.edx.org/\n🧮 **MIT OpenCourseWare**: https://ocw.mit.edu/";
+    }
+
+    if (lowerInput.includes("youtube") && lowerInput.includes("education")) {
+      return "📺 **Educational YouTube Channels:**\n\n🧪 **Science**: 3Blue1Brown, Veritasium, MinutePhysics\n🧮 **Math**: Khan Academy, Professor Leonard, PatrickJMT\n📖 **Literature**: CrashCourse Literature, The Great Courses\n🌍 **History**: CrashCourse World History, TED-Ed\n💻 **Programming**: freeCodeCamp, CS50, The Coding Train";
+    }
+
+    if (lowerInput.includes("research") || lowerInput.includes("articles")) {
+      return "📖 **Research & Articles:**\n\n📚 **Academic**: Google Scholar, JSTOR, PubMed\n📰 **General**: Wikipedia, Britannica, Smithsonian Magazine\n🔬 **Science**: Scientific American, Nature, New Scientist\n💡 **Technology**: MIT Technology Review, Wired, IEEE Spectrum";
+    }
+
     return null;
   };
 
@@ -203,29 +218,63 @@ const Chatbot = ({
     }
   };
 
-  const handleLongPressStart = (index) => {
-    if (longPressTimeout.current) {
-      clearTimeout(longPressTimeout.current);
+  // UPDATED: Handle message click with better position calculation
+  const handleMessageClick = (e, index, message) => {
+    if (message.sender === "bot") {
+      if (showOptionsForMessage === index) {
+        // Close if already open
+        setShowOptionsForMessage(null);
+      } else {
+        // Calculate position based on click/touch
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clickY = e.clientY || (e.touches && e.touches[0].clientY);
+
+        // Use click coordinates if available, otherwise center of message
+        const x = clickX || rect.left + rect.width / 2;
+        const y = clickY || rect.top + rect.height / 2;
+
+        // Adjust position to keep options in viewport and above the content
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const optionsWidth = isMobile ? 280 : 320;
+        const optionsHeight = isMobile ? 80 : 60;
+
+        let adjustedX = x - optionsWidth / 2; // Center horizontally on click point
+        let adjustedY = y - optionsHeight - 20; // Position above the click point
+
+        // Keep horizontal position in bounds
+        if (adjustedX + optionsWidth > viewportWidth - 20) {
+          adjustedX = viewportWidth - optionsWidth - 20;
+        }
+        if (adjustedX < 20) {
+          adjustedX = 20;
+        }
+
+        // Keep vertical position in bounds - if too close to top, show below instead
+        if (adjustedY < 20) {
+          adjustedY = y + 20; // Show below the click point if not enough space above
+        }
+
+        // Ensure it doesn't go below viewport
+        if (adjustedY + optionsHeight > viewportHeight - 20) {
+          adjustedY = viewportHeight - optionsHeight - 20;
+        }
+
+        setOptionsPosition({ x: adjustedX, y: adjustedY });
+        setShowOptionsForMessage(index);
+      }
     }
-    longPressTimeout.current = setTimeout(() => {
-      setShowOptionsForMessage(index);
-    }, 500);
   };
 
-  const handleLongPressEnd = () => {
-    clearTimeout(longPressTimeout.current);
-  };
+  // UPDATED: Remove long press handlers - now only using click
+  const handleLongPressStart = () => {};
+  const handleLongPressEnd = () => {};
 
   const handleRightClick = (e, index, message) => {
     e.preventDefault();
     if (message.sender === "bot") {
-      setShowOptionsForMessage(index);
-    }
-  };
-
-  const handleMessageClick = (index, message) => {
-    if (message.sender === "bot") {
-      setShowOptionsForMessage(showOptionsForMessage === index ? null : index);
+      handleMessageClick(e, index, message);
     }
   };
 
@@ -276,7 +325,6 @@ const Chatbot = ({
   };
 
   const extractTopicForFilename = (text) => {
-    // Common stop words to remove
     const stopWords = [
       "a",
       "an",
@@ -396,13 +444,13 @@ const Chatbot = ({
     setIsFullScreen((prev) => !prev);
   };
 
-  // Add click outside handler to close message options
+  // UPDATED: Click outside handler to close message options
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         showOptionsForMessage !== null &&
         !event.target.closest(".message-options") &&
-        !event.target.closest(".message")
+        !event.target.closest(".message-options-overlay")
       ) {
         setShowOptionsForMessage(null);
       }
@@ -455,11 +503,11 @@ const Chatbot = ({
     <>
       <div
         className={`
-            ${isMobile ? "chat-container-mobile" : "chat-container-desktop"}
-            ${!isVisible ? "hidden" : ""}
-            ${isInContainer ? "sidebar" : ""}
-            ${isMobile && isFullScreen ? "fullscreen-mobile" : ""}
-          `}
+          ${isMobile ? "chat-container-mobile" : "chat-container-desktop"}
+          ${!isVisible ? "hidden" : ""}
+          ${isInContainer ? "sidebar" : ""}
+          ${isMobile && isFullScreen ? "fullscreen-mobile" : ""}
+        `}
       >
         <div
           className={isMobile ? "chat-header-mobile" : "chat-header-desktop"}
@@ -510,37 +558,15 @@ const Chatbot = ({
               } ${
                 isSpeaking && showOptionsForMessage === index ? "speaking" : ""
               }`}
-              onTouchStart={() => handleLongPressStart(index)}
-              onTouchEnd={handleLongPressEnd}
-              onTouchMove={handleLongPressEnd}
-              onMouseDown={() => handleLongPressStart(index)}
-              onMouseUp={handleLongPressEnd}
-              onMouseLeave={handleLongPressEnd}
               onContextMenu={(e) => handleRightClick(e, index, message)}
-              onClick={() => handleMessageClick(index, message)}
+              onClick={(e) => handleMessageClick(e, index, message)}
               style={{
                 cursor: message.sender === "bot" ? "pointer" : "default",
+                position: "relative", // Ensure proper stacking context
+                zIndex: showOptionsForMessage === index ? 1 : "auto",
               }}
             >
               {renderMessageContent(message.text)}
-              {showOptionsForMessage === index && message.sender === "bot" && (
-                <div className="message-options">
-                  <button onClick={() => handleReadAloud(message.text)}>
-                    <i className="fas fa-volume-up"></i>
-                    {!isMobile && "Read"}
-                  </button>
-                  <button onClick={handlePdfView}>
-                    <i className="fas fa-file-pdf"></i>
-                    {!isMobile && "PDF"}
-                  </button>
-                  {isSpeaking && (
-                    <button onClick={handleStopAudio}>
-                      <i className="fas fa-stop"></i>
-                      {!isMobile && "Stop"}
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           ))}
           {isLoading && (
@@ -577,8 +603,9 @@ const Chatbot = ({
             title={isListening ? "Stop listening" : "Voice input"}
             disabled={isLoading}
           >
-            <i className={`fas ${isListening ? "fa-stop" : "fa-mic"}`}></i>
-            <i className="fas fa-microphone"></i>
+            <i
+              className={`fas ${isListening ? "fa-stop" : "fa-microphone"}`}
+            ></i>
           </button>
           <button
             className={isMobile ? "send-btn-mobile" : "send-btn-desktop"}
@@ -589,6 +616,45 @@ const Chatbot = ({
           </button>
         </div>
       </div>
+
+      {/* UPDATED: Message options overlay with proper z-index */}
+      {showOptionsForMessage !== null && (
+        <div
+          className="message-options-overlay"
+          onClick={() => setShowOptionsForMessage(null)}
+          style={{ zIndex: 9999 }} // Ensure it's on top
+        >
+          <div
+            className="message-options"
+            style={{
+              position: "fixed",
+              left: `${optionsPosition.x}px`,
+              top: `${optionsPosition.y}px`,
+              zIndex: 10000, // Highest z-index
+            }}
+            onClick={(e) => e.stopPropagation()} // Prevent overlay click from closing
+          >
+            <button
+              onClick={() =>
+                handleReadAloud(messages[showOptionsForMessage].text)
+              }
+            >
+              <i className="fas fa-volume-up"></i>
+              <span>Read Aloud</span>
+            </button>
+            <button onClick={handlePdfView}>
+              <i className="fas fa-file-pdf"></i>
+              <span>View PDF</span>
+            </button>
+            {isSpeaking && (
+              <button onClick={handleStopAudio}>
+                <i className="fas fa-stop"></i>
+                <span>Stop Audio</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };

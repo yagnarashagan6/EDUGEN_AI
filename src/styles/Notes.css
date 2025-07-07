@@ -16,7 +16,7 @@
 
 .container-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   font-size: 22px;
   font-weight: 600;
@@ -54,6 +54,18 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.container-body1 {
+  flex: 1;
+  background-color: #fff;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  margin-top: 120px;
   flex-direction: column;
   position: relative;
 }

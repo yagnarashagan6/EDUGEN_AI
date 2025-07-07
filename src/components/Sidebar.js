@@ -12,19 +12,11 @@ const Sidebar = ({
   setMobileHamburger,
   copiedTopic,
   clearCopiedTopic,
-  activeContainer, // Added to sync with StudentDashboard's activeContainer
+  activeContainer, // This prop tracks the currently active container
 }) => {
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
-
-  // State to track the active option (synced with activeContainer)
-  const [activeOption, setActiveOption] = useState(activeContainer || "");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-  // Sync activeOption with activeContainer prop
-  useEffect(() => {
-    setActiveOption(activeContainer || "");
-  }, [activeContainer]);
 
   // Track window resize for mobile detection
   useEffect(() => {
@@ -49,7 +41,7 @@ const Sidebar = ({
       label: "Assignments",
     },
     { id: "streak-container", icon: "fas fa-fire", label: "Streaks" },
-    { id: "news-container", icon: "fas fa-newspaper", label: "News" }, // Changed from circular to news
+    { id: "news-container", icon: "fas fa-newspaper", label: "News" },
     {
       id: "staff-interaction-container",
       icon: "fas fa-users",
@@ -204,18 +196,19 @@ const Sidebar = ({
             <span></span>
             <span></span>
           </div>
-          <span>Menu</span>
+          <span style={{ marginLeft: 30 }}> Menu</span>
         </li>
         {items.map((item) => (
           <li
             key={item.id}
             onClick={() => {
               toggleContainer(item.id);
-              toggleSidebar(); // Close sidebar on mobile after selection
-              setActiveOption(item.id); // Update active option
+              if (isMobile) {
+                toggleSidebar(); // Close sidebar on mobile after selection
+              }
             }}
-            className={`${
-              activeOption === item.id ? "active-option" : ""
+            className={`sidebar-menu-item ${
+              activeContainer === item.id ? "active-option" : ""
             }`}
             title={window.innerWidth > 768 ? item.label : ""}
           >

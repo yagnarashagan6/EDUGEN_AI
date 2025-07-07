@@ -254,44 +254,90 @@
 
 @media (max-width: 480px) {
   .profile-container {
-    padding: 0.5rem;
+    display: block;
+    padding: 1rem 0.5rem;
     min-height: 100vh;
-    overflow-y: auto; /* Enable vertical scrolling */
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    position: static;
+    height: auto;
+    /* Ensure container has proper background */
+    background: transparent;
   }
 
   .profile-card {
     max-width: 100%;
-    padding: 0.75rem;
-    margin: 1rem 0; /* Add some margin for better spacing */
+    padding: 1rem;
+    margin: 0 auto 2rem auto;
+    position: -webkit-sticky;
+    /* Make card more opaque and visible */
+    background: transparent;
+    z-index: 10;
   }
 
   .profile-header {
     font-size: 1.2rem;
+    margin: 1rem 0;
+    /* Ensure header is visible */
+    color: #075e54;
+    font-weight: 600;
   }
 
   .profile-image {
     width: 70px;
     height: 70px;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
   }
 
   .profile-details {
-    padding: 0 0.5rem;
+    padding: 0;
+    margin-bottom: 2rem;
   }
 
   .profile-field {
     font-size: 0.9rem;
-    padding: 0.5rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    /* Make fields more opaque and visible */
+    background: rgba(249, 249, 249, 0.95);
+    border-radius: 6px;
+    border: 1px solid rgba(7, 94, 84, 0.1);
+    /* Ensure text is visible */
+    color: #333;
+  }
+
+  .profile-field label {
+    color: #075e54;
+    font-weight: 500;
+  }
+
+  .profile-field span {
+    color: #333;
+    font-weight: 400;
   }
 
   .profile-button {
-    padding: 0.5rem;
-    font-size: 0.85rem;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    margin: 1rem auto 2rem auto;
+    display: block;
+    width: 80%;
+    max-width: 200px;
+    background: #075e54;
+    color: #ffffff;
   }
 
   .profile-container::before {
     background-size: 200px 200px;
+    position: fixed;
+    /* Significantly reduce opacity for mobile */
+    opacity: 0.1;
+    z-index: 1;
+  }
+
+  /* Remove any transparency issues */
+  body {
+    overflow-x: hidden;
   }
 }
 

@@ -98,7 +98,7 @@ const ChatInterface = ({
       <div className="chat-body">
         {showContactList ? (
           <div className="contact-list scrollable">
-            <div className="contact-list-header">Staff Members</div>
+            <div className="contact-list-header">🧑‍🏫 Staff Members</div>
             <div className="contact-list-body">
               {staffList.filter(
                 (staff) => staff.name && staff.name.trim() !== ""
@@ -665,12 +665,12 @@ const StudentDashboard = () => {
       console.error("Error logging student activity:", err);
     }
   };
-
   useEffect(() => {
     setMobileHamburger(
       <button
         className="mobile-hamburger"
         onClick={() => setSidebarVisible(true)}
+        aria-label="Open menu"
       >
         <i className="fas fa-bars"></i>
       </button>
@@ -1151,17 +1151,23 @@ const StudentDashboard = () => {
       updateTaskProgress(taskId, "copyAndAsk");
     }
 
-    // Go to chatbot container
-    setActiveContainer("chatbot-container");
+    // Don't change the active container - keep tasks visible
+    // setActiveContainer("chatbot-container"); // Remove this line
+
+    // For mobile, open chatbot container, for desktop keep current view
+    if (window.innerWidth <= 768) {
+      setActiveContainer("chatbot-container");
+    }
+
     setIsChatbotOpen(true);
 
-    // Show notification in chatbot to start quiz
+    // Show notification to start quiz (but don't change container)
     setNotifications((prev) => [
       ...prev,
       {
         id: Date.now(),
         type: "quiz-start",
-        message: `Ready to start a quiz on "${topic}"?`,
+        message: `Topic "${topic}" copied! You can now ask the AI or start a quiz.`,
         topic: topic,
       },
     ]);
@@ -1801,6 +1807,15 @@ const StudentDashboard = () => {
     );
   };
 
+  // Add this function to handle when a message is sent to the chatbot
+  const handleChatbotMessageSent = () => {
+    // Find the current task based on the copied topic
+    const currentTask = tasks.find((task) => task.content === copiedTopic);
+    if (currentTask) {
+      updateTaskProgress(currentTask.id, "chatbotSend");
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div className="dashboard-container">
@@ -1818,20 +1833,14 @@ const StudentDashboard = () => {
           setMobileHamburger={setMobileHamburger}
           copiedTopic={copiedTopic}
           clearCopiedTopic={() => setCopiedTopic("")}
+          activeContainer={activeContainer} // Pass the current active container
         />
         <div
           className={`main-content ${sidebarVisible ? "sidebar-active" : ""} ${
             inQuiz ? "quiz-active" : ""
           }`}
         >
-          <div className="header">
-            {mobileHamburger}
-            <input
-              type="text"
-              className="search-bar"
-              placeholder="What do you want to learn today?"
-            />
-          </div>
+          <div className="header">{mobileHamburger}</div>
           {error && <div className="error-message">{error}</div>}
           <div id="main-content-section">
             {!activeContainer && !inQuiz && (
@@ -1904,7 +1913,6 @@ const StudentDashboard = () => {
                 />
               </div>
             )}
-
             {/* All container divs */}
             <div
               id="tasks-container"
@@ -1913,10 +1921,12 @@ const StudentDashboard = () => {
               }`}
             >
               <div className="container-header">
-                {selectedSubject ? (
+                {inQuiz && activeContainer === "tasks-container" ? (
+                  <span>Quiz: {currentTopic}</span>
+                ) : selectedSubject ? (
                   <span>Tasks in {selectedSubject}</span>
                 ) : (
-                  "Posted Tasks"
+                  "📝 Tasks"
                 )}
               </div>
               <div className="container-body scrollable">
@@ -1941,17 +1951,18 @@ const StudentDashboard = () => {
                           },
                         ]);
                       }}
+                      isInContainer={true}
                     />
                   ) : (
-                    <div className="quiz-loading">
-                      <div className="loading-spinner">
+                    <div className="quiz-loading-container">
+                      <div className="quiz-loading-spinner">
                         <i className="fas fa-spinner fa-spin"></i>
                       </div>
                       <p>
                         Generating AI quiz questions for "{currentTopic}"...
                       </p>
                       <button
-                        className="cancel-quiz-btn"
+                        className="cancel-quiz-generation-btn"
                         onClick={() => {
                           setInQuiz(false);
                           setCurrentTopic("");
@@ -1967,24 +1978,12 @@ const StudentDashboard = () => {
                             },
                           ]);
                         }}
-                        style={{
-                          marginTop: "20px",
-                          padding: "10px 20px",
-                          backgroundColor: "#f44336",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "500",
-                        }}
                       >
                         Cancel Quiz Generation
                       </button>
                     </div>
                   )
-                ) : null}
-                {showQuizSetup ? (
+                ) : showQuizSetup ? (
                   <div className="quiz-setup-modal">
                     <h3>Set Up Quiz for "{currentTopic}"</h3>
                     <div className="quiz-setup-content">
@@ -2102,7 +2101,7 @@ const StudentDashboard = () => {
                 activeContainer === "goals-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Your Goals</div>
+              <div className="container-header">🎯 Your Goals</div>
               <div className="container-body scrollable">
                 <button
                   id="show-add-goal-form"
@@ -2175,7 +2174,7 @@ const StudentDashboard = () => {
                 activeContainer === "streak-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Class Leaderboard</div>
+              <div className="container-header">🏆 Streak </div>
               <div className="container-body scrollable">
                 <p>Your Streak: {Math.round(streak)} days</p>
                 <p>Your Progress: {Math.round(progress)}%</p>
@@ -2196,7 +2195,7 @@ const StudentDashboard = () => {
                 {selectedAssignmentSubject ? (
                   <span>Assignments in {selectedAssignmentSubject}</span>
                 ) : (
-                  "Posted Assignments (by Staff)"
+                  "📚 Assignments"
                 )}
               </div>
               <div className="container-body scrollable">
@@ -2265,15 +2264,14 @@ const StudentDashboard = () => {
                 activeContainer === "circular-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Important Circulars</div>
+              <div className="container-header">School Circulars</div>
               <div className="container-body scrollable">
                 {circulars.length === 0 ? (
-                  <p className="empty-message">No new circulars.</p>
+                  <p className="empty-message">No circulars available.</p>
                 ) : (
-                  <ul>
+                  <ul className="circular-list">
                     {circulars.map((circular) => (
-                      <li key={circular.id}>
-                        {" "}
+                      <li key={circular.id} className="circular-item">
                         <a
                           href={circular.url}
                           target="_blank"
@@ -2296,7 +2294,7 @@ const StudentDashboard = () => {
                 activeContainer === "news-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Latest News</div>
+              <div className="container-header">📰 News </div>
               <div className="container-body scrollable">
                 <div className="news-controls">
                   <div className="news-categories">
@@ -2504,7 +2502,7 @@ const StudentDashboard = () => {
                 activeContainer === "self-analysis-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Your Self Analysis</div>
+              <div className="container-header">🧠 Self Analysis</div>
               <div className="container-body">
                 <div className="analysis-summary">
                   <h3>Weekly Progress Summary</h3>
@@ -2551,6 +2549,7 @@ const StudentDashboard = () => {
                 </div>
               </div>
             </div>
+
             <div
               id="settings-container"
               className={`toggle-container ${
@@ -2562,9 +2561,16 @@ const StudentDashboard = () => {
                 <button
                   onClick={handleEditProfile}
                   className="add-goal-btn"
-                  style={{ marginTop: "200px" }}
+                  style={{ marginTop: "20px", marginBottom: "10px" }}
                 >
                   Edit Profile
+                </button>
+                <button
+                  onClick={() => setActiveContainer("about-container")}
+                  className="add-goal-btn"
+                  style={{ marginBottom: "10px" }}
+                >
+                  About the App
                 </button>
                 <button
                   onClick={handleLogout}
@@ -2576,55 +2582,90 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div
+              id="about-container"
+              className={`toggle-container ${
+                activeContainer === "about-container" ? "active" : ""
+              }`}
+            >
+              <div className="container-header"> 📱 About the App</div>
+              <div className="container-body">
+                <div className="about-content">
+                  <h3> EDUGEN AI </h3>
+                  <p>
+                    EduGen AI is an innovative educational platform developed by{" "}
+                    <strong>Yagnarashagan</strong> that bridges the gap between
+                    students and educators using smart automation. This app is
+                    designed to enhance academic performance, engagement, and
+                    communication in an intuitive and interactive way.
+                  </p>
+
+                  <h4>✨ It features:</h4>
+                  <ul className="features-list">
+                    <li>
+                      🤖 <strong>Smart Chatbot Assistance</strong> for real-time
+                      academic help
+                    </li>
+                    <li>
+                      🧠 <strong>AI-Generated Quizzes</strong> to test knowledge
+                      based on selected topics
+                    </li>
+                    <li>
+                      🎯 <strong>Goal Setting and Self Analysis</strong> to
+                      boost productivity
+                    </li>
+                    <li>
+                      📊 <strong>Interactive Dashboard</strong> for both
+                      students and staff to manage tasks, assignments, and
+                      performance
+                    </li>
+                  </ul>
+
+                  <p>
+                    EduGen AI empowers students to learn effectively and helps
+                    staff monitor, guide, and support learners efficiently. With
+                    built-in chat functionality, assignment distribution, and
+                    performance tracking, EduGen AI is your all-in-one
+                    AI-powered education assistant.
+                  </p>
+
+                  <div className="contact-section">
+                    <h4>📧 Need Help?</h4>
+                    <p>For any queries about the app, please contact us at:</p>
+                    <a
+                      href="mailto:edugenai7@gmail.com"
+                      className="contact-email"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      edugenai7@gmail.com
+                    </a>
+                  </div>
+
+                  <div style={{ marginTop: "30px", textAlign: "center" }}>
+                    <button
+                      onClick={() => setActiveContainer("settings-container")}
+                      className="back-btn"
+                    >
+                      Back to Settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
               id="chatbot-container"
               className={`toggle-container ${
                 activeContainer === "chatbot-container" ? "active" : ""
               }`}
             >
               <div className="container-body">
-                {/* Show quiz start notifications in chatbot for mobile view only */}
-                {window.innerWidth <= 768 &&
-                  notifications
-                    .filter((notif) => notif.type === "quiz-start")
-                    .map((notif, index) => (
-                      <Notification
-                        key={`${notif.id || "quiz-start"}-${index}`}
-                        message={notif.message}
-                        onClick={() => {
-                          // Show quiz setup modal
-                          setShowQuizSetup(true);
-                          setActiveContainer("tasks-container");
-                          // Remove this notification
-                          setNotifications((prev) =>
-                            prev.filter((_, i) => prev.indexOf(notif) !== i)
-                          );
-                        }}
-                        onClose={() => {
-                          // Remove this notification
-                          setNotifications((prev) =>
-                            prev.filter((_, i) => prev.indexOf(notif) !== i)
-                          );
-                          // Add helpful message
-                          setNotifications((prev) => [
-                            ...prev,
-                            {
-                              id: Date.now(),
-                              type: "info",
-                              message:
-                                "Quiz start cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
-                            },
-                          ]);
-                        }}
-                        isClickable={true}
-                        buttonText="Start Quiz"
-                      />
-                    ))}
                 <Chatbot
                   isVisible={window.innerWidth <= 768}
                   copiedTopic={copiedTopic}
                   clearCopiedTopic={() => setCopiedTopic("")}
                   isInContainer={true}
                   isQuizActive={inQuiz}
+                  onMessageSent={handleChatbotMessageSent}
                 />
               </div>
             </div>
@@ -2667,7 +2708,7 @@ const StudentDashboard = () => {
               />
             ))}
 
-            {/* Regular notifications */}
+            {/* Regular notifications - FIXED: Remove duplicates */}
             {notifications.map((notif, index) => {
               if (notif.type === "overdue") {
                 return (
@@ -2712,12 +2753,12 @@ const StudentDashboard = () => {
                       setShowQuizSetup(true);
                       setActiveContainer("tasks-container");
                       setNotifications((prev) =>
-                        prev.filter((_, i) => prev.indexOf(notif) !== i)
+                        prev.filter((_, i) => i !== index)
                       );
                     }}
                     onClose={() => {
                       setNotifications((prev) =>
-                        prev.filter((_, i) => prev.indexOf(notif) !== i)
+                        prev.filter((_, i) => i !== index)
                       );
                       setNotifications((prev) => [
                         ...prev,
@@ -2756,6 +2797,7 @@ const StudentDashboard = () => {
               clearCopiedTopic={() => setCopiedTopic("")}
               isInContainer={false}
               isQuizActive={inQuiz}
+              onMessageSent={handleChatbotMessageSent}
             />
           )}
         </div>

@@ -580,7 +580,7 @@
 }
 
 .user-message-mobile {
-  background-color: #0438af;
+  background-color: #3ae5f5;
   color: white;
   align-self: flex-end;
   border-radius: 16px 16px 0 16px;
@@ -895,7 +895,7 @@
 }
 
 .user-message-desktop {
-  background-color: #0438af;
+  background-color: #3ae5f5;
   color: white;
   align-self: flex-end;
   border-radius: 16px 16px 0 16px;
@@ -925,104 +925,127 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Message options for both mobile and desktop */
+/* Message options for both mobile and desktop - UPDATED */
 .message-options {
-  position: absolute;
-  bottom: -50px;
-  right: 0;
+  position: fixed; /* Changed from absolute to fixed for proper overlay */
   background: white;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  padding: 8px;
   display: flex;
   gap: 8px;
-  z-index: 1000;
+  z-index: 10000; /* Highest z-index */
   border: 1px solid #e0e0e0;
   animation: slideUp 0.2s ease;
+  margin-left: 250px;
+  height: fit-content;
+  margin-top: 60px;
   min-width: 200px;
+  pointer-events: auto;
+}
+
+/* Message options overlay - UPDATED with higher z-index */
+.message-options-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.05); /* Lighter background */
+  z-index: 999999; /* Very high z-index */
+  pointer-events: auto;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: scale(0.8) translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
   }
 }
 
 .message-options button {
   background: #f8f9fa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 10px 14px;
+  border-radius: 6px;
+  padding: 8px 12px; /* Reduced padding */
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px; /* Smaller font */
   color: #2c3e50;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 6px; /* Reduced gap */
   transition: all 0.2s ease;
   white-space: nowrap;
   font-weight: 500;
   flex: 1;
   justify-content: center;
+  min-height: 36px; /* Reduced height */
 }
 
 .message-options button:hover {
   background: #e9ecef;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .message-options button i {
-  font-size: 16px;
+  font-size: 14px; /* Smaller icon */
+}
+
+.message-options button span {
+  font-size: 11px; /* Smaller text */
 }
 
 /* Responsive adjustments for message options */
 @media (max-width: 768px) {
   .message-options {
-    bottom: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    right: auto;
+    min-width: 180px; /* Reduced from 280px */
     flex-direction: row;
-    min-width: 180px;
+    padding: 8px;
   }
 
   .message-options button {
-    font-size: 12px;
+    font-size: 11px;
     padding: 8px 10px;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 40px;
   }
 
   .message-options button span {
-    display: none; /* Hide text on mobile, show only icons */
+    font-size: 10px;
+  }
+
+  .message-options button i {
+    font-size: 13px;
   }
 }
 
 /* Desktop specific adjustments */
 @media (min-width: 769px) {
   .message-options {
-    right: 0;
-    transform: none;
+    flex-direction: row;
+    max-width: 200px; /* Reduced from 320px */
   }
 
-  /* Make sure options don't overflow on small desktop screens */
-  .message-options {
-    max-width: 250px;
+  .message-options button {
+    flex-direction: row;
+    gap: 6px;
   }
 }
 
-/* Ensure proper z-index stacking */
-.chat-container-desktop,
-.chat-container-mobile {
-  z-index: 999;
+/* Ensure all chat containers have lower z-index */
+.chat-container-mobile,
+.chat-container-desktop {
+  z-index: 100;
 }
 
-.message-options {
-  z-index: 1000;
+.chat-container-mobile.fullscreen-mobile {
+  z-index: 500;
 }
 
 .pdf-view-container {
