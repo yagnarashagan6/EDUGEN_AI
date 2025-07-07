@@ -422,18 +422,6 @@
 }
 
 /* Ensure quiz-specific buttons are not affected by the global button style */
-button {
-  background: #3128a7;
-  color: white;
-  font-size: 16px;
-  padding: 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  width: 100%;
-  margin-top: 15px;
-}
-
 .edugen-quiz-back-button,
 .edugen-quiz-download-pdf-btn {
   width: auto !important;
@@ -460,35 +448,32 @@ button {
   background: #b71c1c !important;
 }
 
-/* Timer Bar Styling */
-.timer-bar {
-  width: 100%;
-  height: 6px;
-  background: #e0e0e0;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-top: 8px;
+/* Override global button styles for quiz components */
+button.edugen-quiz-next-button,
+button.edugen-quiz-option-btn {
+  background: inherit !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  padding: inherit !important;
+  border: inherit !important;
+  border-radius: inherit !important;
+  cursor: inherit !important;
+  width: inherit !important;
+  margin-top: inherit !important;
 }
 
-.timer-fill {
-  height: 100%;
-  background: linear-gradient(to right, #f44336, #ff8a80);
-  transition: width 1s linear;
-  border-radius: 3px;
+/* Specific styles for quiz buttons */
+button.edugen-quiz-next-button {
+  background: #3f51b5 !important;
+  color: white !important;
+  width: 100% !important;
+  max-width: 200px !important;
 }
 
-@keyframes timerPulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
-  }
+button.edugen-quiz-next-button:hover:not(:disabled) {
+  background: #303f9f !important;
 }
 
-.timer-fill {
-  animation: timerPulse 2s infinite;
+button.edugen-quiz-next-button:disabled {
+  background: #bdbdbd !important;
 }

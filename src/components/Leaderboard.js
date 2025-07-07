@@ -1,32 +1,81 @@
-import React from 'react';
-import '../styles/Dashboard.css'; // Ensure this includes necessary styles
+import React from "react";
+import "../styles/Dashboard.css";
 
-const Leaderboard = ({ students, showStats = false }) => {
-  // Only show students whose name is not 'Unknown'
-  const validStudents = students.filter(student => student.name !== 'Unknown');
+const Leaderboard = ({ students, showStats = false, currentUserId }) => {
+  // Filter out students with 'Unknown' names
+  const filteredStudents = students.filter(
+    (student) =>
+      student.name !== "Unknown" && student.name && student.name.trim() !== ""
+  );
+
+  // Sort students by progress first, then by streak
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    const progressDiff = (b.progress || 0) - (a.progress || 0);
+    if (progressDiff !== 0) return progressDiff;
+    return (b.streak || 0) - (a.streak || 0);
+  });
+
+  // Get top 10 students for better mobile display
+  const displayStudents = sortedStudents.slice(0, 10);
+
+  if (displayStudents.length === 0) {
+    return (
+      <div className="leaderboard">
+        <h3>Class Leaderboard</h3>
+        <p className="empty-message">No student data available yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="leaderboard bg-white p-4 rounded shadow mt-4">
-      <h3 className="text-xl font-bold mb-2">Class Leaderboard</h3>
-      {validStudents.length === 0 ? (
-        <p className="text-gray-500">No data available.</p>
-      ) : (
-        <div className="student-list scrollable">
-          {validStudents.map((student) => (
-            <div key={student.id} className="student-item flex items-center py-2 border-b">
-              <div className="student-info flex-grow">
-                <h4 className="font-semibold">{student.name}</h4>
-                <p className="text-sm text-gray-600">
-                  Streak: {student.streak} days | Progress: {student.progress}%
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="leaderboard">
+      <h3>Class Leaderboard</h3>
+      <ul>
+        {displayStudents.map((student, index) => (
+          <li
+            key={student.id}
+            className={
+              student.id === currentUserId ? "current-user-leaderboard" : ""
+            }
+          >
+            <span>
+              #{index + 1} {student.name}
+              {student.id === currentUserId ? " (You)" : ""}
+            </span>
+            <span>
+              🔥 {Math.round(student.streak || 0)} days | 📈{" "}
+              {Math.round(student.progress || 0)}%
+            </span>
+          </li>
+        ))}
+      </ul>
       {showStats && (
-        <div className="mt-4">
-          <p className="text-gray-600">Total Students: {validStudents.length}</p>
+        <div
+          style={{
+            marginTop: "15px",
+            padding: "10px",
+            background: "#f8f9fa",
+            borderRadius: "6px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              margin: "0",
+              fontSize: "14px",
+              color: "#666",
+              fontWeight: "500",
+            }}
+          >
+            Total Active Students: {displayStudents.length}
+            {sortedStudents.length > 10 && (
+              <span
+                style={{ fontSize: "12px", display: "block", marginTop: "5px" }}
+              >
+                Showing top 10 students
+              </span>
+            )}
+          </p>
         </div>
       )}
     </div>

@@ -465,6 +465,20 @@ const StudentDashboard = () => {
   const sessionStartTimeRef = useRef(null);
 
   const [mobileHamburger, setMobileHamburger] = useState(null);
+  // ...existing code...
+
+  // Add this useEffect to fetch news when news container is activated
+  useEffect(() => {
+    if (
+      activeContainer === "news-container" &&
+      news.length === 0 &&
+      !newsLoading
+    ) {
+      fetchNews(selectedCategory, 1, false);
+    }
+  }, [activeContainer, news.length, newsLoading, selectedCategory]);
+
+  // ...existing code...
 
   // News categories
   const newsCategories = [
@@ -478,7 +492,7 @@ const StudentDashboard = () => {
     { value: "entertainment", label: "Entertainment" },
   ];
 
-  // Fetch news function with better pagination and Indian news support
+  // Fetch news function with better image handling
   const fetchNews = async (
     category = "general",
     page = 1,
@@ -517,7 +531,35 @@ const StudentDashboard = () => {
 
           const data = await response.json();
           if (data.articles && data.articles.length > 0) {
-            allArticles = [...allArticles, ...data.articles];
+            // Process articles to ensure images are included with better fallbacks
+            const processedArticles = data.articles.map((article) => {
+              let imageUrl = article.image;
+
+              // Check if image URL is valid and accessible
+              if (
+                !imageUrl ||
+                imageUrl === null ||
+                imageUrl === "null" ||
+                imageUrl === ""
+              ) {
+                imageUrl = `https://picsum.photos/400/220?random=${Math.floor(
+                  Math.random() * 1000
+                )}`;
+              }
+
+              // Ensure HTTPS for images
+              if (imageUrl && imageUrl.startsWith("http://")) {
+                imageUrl = imageUrl.replace("http://", "https://");
+              }
+
+              return {
+                ...article,
+                image: imageUrl,
+                imageAlt: article.title || "News Article",
+                country: country, // Add country for source identification
+              };
+            });
+            allArticles = [...allArticles, ...processedArticles];
           }
         } catch (countryError) {
           console.warn(`Error fetching news from ${country}:`, countryError);
@@ -1096,13 +1138,18 @@ const StudentDashboard = () => {
 
   const toggleSidebar = () => setSidebarVisible((prev) => !prev);
 
-  const copyTopicAndAskAI = (topic) => {
+  const copyTopicAndAskAI = (topic, taskId = null) => {
     setCopiedTopic(topic);
     setCurrentTopic(topic);
     setQuizReady(false);
-    setInQuiz(false); // Reset quiz state
-    setQuizQuestions([]); // Clear any existing questions
-    setShowQuizSetup(false); // Don't show quiz setup modal here
+    setInQuiz(false);
+    setQuizQuestions([]);
+    setShowQuizSetup(false);
+
+    // Track progress for copy and ask AI step
+    if (taskId) {
+      updateTaskProgress(taskId, "copyAndAsk");
+    }
 
     // Go to chatbot container
     setActiveContainer("chatbot-container");
@@ -1544,11 +1591,215 @@ const StudentDashboard = () => {
     setExpandedSubjects((prev) => ({ ...prev, [subject]: !prev[subject] }));
   };
 
-  if (!userData) {
-    return (
-      <div className="loading-dashboard">Loading Student Dashboard...</div>
+  // Add new state for tracking task progress
+  const [taskProgress, setTaskProgress] = useState({});
+  const [overdueNotifications, setOverdueNotifications] = useState([]);
+
+  // Track task progress in localStorage and Firestore
+  const updateTaskProgress = async (taskId, step) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const progressKey = `taskProgress_${user.uid}_${taskId}`;
+    const currentProgress = JSON.parse(
+      localStorage.getItem(progressKey) || "{}"
     );
-  }
+
+    const updatedProgress = {
+      ...currentProgress,
+      [step]: Date.now(),
+    };
+
+    // Save to localStorage
+    localStorage.setItem(progressKey, JSON.stringify(updatedProgress));
+
+    // Update state
+    setTaskProgress((prev) => ({
+      ...prev,
+      [taskId]: updatedProgress,
+    }));
+
+    // Save to Firestore
+    try {
+      const userRef = doc(db, "students", user.uid);
+      await updateDoc(userRef, {
+        [`taskProgress.${taskId}`]: updatedProgress,
+      });
+    } catch (error) {
+      console.error("Error updating task progress:", error);
+    }
+  };
+
+  // Check for overdue tasks
+
+  const checkOverdueTasks = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user || tasks.length === 0) return;
+
+    const now = Date.now();
+    const overdueThreshold = 2 * 24 * 60 * 60 * 1000; // 2 days in milliseconds
+
+    const overdueTasks = [];
+
+    for (const task of tasks) {
+      const taskPostedTime = new Date(task.date).getTime();
+      const timeSincePosted = now - taskPostedTime;
+
+      if (timeSincePosted >= overdueThreshold) {
+        const progressKey = `taskProgress_${user.uid}_${task.id}`;
+        const progress = JSON.parse(localStorage.getItem(progressKey) || "{}");
+
+        // Check if all required steps are completed
+        const hasCompletedAll =
+          progress.copyAndAsk && progress.chatbotSend && progress.startQuiz;
+
+        // Check if reason already submitted
+        const reasonKey = `overdueReason_${user.uid}_${task.id}`;
+        const reasonSubmitted = localStorage.getItem(reasonKey);
+
+        if (!hasCompletedAll && !reasonSubmitted) {
+          // Find the staff member who posted this task and get their name
+          const taskStaff = staffList.find(
+            (staff) => staff.id === task.staffId
+          );
+          const staffName = taskStaff ? taskStaff.name : "Unknown Staff";
+
+          overdueTasks.push({
+            ...task,
+            staffName, // Add staff name to the task object
+            progress,
+            timeSincePosted,
+          });
+        }
+      }
+    }
+
+    setOverdueNotifications(overdueTasks);
+  }, [tasks, staffList]); // Add staffList as dependency
+
+  // Check for overdue tasks every minute
+  useEffect(() => {
+    const interval = setInterval(checkOverdueTasks, 60000); // Check every minute
+    checkOverdueTasks(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [checkOverdueTasks]);
+
+  // Load existing task progress on component mount
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user || tasks.length === 0) return;
+
+    const allProgress = {};
+    tasks.forEach((task) => {
+      const progressKey = `taskProgress_${user.uid}_${task.id}`;
+      const progress = JSON.parse(localStorage.getItem(progressKey) || "{}");
+      if (Object.keys(progress).length > 0) {
+        allProgress[task.id] = progress;
+      }
+    });
+
+    setTaskProgress(allProgress);
+  }, [tasks]);
+
+  // Handle overdue reason submission
+  const handleOverdueReasonSubmit = async (task, reason) => {
+    const user = auth.currentUser;
+    if (!user || !reason.trim()) return;
+
+    try {
+      // Find the staff member who posted this task - FIXED: use task.staffId instead of task.postedBy
+      const taskStaff = staffList.find((staff) => staff.id === task.staffId);
+
+      if (taskStaff) {
+        // Create message to staff - FIXED: use task.staffId instead of task.postedBy
+        const chatId = [user.uid, task.staffId].sort().join("_");
+        const messageData = {
+          messages: [
+            {
+              sender: "student",
+              senderId: user.uid, // Add senderId for proper message handling
+              text: `Overdue Task Reason - "${task.content}" (${
+                task.subject || "No Subject"
+              }): ${reason}`,
+              timestamp: new Date().toISOString(),
+              read: false,
+            },
+          ],
+        };
+
+        // Save message to Firestore
+        const chatRef = doc(db, "messages", chatId);
+        const chatDoc = await getDoc(chatRef);
+
+        if (chatDoc.exists()) {
+          const existingMessages = chatDoc.data().messages || [];
+          await updateDoc(chatRef, {
+            messages: [...existingMessages, messageData.messages[0]],
+          });
+        } else {
+          await setDoc(chatRef, messageData);
+        }
+
+        // Mark reason as submitted
+        const reasonKey = `overdueReason_${user.uid}_${task.id}`;
+        localStorage.setItem(
+          reasonKey,
+          JSON.stringify({
+            reason,
+            submittedAt: Date.now(),
+          })
+        );
+
+        // Remove from overdue notifications
+        setOverdueNotifications((prev) => prev.filter((t) => t.id !== task.id));
+
+        // Log activity
+        logStudentActivity(
+          "overdue_reason_submitted",
+          task.subject || "Unknown"
+        );
+
+        // Show success notification
+        setNotifications((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            type: "success",
+            message: `Overdue reason submitted successfully to ${taskStaff.name}.`,
+          },
+        ]);
+      } else {
+        // If staff member not found, show error
+        setNotifications((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            type: "error",
+            message: "Could not find the staff member who posted this task.",
+          },
+        ]);
+        console.error("Staff member not found for task:", task);
+      }
+    } catch (error) {
+      console.error("Error submitting overdue reason:", error);
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: "error",
+          message: "Failed to submit reason. Please try again.",
+        },
+      ]);
+    }
+  };
+
+  // Add this function to close overdue notifications
+  const closeOverdueNotification = (taskId) => {
+    setOverdueNotifications((prev) =>
+      prev.filter((task) => task.id !== taskId)
+    );
+  };
 
   return (
     <ErrorBoundary>
@@ -1653,6 +1904,8 @@ const StudentDashboard = () => {
                 />
               </div>
             )}
+
+            {/* All container divs */}
             <div
               id="tasks-container"
               className={`toggle-container ${
@@ -1678,7 +1931,6 @@ const StudentDashboard = () => {
                         setCurrentTopic("");
                         setQuizQuestions([]);
                         setActiveContainer(null);
-                        // Add notification after cancel
                         setNotifications((prev) => [
                           ...prev,
                           {
@@ -1698,7 +1950,6 @@ const StudentDashboard = () => {
                       <p>
                         Generating AI quiz questions for "{currentTopic}"...
                       </p>
-                      <p>This may take a moment.</p>
                       <button
                         className="cancel-quiz-btn"
                         onClick={() => {
@@ -1706,7 +1957,6 @@ const StudentDashboard = () => {
                           setCurrentTopic("");
                           setQuizQuestions([]);
                           setActiveContainer(null);
-                          // Add notification after cancel
                           setNotifications((prev) => [
                             ...prev,
                             {
@@ -1815,7 +2065,6 @@ const StudentDashboard = () => {
                         />
                       ))
                     )}
-                    {/* Move the back button here, at the bottom */}
                     <div style={{ marginTop: 24, textAlign: "center" }}>
                       <button
                         className="back-btn small"
@@ -1972,7 +2221,6 @@ const StudentDashboard = () => {
                         )
                       )
                     )}
-                    {/* Add the back button at the bottom */}
                     <div style={{ marginTop: 24, textAlign: "center" }}>
                       <button
                         className="back-btn small"
@@ -2034,7 +2282,6 @@ const StudentDashboard = () => {
                           {circular.helptitle || circular.id}
                         </a>{" "}
                         <span>
-                          {" "}
                           {" - Sent by "} <strong>{circular.sender}</strong>{" "}
                         </span>{" "}
                       </li>
@@ -2049,49 +2296,15 @@ const StudentDashboard = () => {
                 activeContainer === "news-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">📰 Latest News</div>
+              <div className="container-header">Latest News</div>
               <div className="container-body scrollable">
-                {/* News Controls */}
-                <div className="news-controls" style={{ marginBottom: "20px" }}>
-                  {/* Category Dropdown */}
-                  <div
-                    className="news-categories"
-                    style={{ marginBottom: "15px" }}
-                  >
-                    <label
-                      htmlFor="news-category-select"
-                      style={{
-                        display: "block",
-                        margin: "0 0 8px 0",
-                        fontSize: "14px",
-                        color: "#666",
-                        fontWeight: "500",
-                      }}
-                    >
-                      Category:
-                    </label>
+                <div className="news-controls">
+                  <div className="news-categories">
+                    <label htmlFor="news-category-select">Category:</label>
                     <select
                       id="news-category-select"
                       value={selectedCategory}
                       onChange={(e) => handleCategoryChange(e.target.value)}
-                      style={{
-                        padding: "8px 12px",
-                        fontSize: "14px",
-                        border: "1px solid #ddd",
-                        borderRadius: "6px",
-                        backgroundColor: "#fff",
-                        color: "#333",
-                        cursor: "pointer",
-                        minWidth: "150px",
-                        outline: "none",
-                        transition: "border-color 0.2s ease",
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#1976d2";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#ddd";
-                      }}
                     >
                       {newsCategories.map((category) => (
                         <option key={category.value} value={category.value}>
@@ -2100,271 +2313,142 @@ const StudentDashboard = () => {
                       ))}
                     </select>
                   </div>
-
-                  {/* Refresh Button */}
                   <button
                     onClick={handleNewsRefresh}
                     disabled={newsLoading}
                     className="news-refresh-btn"
-                    style={{
-                      padding: "8px 16px",
-                      backgroundColor: newsLoading ? "#ccc" : "#4CAF50",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: newsLoading ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      opacity: newsLoading ? 0.6 : 1,
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!newsLoading) {
-                        e.target.style.backgroundColor = "#45a049";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!newsLoading) {
-                        e.target.style.backgroundColor = "#4CAF50";
-                      }
-                    }}
                   >
-                    <i
-                      className={`fas fa-sync-alt ${
-                        newsLoading ? "fa-spin" : ""
-                      }`}
-                    ></i>
-                    {newsLoading ? "Refreshing..." : "Refresh"}
+                    {newsLoading ? (
+                      <>
+                        <i
+                          className="fas fa-spinner fa-spin"
+                          style={{ marginRight: "8px" }}
+                        ></i>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <i
+                          className="fas fa-sync-alt"
+                          style={{ marginRight: "8px" }}
+                        ></i>
+                        Refresh News
+                      </>
+                    )}
                   </button>
                 </div>
 
-                {/* News Content */}
-                {newsError && (
-                  <div
-                    className="error-message"
-                    style={{
-                      marginBottom: "20px",
-                      padding: "12px",
-                      backgroundColor: "#ffebee",
-                      color: "#c62828",
-                      border: "1px solid #ffcdd2",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                    }}
-                  >
-                    {newsError}
-                    <button
-                      onClick={handleNewsRefresh}
-                      style={{
-                        marginLeft: "10px",
-                        padding: "4px 8px",
-                        backgroundColor: "#c62828",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                )}
-
-                {newsLoading && news.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px" }}>
+                {/* News Articles Section - Updated for better display */}
+                {newsLoading ? (
+                  <div className="news-loading">
                     <i
                       className="fas fa-spinner fa-spin"
-                      style={{ fontSize: "24px", color: "#666" }}
+                      style={{ fontSize: "24px", color: "#0438af" }}
                     ></i>
-                    <p style={{ marginTop: "15px", color: "#666" }}>
-                      Loading{" "}
-                      {newsCategories
-                        .find((cat) => cat.value === selectedCategory)
-                        ?.label.toLowerCase()}{" "}
-                      news...
+                    <p style={{ marginTop: "16px", color: "#666" }}>
+                      Loading latest news...
                     </p>
                   </div>
-                ) : news.length === 0 ? (
-                  <p className="empty-message">
-                    No{" "}
-                    {newsCategories
-                      .find((cat) => cat.value === selectedCategory)
-                      ?.label.toLowerCase()}{" "}
-                    news articles available.
-                  </p>
+                ) : newsError ? (
+                  <div className="news-error-message">
+                    <i
+                      className="fas fa-exclamation-triangle"
+                      style={{ marginRight: "8px" }}
+                    ></i>
+                    {newsError}
+                  </div>
                 ) : (
                   <>
-                    {/* News Articles with country indicators */}
                     <div className="news-list">
-                      {news.map((article, index) => {
-                        // Determine source country for styling
-                        const isIndianSource =
-                          article.source.name.toLowerCase().includes("india") ||
-                          article.source.name
-                            .toLowerCase()
-                            .includes("times of india") ||
-                          article.source.name
-                            .toLowerCase()
-                            .includes("hindustan") ||
-                          article.source.name.toLowerCase().includes("ndtv") ||
-                          article.url.includes(".in/");
-
-                        return (
-                          <div
-                            key={`${article.url}-${index}`}
-                            className="news-article"
+                      {news.length === 0 ? (
+                        <div className="news-empty-message">
+                          <i
+                            className="fas fa-newspaper"
                             style={{
-                              border: "1px solid #e0e0e0",
-                              borderRadius: "8px",
-                              padding: "16px",
+                              fontSize: "48px",
+                              color: "#dee2e6",
                               marginBottom: "16px",
-                              backgroundColor: "#fff",
-                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                              transition:
-                                "transform 0.2s ease, box-shadow 0.2s ease",
                             }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform =
-                                "translateY(-2px)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 8px rgba(0,0,0,0.15)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = "translateY(0)";
-                              e.currentTarget.style.boxShadow =
-                                "0 2px 4px rgba(0,0,0,0.1)";
+                          ></i>
+                          <p
+                            style={{
+                              margin: 0,
+                              color: "#6c757d",
+                              fontSize: "16px",
                             }}
                           >
-                            {article.image && (
+                            No news articles found for this category.
+                          </p>
+                        </div>
+                      ) : (
+                        news.map((article, index) => {
+                          const isIndianSource = article.country === "in";
+
+                          return (
+                            <div
+                              key={article.url || index}
+                              className="news-article"
+                              onClick={() => {
+                                window.open(
+                                  article.url,
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                );
+                              }}
+                            >
                               <img
                                 src={article.image}
-                                alt={article.title}
-                                style={{
-                                  width: "100%",
-                                  height: "200px",
-                                  objectFit: "cover",
-                                  borderRadius: "6px",
-                                  marginBottom: "12px",
-                                }}
+                                alt={article.title || "News Article"}
+                                className="news-article-image"
                                 onError={(e) => {
-                                  e.target.style.display = "none";
+                                  e.target.src = `https://via.placeholder.com/400x220/f8f9fa/6c757d?text=${encodeURIComponent(
+                                    "News Image"
+                                  )}`;
                                 }}
+                                loading="lazy"
                               />
-                            )}
-                            <h3
-                              style={{
-                                margin: "0 0 8px 0",
-                                fontSize: "16px",
-                                lineHeight: "1.4",
-                                color: "#333",
-                              }}
-                            >
-                              <a
-                                href={article.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  color: "#1976d2",
-                                  textDecoration: "none",
-                                  fontWeight: "600",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.target.style.textDecoration = "underline";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.textDecoration = "none";
-                                }}
-                              >
-                                {article.title}
-                              </a>
-                            </h3>
-                            <p
-                              style={{
-                                margin: "0 0 12px 0",
-                                fontSize: "14px",
-                                lineHeight: "1.5",
-                                color: "#666",
-                              }}
-                            >
-                              {article.description}
-                            </p>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                fontSize: "12px",
-                                color: "#888",
-                                borderTop: "1px solid #f0f0f0",
-                                paddingTop: "8px",
-                              }}
-                            >
-                              <span
-                                className={`news-source ${
-                                  isIndianSource ? "indian" : "us"
-                                }`}
-                                style={{
-                                  fontWeight: "500",
-                                  color: isIndianSource ? "#ff9800" : "#2196F3",
-                                  background: isIndianSource
-                                    ? "rgba(255, 152, 0, 0.1)"
-                                    : "rgba(33, 150, 243, 0.1)",
-                                  padding: "4px 8px",
-                                  borderRadius: "12px",
-                                  fontSize: "13px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
-                                }}
-                              >
-                                {article.source.name}{" "}
-                                {isIndianSource ? "🇮🇳" : "🇺🇸"}
-                              </span>
-                              <span>
-                                {new Date(
-                                  article.publishedAt
-                                ).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </span>
+                              <div className="news-article-content">
+                                <h3>{article.title}</h3>
+                                <p className="news-article-description">
+                                  {article.description ||
+                                    "No description available."}
+                                </p>
+                                <div className="news-article-footer">
+                                  <span
+                                    className={`news-source ${
+                                      isIndianSource ? "indian" : "us"
+                                    }`}
+                                  >
+                                    {article.source?.name || "Unknown Source"}
+                                    <span style={{ marginLeft: "4px" }}>
+                                      {isIndianSource ? "🇮🇳" : "🇺🇸"}
+                                    </span>
+                                  </span>
+                                  <span className="news-date">
+                                    {new Date(
+                                      article.publishedAt
+                                    ).toLocaleDateString("en-US", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                      )}
                     </div>
 
-                    {/* Load More Button */}
-                    {hasMoreNews && (
-                      <div style={{ textAlign: "center", marginTop: "20px" }}>
+                    {hasMoreNews && news.length > 0 && (
+                      <div className="news-load-more-container">
                         <button
                           onClick={handleLoadMore}
                           disabled={newsLoading}
                           className="news-load-more-btn"
-                          style={{
-                            padding: "10px 20px",
-                            backgroundColor: newsLoading ? "#ccc" : "#2196F3",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
-                            cursor: newsLoading ? "not-allowed" : "pointer",
-                            fontSize: "14px",
-                            opacity: newsLoading ? 0.6 : 1,
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!newsLoading) {
-                              e.target.style.backgroundColor = "#1976d2";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!newsLoading) {
-                              e.target.style.backgroundColor = "#2196F3";
-                            }
-                          }}
                         >
                           {newsLoading ? (
                             <>
@@ -2372,10 +2456,16 @@ const StudentDashboard = () => {
                                 className="fas fa-spinner fa-spin"
                                 style={{ marginRight: "8px" }}
                               ></i>
-                              Loading...
+                              Loading More...
                             </>
                           ) : (
-                            "Load More"
+                            <>
+                              <i
+                                className="fas fa-plus"
+                                style={{ marginRight: "8px" }}
+                              ></i>
+                              Load More Articles
+                            </>
                           )}
                         </button>
                       </div>
@@ -2392,42 +2482,20 @@ const StudentDashboard = () => {
                   : ""
               }`}
             >
-              <div className="container-header">
-                Staff Interaction
-                <button
-                  onClick={() => setActiveContainer(null)}
-                  className="close-interaction-btn"
-                  title="Close this section"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
               <div className="container-body">
-                {selectedStaffId ? (
-                  <ChatInterface
-                    messages={messages}
-                    selectedStaffId={selectedStaffId}
-                    selectedStaffName={selectedStaffName}
-                    staffList={staffList}
-                    sendMessage={sendMessageToStaff}
-                    deleteMessage={deleteMessageFromStaffChat}
-                    showContactList={showContactList}
-                    setShowContactList={setShowContactList}
-                    setSelectedStaffId={setSelectedStaffId}
-                    setSelectedStaffName={setSelectedStaffName}
-                    currentUserId={auth.currentUser?.uid}
-                  />
-                ) : (
-                  <div className="no-staff-selected">
-                    <p>Select a staff member to start chatting.</p>
-                    <button
-                      onClick={() => setShowContactList(true)}
-                      className="select-staff-btn"
-                    >
-                      <i className="fas fa-user-plus"></i> Select Staff
-                    </button>
-                  </div>
-                )}
+                <ChatInterface
+                  messages={messages}
+                  selectedStaffId={selectedStaffId}
+                  selectedStaffName={selectedStaffName}
+                  staffList={staffList}
+                  sendMessage={sendMessageToStaff}
+                  deleteMessage={deleteMessageFromStaffChat}
+                  showContactList={showContactList}
+                  setShowContactList={setShowContactList}
+                  setSelectedStaffId={setSelectedStaffId}
+                  setSelectedStaffName={setSelectedStaffName}
+                  currentUserId={auth.currentUser?.uid}
+                />
               </div>
             </div>
             <div
@@ -2436,16 +2504,7 @@ const StudentDashboard = () => {
                 activeContainer === "self-analysis-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">
-                Your Self Analysis
-                <button
-                  onClick={() => setActiveContainer(null)}
-                  className="close-analysis-btn"
-                  title="Close this section"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
+              <div className="container-header">Your Self Analysis</div>
               <div className="container-body">
                 <div className="analysis-summary">
                   <h3>Weekly Progress Summary</h3>
@@ -2596,7 +2655,19 @@ const StudentDashboard = () => {
               </div>
             )}
           </div>
+
           <div className="notifications">
+            {/* Overdue task notifications */}
+            {overdueNotifications.map((task) => (
+              <OverdueTaskNotification
+                key={`overdue-${task.id}`}
+                task={task}
+                onSubmitReason={handleOverdueReasonSubmit}
+                onClose={() => closeOverdueNotification(task.id)}
+              />
+            ))}
+
+            {/* Regular notifications */}
             {notifications.map((notif, index) => {
               if (notif.type === "overdue") {
                 return (
@@ -2618,7 +2689,7 @@ const StudentDashboard = () => {
                     message={notif.message}
                     onClick={() => {
                       setCurrentTopic(notif.task.content);
-                      generateQuizQuestions(); // Generate AI quiz questions
+                      generateQuizQuestions();
                       setNotifications((prev) =>
                         prev.filter((_, i) => i !== index)
                       );
@@ -2638,20 +2709,16 @@ const StudentDashboard = () => {
                     key={`${notif.id || "quiz-start"}-${index}`}
                     message={notif.message}
                     onClick={() => {
-                      // Show quiz setup modal
                       setShowQuizSetup(true);
                       setActiveContainer("tasks-container");
-                      // Remove this notification
                       setNotifications((prev) =>
                         prev.filter((_, i) => prev.indexOf(notif) !== i)
                       );
                     }}
                     onClose={() => {
-                      // Remove this notification
                       setNotifications((prev) =>
                         prev.filter((_, i) => prev.indexOf(notif) !== i)
                       );
-                      // Add helpful message
                       setNotifications((prev) => [
                         ...prev,
                         {
@@ -2681,6 +2748,7 @@ const StudentDashboard = () => {
               }
             })}
           </div>
+
           {window.innerWidth > 768 && (
             <Chatbot
               isVisible={isChatbotOpen && !inQuiz}

@@ -10,6 +10,7 @@ const Chatbot = ({
   clearCopiedTopic,
   isInContainer = false,
   isQuizActive = false,
+  onMessageSent = null, // Add new prop
 }) => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
@@ -128,6 +129,7 @@ const Chatbot = ({
     return null;
   };
 
+  // Modified sendMessage function
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -135,6 +137,11 @@ const Chatbot = ({
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    // Track chatbot send progress
+    if (onMessageSent) {
+      onMessageSent();
+    }
 
     const quickResponse = getQuickResponse(userMessage.text);
     if (quickResponse) {

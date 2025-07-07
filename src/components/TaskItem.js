@@ -5,7 +5,7 @@ const TaskItem = ({ task, role, onDelete, onCopy, onStartQuiz }) => {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(task.content);
-    onCopy(task.content); // Calls the copyTopicAndAskAI function
+    onCopy(task.content, task.id); // Pass task.id to track progress
     setCopied(true);
     setTimeout(() => setCopied(false), 2000); // Reset copied state after 2 seconds
   };

@@ -452,11 +452,161 @@ const StudentDashboard = () => {
   const [showQuizSetup, setShowQuizSetup] = useState(false);
   const [quizNumQuestions, setQuizNumQuestions] = useState(3);
 
+  // News-related state
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(null);
+  const [newsPage, setNewsPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState("general");
+  const [hasMoreNews, setHasMoreNews] = useState(true);
+
   const loginTimeRef = useRef(null);
   const [totalTimeSpentInMs, setTotalTimeSpentInMs] = useState(0);
   const sessionStartTimeRef = useRef(null);
 
   const [mobileHamburger, setMobileHamburger] = useState(null);
+
+  // News categories
+  const newsCategories = [
+    { value: "general", label: "General" },
+    { value: "technology", label: "Technology" },
+    { value: "education", label: "Education" },
+    { value: "science", label: "Science" },
+    { value: "health", label: "Health" },
+    { value: "business", label: "Business" },
+    { value: "sports", label: "Sports" },
+    { value: "entertainment", label: "Entertainment" },
+  ];
+
+  // Fetch news function with better pagination and Indian news support
+  const fetchNews = async (
+    category = "general",
+    page = 1,
+    loadMore = false
+  ) => {
+    setNewsLoading(true);
+    if (!loadMore) {
+      setNewsError(null);
+    }
+
+    try {
+      const apiKey = process.env.REACT_APP_GNEWS_API_KEY;
+
+      if (!apiKey) {
+        throw new Error("News API key is not configured");
+      }
+
+      // Use both US and Indian sources for better coverage
+      const countries = ["us", "in"]; // US and India
+      let allArticles = [];
+
+      for (const country of countries) {
+        try {
+          const response = await fetch(
+            `https://gnews.io/api/v4/top-headlines?category=${category}&lang=en&country=${country}&max=5&page=${page}&apikey=${apiKey}`
+          );
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              throw new Error("Invalid API key");
+            } else if (response.status === 429) {
+              throw new Error("Too many requests. Please try again later.");
+            }
+            continue; // Skip this country if there's an error
+          }
+
+          const data = await response.json();
+          if (data.articles && data.articles.length > 0) {
+            allArticles = [...allArticles, ...data.articles];
+          }
+        } catch (countryError) {
+          console.warn(`Error fetching news from ${country}:`, countryError);
+          continue;
+        }
+      }
+
+      // Remove duplicates based on title and URL
+      const uniqueArticles = allArticles.filter(
+        (article, index, self) =>
+          index ===
+          self.findIndex(
+            (a) => a.title === article.title || a.url === article.url
+          )
+      );
+
+      // Sort by publication date (newest first)
+      uniqueArticles.sort(
+        (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
+      );
+
+      if (uniqueArticles.length > 0) {
+        if (loadMore) {
+          // Check if we already have these articles to avoid duplicates
+          setNews((prevNews) => {
+            const existingUrls = new Set(
+              prevNews.map((article) => article.url)
+            );
+            const newArticles = uniqueArticles.filter(
+              (article) => !existingUrls.has(article.url)
+            );
+
+            if (newArticles.length === 0) {
+              setHasMoreNews(false);
+              return prevNews;
+            }
+
+            return [...prevNews, ...newArticles];
+          });
+        } else {
+          setNews(uniqueArticles);
+        }
+
+        // Set hasMoreNews based on whether we got articles
+        setHasMoreNews(uniqueArticles.length >= 8); // Reduced threshold
+      } else {
+        if (!loadMore) {
+          setNews([]);
+        }
+        setHasMoreNews(false);
+      }
+    } catch (err) {
+      console.error("Error fetching news:", err);
+      setNewsError(`Failed to fetch news: ${err.message}`);
+      if (!loadMore) {
+        setNews([]);
+      }
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  // Handle category change with reset
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    setNewsPage(1); // Reset to page 1
+    setHasMoreNews(true);
+    setNewsError(null);
+    setNews([]); // Clear existing news
+    fetchNews(category, 1, false);
+  };
+
+  // Handle refresh with reset
+  const handleNewsRefresh = () => {
+    setNewsPage(1); // Reset to page 1
+    setHasMoreNews(true);
+    setNewsError(null);
+    setNews([]); // Clear existing news
+    fetchNews(selectedCategory, 1, false);
+  };
+
+  // Handle load more with incremented page
+  const handleLoadMore = () => {
+    if (hasMoreNews && !newsLoading) {
+      const nextPage = newsPage + 1;
+      setNewsPage(nextPage);
+      fetchNews(selectedCategory, nextPage, true);
+    }
+  };
 
   const logStudentActivity = async (activityType, subject = "N/A") => {
     const user = auth.currentUser;
@@ -1535,7 +1685,7 @@ const StudentDashboard = () => {
                             id: Date.now(),
                             type: "info",
                             message:
-                              "Quiz cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
+                              "Quiz generation cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
                           },
                         ]);
                       }}
@@ -1583,7 +1733,8 @@ const StudentDashboard = () => {
                       </button>
                     </div>
                   )
-                ) : showQuizSetup ? (
+                ) : null}
+                {showQuizSetup ? (
                   <div className="quiz-setup-modal">
                     <h3>Set Up Quiz for "{currentTopic}"</h3>
                     <div className="quiz-setup-content">
@@ -1717,65 +1868,56 @@ const StudentDashboard = () => {
                   style={{ display: "none" }}
                 >
                   <h3>Add New Goal</h3>
-                  <input
-                    type="text"
-                    id="goal-title"
-                    placeholder="Goal title"
-                    className="goal-input"
-                  />
-                  <select id="goal-type" className="goal-input">
-                    <option value="assignment">Assignment</option>{" "}
-                    <option value="test">Test</option>{" "}
-                    <option value="quiz">Quiz</option>{" "}
-                    <option value="other">Other</option>
+                  <input type="text" id="goal-title" placeholder="Goal title" />
+                  <select id="goal-type" className="goal-select">
+                    <option value="">Select type</option>
+                    <option value="academic">Academic</option>
+                    <option value="extracurricular">Extracurricular</option>
+                    <option value="personal">Personal</option>
                   </select>
                   <input
                     type="text"
                     id="goal-subject"
-                    placeholder="Subject"
-                    className="goal-input"
+                    placeholder="Subject (optional)"
                   />
-                  <input
-                    type="date"
-                    id="goal-due-date"
-                    className="goal-input"
-                  />
+                  <input type="date" id="goal-due-date" className="goal-date" />
                   <textarea
                     id="goal-description"
-                    placeholder="Description"
+                    placeholder="Description (optional)"
                     className="goal-input"
                   ></textarea>
-                  <select id="goal-priority" className="goal-input">
-                    <option value="low">Low Priority</option>{" "}
-                    <option value="medium">Medium Priority</option>{" "}
-                    <option value="high">High Priority</option>
+                  <select id="goal-priority" className="goal-select">
+                    <option value="">Select priority</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
                   </select>
-                  <div className="goal-form-buttons">
-                    <button onClick={addNewGoal} className="save-goal-btn">
-                      Save Goal
-                    </button>
-                    <button
-                      onClick={() => toggleGoalForm(false)}
-                      className="cancel-goal-btn"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  <button
+                    onClick={addNewGoal}
+                    className="add-goal-btn"
+                    id="submit-new-goal"
+                  >
+                    <i className="fas fa-check"></i> Set Goal
+                  </button>
+                  <button
+                    onClick={() => toggleGoalForm(false)}
+                    className="add-goal-btn cancel"
+                  >
+                    <i className="fas fa-times"></i> Cancel
+                  </button>
                 </div>
-                <div className="goals-list">
-                  {goals.length === 0 ? (
-                    <p className="empty-message">No goals set yet.</p>
-                  ) : (
-                    goals.map((goal) => (
-                      <GoalItem
-                        key={goal.id}
-                        goal={goal}
-                        onToggleComplete={toggleGoalComplete}
-                        onDelete={deleteGoal}
-                      />
-                    ))
-                  )}
-                </div>
+                {goals.length === 0 ? (
+                  <p className="empty-message">No goals set yet.</p>
+                ) : (
+                  goals.map((goal) => (
+                    <GoalItem
+                      key={goal.id}
+                      goal={goal}
+                      onToggleComplete={toggleGoalComplete}
+                      onDelete={deleteGoal}
+                    />
+                  ))
+                )}
               </div>
             </div>
             <div
@@ -1902,6 +2044,347 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div
+              id="news-container"
+              className={`toggle-container ${
+                activeContainer === "news-container" ? "active" : ""
+              }`}
+            >
+              <div className="container-header">📰 Latest News</div>
+              <div className="container-body scrollable">
+                {/* News Controls */}
+                <div className="news-controls" style={{ marginBottom: "20px" }}>
+                  {/* Category Dropdown */}
+                  <div
+                    className="news-categories"
+                    style={{ marginBottom: "15px" }}
+                  >
+                    <label
+                      htmlFor="news-category-select"
+                      style={{
+                        display: "block",
+                        margin: "0 0 8px 0",
+                        fontSize: "14px",
+                        color: "#666",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Category:
+                    </label>
+                    <select
+                      id="news-category-select"
+                      value={selectedCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      style={{
+                        padding: "8px 12px",
+                        fontSize: "14px",
+                        border: "1px solid #ddd",
+                        borderRadius: "6px",
+                        backgroundColor: "#fff",
+                        color: "#333",
+                        cursor: "pointer",
+                        minWidth: "150px",
+                        outline: "none",
+                        transition: "border-color 0.2s ease",
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = "#1976d2";
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = "#ddd";
+                      }}
+                    >
+                      {newsCategories.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Refresh Button */}
+                  <button
+                    onClick={handleNewsRefresh}
+                    disabled={newsLoading}
+                    className="news-refresh-btn"
+                    style={{
+                      padding: "8px 16px",
+                      backgroundColor: newsLoading ? "#ccc" : "#4CAF50",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: newsLoading ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      opacity: newsLoading ? 0.6 : 1,
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!newsLoading) {
+                        e.target.style.backgroundColor = "#45a049";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!newsLoading) {
+                        e.target.style.backgroundColor = "#4CAF50";
+                      }
+                    }}
+                  >
+                    <i
+                      className={`fas fa-sync-alt ${
+                        newsLoading ? "fa-spin" : ""
+                      }`}
+                    ></i>
+                    {newsLoading ? "Refreshing..." : "Refresh"}
+                  </button>
+                </div>
+
+                {/* News Content */}
+                {newsError && (
+                  <div
+                    className="error-message"
+                    style={{
+                      marginBottom: "20px",
+                      padding: "12px",
+                      backgroundColor: "#ffebee",
+                      color: "#c62828",
+                      border: "1px solid #ffcdd2",
+                      borderRadius: "6px",
+                      fontSize: "14px",
+                    }}
+                  >
+                    {newsError}
+                    <button
+                      onClick={handleNewsRefresh}
+                      style={{
+                        marginLeft: "10px",
+                        padding: "4px 8px",
+                        backgroundColor: "#c62828",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+
+                {newsLoading && news.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px" }}>
+                    <i
+                      className="fas fa-spinner fa-spin"
+                      style={{ fontSize: "24px", color: "#666" }}
+                    ></i>
+                    <p style={{ marginTop: "15px", color: "#666" }}>
+                      Loading{" "}
+                      {newsCategories
+                        .find((cat) => cat.value === selectedCategory)
+                        ?.label.toLowerCase()}{" "}
+                      news...
+                    </p>
+                  </div>
+                ) : news.length === 0 ? (
+                  <p className="empty-message">
+                    No{" "}
+                    {newsCategories
+                      .find((cat) => cat.value === selectedCategory)
+                      ?.label.toLowerCase()}{" "}
+                    news articles available.
+                  </p>
+                ) : (
+                  <>
+                    {/* News Articles with country indicators */}
+                    <div className="news-list">
+                      {news.map((article, index) => {
+                        // Determine source country for styling
+                        const isIndianSource =
+                          article.source.name.toLowerCase().includes("india") ||
+                          article.source.name
+                            .toLowerCase()
+                            .includes("times of india") ||
+                          article.source.name
+                            .toLowerCase()
+                            .includes("hindustan") ||
+                          article.source.name.toLowerCase().includes("ndtv") ||
+                          article.url.includes(".in/");
+
+                        return (
+                          <div
+                            key={`${article.url}-${index}`}
+                            className="news-article"
+                            style={{
+                              border: "1px solid #e0e0e0",
+                              borderRadius: "8px",
+                              padding: "16px",
+                              marginBottom: "16px",
+                              backgroundColor: "#fff",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                              transition:
+                                "transform 0.2s ease, box-shadow 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform =
+                                "translateY(-2px)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 8px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                "0 2px 4px rgba(0,0,0,0.1)";
+                            }}
+                          >
+                            {article.image && (
+                              <img
+                                src={article.image}
+                                alt={article.title}
+                                style={{
+                                  width: "100%",
+                                  height: "200px",
+                                  objectFit: "cover",
+                                  borderRadius: "6px",
+                                  marginBottom: "12px",
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            )}
+                            <h3
+                              style={{
+                                margin: "0 0 8px 0",
+                                fontSize: "16px",
+                                lineHeight: "1.4",
+                                color: "#333",
+                              }}
+                            >
+                              <a
+                                href={article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  color: "#1976d2",
+                                  textDecoration: "none",
+                                  fontWeight: "600",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.textDecoration = "underline";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.textDecoration = "none";
+                                }}
+                              >
+                                {article.title}
+                              </a>
+                            </h3>
+                            <p
+                              style={{
+                                margin: "0 0 12px 0",
+                                fontSize: "14px",
+                                lineHeight: "1.5",
+                                color: "#666",
+                              }}
+                            >
+                              {article.description}
+                            </p>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                fontSize: "12px",
+                                color: "#888",
+                                borderTop: "1px solid #f0f0f0",
+                                paddingTop: "8px",
+                              }}
+                            >
+                              <span
+                                className={`news-source ${
+                                  isIndianSource ? "indian" : "us"
+                                }`}
+                                style={{
+                                  fontWeight: "500",
+                                  color: isIndianSource ? "#ff9800" : "#2196F3",
+                                  background: isIndianSource
+                                    ? "rgba(255, 152, 0, 0.1)"
+                                    : "rgba(33, 150, 243, 0.1)",
+                                  padding: "4px 8px",
+                                  borderRadius: "12px",
+                                  fontSize: "13px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                {article.source.name}{" "}
+                                {isIndianSource ? "🇮🇳" : "🇺🇸"}
+                              </span>
+                              <span>
+                                {new Date(
+                                  article.publishedAt
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Load More Button */}
+                    {hasMoreNews && (
+                      <div style={{ textAlign: "center", marginTop: "20px" }}>
+                        <button
+                          onClick={handleLoadMore}
+                          disabled={newsLoading}
+                          className="news-load-more-btn"
+                          style={{
+                            padding: "10px 20px",
+                            backgroundColor: newsLoading ? "#ccc" : "#2196F3",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            cursor: newsLoading ? "not-allowed" : "pointer",
+                            fontSize: "14px",
+                            opacity: newsLoading ? 0.6 : 1,
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!newsLoading) {
+                              e.target.style.backgroundColor = "#1976d2";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!newsLoading) {
+                              e.target.style.backgroundColor = "#2196F3";
+                            }
+                          }}
+                        >
+                          {newsLoading ? (
+                            <>
+                              <i
+                                className="fas fa-spinner fa-spin"
+                                style={{ marginRight: "8px" }}
+                              ></i>
+                              Loading...
+                            </>
+                          ) : (
+                            "Load More"
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            <div
               id="staff-interaction-container"
               className={`toggle-container ${
                 activeContainer === "staff-interaction-container"
@@ -1931,92 +2414,60 @@ const StudentDashboard = () => {
                 activeContainer === "self-analysis-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Self Analysis 📈</div>
-              <div className="container-body scrollable">
-                <h3>Your Learning Snapshot</h3>
-                <div className="progress-chart">
-                  <div className="chart-bar">
-                    <label>Learning Rate (Tasks & Progress)</label>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `${selfAnalysis.learningRate}%`,
-                        backgroundColor: "#4CAF50",
-                      }}
-                    >
-                      <span>{Math.round(selfAnalysis.learningRate)}%</span>
-                    </div>
-                  </div>
-                  <div className="chart-bar">
-                    <label>Communication Skill (Chat)</label>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `${selfAnalysis.communicationSkill}%`,
-                        backgroundColor: "#2196F3",
-                      }}
-                    >
-                      <span>
-                        {Math.round(selfAnalysis.communicationSkill)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="chart-bar">
-                    <label>Goal Completion</label>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `${selfAnalysis.goalCompletionRate}%`,
-                        backgroundColor: "#FF9800",
-                      }}
-                    >
-                      <span>
-                        {Math.round(selfAnalysis.goalCompletionRate)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="chart-bar">
-                    <label>Quiz Engagement</label>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `${selfAnalysis.quizEngagement}%`,
-                        backgroundColor: "#9C27B0",
-                      }}
-                    >
-                      <span>{Math.round(selfAnalysis.quizEngagement)}%</span>
-                    </div>
-                  </div>
-                  <div className="chart-bar">
-                    <label>Total Time Spent</label>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `100%`,
-                        backgroundColor: "#795548",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span>{selfAnalysis.timeSpent}</span>
-                    </div>
-                  </div>
-                </div>
-                <h3>Personalized Learning Tips 💡</h3>
-                <p className="suggestions-box">
-                  {selfAnalysis.suggestions ||
-                    "Keep engaging to get personalized tips!"}
-                </p>
-                <h3>Feedback 🗣️</h3>
-                <textarea
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Share your thoughts on your learning experience..."
-                  className="goal-input"
-                  style={{ height: "100px" }}
-                ></textarea>
-                <button onClick={handleFeedbackSubmit} className="add-goal-btn">
-                  Submit Feedback
+              <div className="container-header">
+                Your Self Analysis
+                <button
+                  onClick={() => setActiveContainer(null)}
+                  className="close-analysis-btn"
+                  title="Close this section"
+                >
+                  <i className="fas fa-times"></i>
                 </button>
+              </div>
+              <div className="container-body">
+                <div className="analysis-summary">
+                  <h3>Weekly Progress Summary</h3>
+                  <p>
+                    <b>Learning Rate:</b> {selfAnalysis.learningRate}%
+                  </p>
+                  <p>
+                    <b>Communication Skill:</b>{" "}
+                    {selfAnalysis.communicationSkill}%
+                  </p>
+                  <p>
+                    <b>Goal Completion Rate:</b>{" "}
+                    {selfAnalysis.goalCompletionRate}%
+                  </p>
+                  <p>
+                    <b>Quiz Engagement:</b> {selfAnalysis.quizEngagement}%
+                  </p>
+                  <p>
+                    <b>Time Spent:</b> {selfAnalysis.timeSpent}
+                  </p>
+                </div>
+                <div className="suggestions-container">
+                  <h3>Personalized Learning Tips 💡</h3>
+                  <p className="suggestions-box">
+                    {selfAnalysis.suggestions ||
+                      "Keep engaging to get personalized tips!"}
+                  </p>
+                </div>
+                <div className="feedback-container">
+                  <h3>Feedback 🗣️</h3>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="Share your thoughts on your learning experience..."
+                    className="goal-input"
+                    style={{ height: "100px" }}
+                  ></textarea>
+                  <button
+                    onClick={handleFeedbackSubmit}
+                    className="add-goal-btn"
+                  >
+                    Submit Feedback
+                  </button>
+                </div>
               </div>
             </div>
             <div
