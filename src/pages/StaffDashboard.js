@@ -97,7 +97,6 @@ const ChatInterface = ({
     <div className="chat-interface">
       {showContactList ? (
         <div className="contact-list full-container">
-          <div className="contact-list-header">Students</div>
           <div className="contact-list-body scrollable">
             {studentList.length === 0 ? (
               <p className="empty-message">No students available.</p>
@@ -1076,15 +1075,6 @@ const StaffDashboard = () => {
         <div
           className={`main-content ${sidebarVisible ? "sidebar-active" : ""}`}
         >
-          <div className="header">
-            {mobileHamburger}
-            <input
-              type="text"
-              className="search-bar"
-              placeholder="Search students, assignments..."
-              aria-label="Search"
-            />
-          </div>
           <div className="notifications-area">
             {notifications.map((notif) => (
               <Notification
@@ -1664,77 +1654,84 @@ const StaffDashboard = () => {
 
                 <h3 style={{ marginTop: "30px" }}>App Information</h3>
                 <button
-                  onClick={() => setShowAbout(true)}
+                  onClick={() => setActiveContainer("about-container")}
                   className="add-goal-btn"
                   aria-label="About the app"
                   style={{ backgroundColor: "#17a2b8", color: "white" }}
                 >
                   About the App
                 </button>
+              </div>
+            </div>
+            <div
+              id="about-container"
+              className={`toggle-container ${
+                activeContainer === "about-container" ? "active" : ""
+              }`}
+            >
+              <div className="container-header">📱 About the App</div>
+              <div className="container-body">
+                <div className="about-content">
+                  <h3> EDUGEN AI </h3>
+                  <p>
+                    EduGen AI is an innovative educational platform developed by{" "}
+                    <strong>Yagnarashagan</strong> that bridges the gap between
+                    students and educators using smart automation. This app is
+                    designed to enhance academic performance, engagement, and
+                    communication in an intuitive and interactive way.
+                  </p>
 
-                {showAbout && (
-                  <div
-                    className="about-modal-overlay"
-                    onClick={() => setShowAbout(false)}
-                  >
-                    <div
-                      className="about-modal"
-                      onClick={(e) => e.stopPropagation()}
+                  <h4>✨ It features:</h4>
+                  <ul className="features-list">
+                    <li>
+                      🤖 <strong>Smart Chatbot Assistance</strong> for real-time
+                      academic help
+                    </li>
+                    <li>
+                      🧠 <strong>AI-Generated Quizzes</strong> to test knowledge
+                      based on selected topics
+                    </li>
+                    <li>
+                      🎯 <strong>Goal Setting and Self Analysis</strong> to
+                      boost productivity
+                    </li>
+                    <li>
+                      📊 <strong>Interactive Dashboard</strong> for both
+                      students and staff to manage tasks, assignments, and
+                      performance
+                    </li>
+                  </ul>
+
+                  <p>
+                    EduGen AI empowers students to learn effectively and helps
+                    staff monitor, guide, and support learners efficiently. With
+                    built-in chat functionality, assignment distribution, and
+                    performance tracking, EduGen AI is your all-in-one
+                    AI-powered education assistant.
+                  </p>
+
+                  <div className="contact-section">
+                    <h4>📧 Need Help?</h4>
+                    <p>For any queries about the app, please contact us at:</p>
+                    <a
+                      href="mailto:edugenai7@gmail.com"
+                      className="contact-email"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      <div className="about-modal-header">
-                        <h2>📱 About the App</h2>
-                        <button
-                          className="close-about-btn"
-                          onClick={() => setShowAbout(false)}
-                          aria-label="Close about modal"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <div className="about-modal-content">
-                        <p>
-                          <strong>EduGen AI</strong> is an innovative
-                          educational platform developed by{" "}
-                          <strong>Yagnarashagan</strong> that bridges the gap
-                          between students and educators using smart automation.
-                          This app is designed to enhance academic performance,
-                          engagement, and communication in an intuitive and
-                          interactive way.
-                        </p>
-
-                        <h3>It features:</h3>
-                        <ul>
-                          <li>
-                            <strong>Smart Chatbot Assistance</strong> for
-                            real-time academic help
-                          </li>
-                          <li>
-                            <strong>AI-Generated Quizzes</strong> to test
-                            knowledge based on selected topics
-                          </li>
-                          <li>
-                            <strong>Goal Setting and Self Analysis</strong> to
-                            boost productivity
-                          </li>
-                          <li>
-                            <strong>Interactive Dashboard</strong> for both
-                            students and staff to manage tasks, assignments, and
-                            performance
-                          </li>
-                        </ul>
-
-                        <p>
-                          EduGen AI empowers students to learn effectively and
-                          helps staff monitor, guide, and support learners
-                          efficiently. With built-in chat functionality,
-                          assignment distribution, and performance tracking,
-                          EduGen AI is your all-in-one AI-powered education
-                          assistant.
-                        </p>
-                      </div>
-                    </div>
+                      edugenai7@gmail.com
+                    </a>
                   </div>
-                )}
+
+                  <div style={{ marginTop: "30px", textAlign: "center" }}>
+                    <button
+                      onClick={() => setActiveContainer("settings-container")}
+                      className="back-btn"
+                    >
+                      Back to Settings
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

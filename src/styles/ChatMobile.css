@@ -78,7 +78,7 @@
 }
 
 .user-message-mobile {
-  background-color: #049eaf;
+  background-color: #3ae5f5;
   color: white;
   align-self: flex-end;
   padding: 10px 15px;
@@ -268,12 +268,13 @@
 
 .chat-container-mobile.fullscreen-mobile .chat-box-mobile {
   flex: 1;
-  height: calc(100vh - 60px - 80px); /* Subtract header and input heights */
+  height: calc(100vh - 60px - 70px); /* Header (60px) + Input (70px) */
+  min-height: 0;
+  max-height: none;
+  padding-bottom: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  margin-bottom: 0;
 }
 
 .chat-box-mobile {

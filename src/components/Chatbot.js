@@ -85,9 +85,12 @@ const Chatbot = ({
 
   useEffect(() => {
     if (chatBoxRef.current) {
-      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+      // Timeout ensures scroll after DOM update
+      setTimeout(() => {
+        chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+      }, 10);
     }
-  }, [messages]);
+  }, [messages, isFullScreen]);
 
   useEffect(() => {
     if (copiedTopic) {

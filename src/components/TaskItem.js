@@ -25,16 +25,18 @@ const TaskItem = ({
     >
       <p>
         {task.content} <small>({task.subject || "No Subject"})</small>
-        <span
-          style={{
-            marginLeft: 8,
-            color: isCompleted ? "#4caf50" : "#f44336",
-            fontWeight: "bold",
-            fontSize: "14px",
-          }}
-        >
-          {isCompleted ? "Completed" : "Incomplete"}
-        </span>
+        {role === "student" && (
+          <span
+            style={{
+              marginLeft: 8,
+              color: isCompleted ? "#4caf50" : "#f44336",
+              fontWeight: "bold",
+              fontSize: "14px",
+            }}
+          >
+            {isCompleted ? "Completed" : "Incomplete"}
+          </span>
+        )}
       </p>
       <small>Posted on: {task.date}</small>
 
