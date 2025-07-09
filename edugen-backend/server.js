@@ -2,6 +2,7 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
+import rateLimit from "express-rate-limit"; // Add this import
 
 dotenv.config();
 
@@ -28,6 +29,19 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Rate limiting configuration
+const apiLimiter = rateLimit({
+  windowMs: 15 * 1000, // 15 seconds window
+  max: 2, // limit each IP to 2 requests per windowMs
+  message: { error: "Too many requests, please wait and try again." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply the limiter to chat and quiz endpoints only
+app.use("/api/chat", apiLimiter);
+app.use("/api/generate-quiz", apiLimiter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

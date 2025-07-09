@@ -144,9 +144,24 @@ const Chatbot = ({
     return null;
   };
 
-  // Modified sendMessage function
+  // --- ADD: Request lock state for API throttling ---
+  const isRequestingRef = useRef(false);
+
+  // Modified sendMessage function with safe synchronization
   const sendMessage = async () => {
     if (!input.trim()) return;
+
+    // Prevent overlapping API requests
+    if (isRequestingRef.current) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: "Please wait a few seconds before sending another question. This helps avoid server overload.",
+        },
+      ]);
+      return;
+    }
 
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -165,6 +180,12 @@ const Chatbot = ({
       return;
     }
 
+    // --- LOCK: Prevent overlapping requests for 10 seconds ---
+    isRequestingRef.current = true;
+    const lockTimeout = setTimeout(() => {
+      isRequestingRef.current = false;
+    }, 10000);
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
@@ -179,6 +200,17 @@ const Chatbot = ({
         signal: controller.signal,
         body: JSON.stringify({ message: userMessage.text }),
       });
+      if (response.status === 429) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: "Too many users are using this feature right now. Please wait a few seconds and try again.",
+          },
+        ]);
+        setIsLoading(false);
+        return;
+      }
 
       clearTimeout(timeoutId);
 
@@ -209,6 +241,11 @@ const Chatbot = ({
       ]);
     } finally {
       setIsLoading(false);
+      // Release lock after 10 seconds (if not already released)
+      setTimeout(() => {
+        isRequestingRef.current = false;
+      }, 10000);
+      clearTimeout(lockTimeout);
     }
   };
 

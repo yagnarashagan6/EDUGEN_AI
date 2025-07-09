@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 
-const TaskItem = ({ task, role, onDelete, onCopy, onStartQuiz }) => {
+const TaskItem = ({
+  task,
+  role,
+  onDelete,
+  onCopy,
+  onStartQuiz,
+  isCompleted,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -11,9 +18,23 @@ const TaskItem = ({ task, role, onDelete, onCopy, onStartQuiz }) => {
   };
 
   return (
-    <div className={`task-item ${copied ? "copied" : ""}`}>
+    <div
+      className={`task-item${isCompleted ? " completed" : ""} ${
+        copied ? "copied" : ""
+      }`}
+    >
       <p>
         {task.content} <small>({task.subject || "No Subject"})</small>
+        <span
+          style={{
+            marginLeft: 8,
+            color: isCompleted ? "#4caf50" : "#f44336",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          {isCompleted ? "Completed" : "Incomplete"}
+        </span>
       </p>
       <small>Posted on: {task.date}</small>
 

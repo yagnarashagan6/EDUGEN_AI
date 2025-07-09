@@ -57,18 +57,7 @@
   flex-direction: column;
   position: relative;
 }
-.container-body1 {
-  flex: 1;
-  background-color: #fff;
-  padding: 0;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  display: flex;
-  margin-top: 120px;
-  flex-direction: column;
-  position: relative;
-}
+
 
 /* Container body states */
 .container-body:not(.form-active) {

@@ -126,9 +126,6 @@ const GuideModal = ({ isOpen, onClose, role }) => {
       <div className="modal-content">
         <div className="modal-header">
           <h2>{role === "staff" ? "Staff" : "Student"} Feature Guide</h2>
-          <button className="close-icon" onClick={onClose}>
-            &times;
-          </button>
         </div>
         <div className="modal-body">
           {guideContent.split("\n").map((line, index) => {

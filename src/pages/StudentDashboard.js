@@ -1186,9 +1186,27 @@ const StudentDashboard = () => {
     }
   };
 
+  // Add a ref to lock quiz generation requests
+  const quizRequestLockRef = useRef(false);
+
   const generateQuizQuestions = async () => {
     const user = auth.currentUser;
     if (!user) return;
+
+    // Prevent overlapping quiz requests
+    if (quizRequestLockRef.current) {
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: "error",
+          message:
+            "Please wait a few seconds before generating another quiz. This helps avoid server overload.",
+        },
+      ]);
+      return;
+    }
+
     setInQuiz(true);
     setQuizReady(false);
 
@@ -1211,6 +1229,12 @@ const StudentDashboard = () => {
       setInQuiz(false);
       return;
     }
+
+    // --- LOCK: Prevent overlapping quiz requests for 12 seconds ---
+    quizRequestLockRef.current = true;
+    const quizLockTimeout = setTimeout(() => {
+      quizRequestLockRef.current = false;
+    }, 12000);
 
     try {
       // Update quiz count in database
@@ -1235,6 +1259,22 @@ const StudentDashboard = () => {
           body: JSON.stringify(requestBody),
         }
       );
+      if (response.status === 429) {
+        setNotifications((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            type: "error",
+            message:
+              "Too many users are using this feature right now. Please wait a few seconds and try again.",
+          },
+        ]);
+        setInQuiz(false);
+        setCurrentTopic("");
+        setQuizQuestions([]);
+        setActiveContainer(null);
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -1266,6 +1306,12 @@ const StudentDashboard = () => {
       setCurrentTopic("");
       setQuizQuestions([]);
       setActiveContainer(null);
+    } finally {
+      // Release lock after 12 seconds (if not already released)
+      setTimeout(() => {
+        quizRequestLockRef.current = false;
+      }, 12000);
+      clearTimeout(quizLockTimeout);
     }
   };
 
@@ -1636,6 +1682,16 @@ const StudentDashboard = () => {
     }
   };
 
+  // Helper function to get overdue state from localStorage
+  function getOverdueState(userId, taskId) {
+    const reasonKey = `overdueReason_${userId}_${taskId}`;
+    const data = JSON.parse(localStorage.getItem(reasonKey) || "{}");
+    return {
+      submitted: !!data.submittedAt,
+      canceledAt: data.canceledAt || null,
+    };
+  }
+
   // Check for overdue tasks
 
   const checkOverdueTasks = useCallback(async () => {
@@ -1643,41 +1699,42 @@ const StudentDashboard = () => {
     if (!user || tasks.length === 0) return;
 
     const now = Date.now();
-    const overdueThreshold = 2 * 24 * 60 * 60 * 1000; // 2 days in milliseconds
+    const overdueThreshold = 2 * 24 * 60 * 60 * 1000; // 48 hours
+    const showAgainThreshold = 24 * 60 * 60 * 1000; // 24 hours
 
     const overdueTasks = [];
 
     for (const task of tasks) {
       const taskPostedTime = new Date(task.date).getTime();
       const timeSincePosted = now - taskPostedTime;
+      if (timeSincePosted < overdueThreshold) continue; // Not overdue yet
 
-      if (timeSincePosted >= overdueThreshold) {
-        const progressKey = `taskProgress_${user.uid}_${task.id}`;
-        const progress = JSON.parse(localStorage.getItem(progressKey) || "{}");
+      // Check progress
+      const progressKey = `taskProgress_${user.uid}_${task.id}`;
+      const progress = JSON.parse(localStorage.getItem(progressKey) || "{}");
+      const hasCompletedAll =
+        progress.copyAndAsk && progress.chatbotSend && progress.startQuiz;
 
-        // Check if all required steps are completed
-        const hasCompletedAll =
-          progress.copyAndAsk && progress.chatbotSend && progress.startQuiz;
+      // Get overdue state
+      const overdueState = getOverdueState(user.uid, task.id);
 
-        // Check if reason already submitted
-        const reasonKey = `overdueReason_${user.uid}_${task.id}`;
-        const reasonSubmitted = localStorage.getItem(reasonKey);
+      // 1. If completed, never show
+      if (hasCompletedAll) continue;
 
-        if (!hasCompletedAll && !reasonSubmitted) {
-          // Find the staff member who posted this task and get their name
-          const taskStaff = staffList.find(
-            (staff) => staff.id === task.staffId
-          );
-          const staffName = taskStaff ? taskStaff.name : "Unknown Staff";
+      // 2. If submitted, never show
+      if (overdueState.submitted) continue;
 
-          overdueTasks.push({
-            ...task,
-            staffName, // Add staff name to the task object
-            progress,
-            timeSincePosted,
-          });
-        }
+      // 3. If canceled, only show again after 24h
+      if (overdueState.canceledAt) {
+        if (now - overdueState.canceledAt < showAgainThreshold) continue;
       }
+
+      // 4. Otherwise, show notification
+      overdueTasks.push({
+        ...task,
+        staffName:
+          staffList.find((s) => s.id === task.staffId)?.name || "Staff",
+      });
     }
 
     setOverdueNotifications(overdueTasks);
@@ -1785,26 +1842,12 @@ const StudentDashboard = () => {
             message: "Could not find the staff member who posted this task.",
           },
         ]);
-        console.error("Staff member not found for task:", task);
       }
-    } catch (error) {
-      console.error("Error submitting overdue reason:", error);
-      setNotifications((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          type: "error",
-          message: "Failed to submit reason. Please try again.",
-        },
-      ]);
+    } catch (err) {
+      // Handle any unexpected errors here if needed
+      console.error("Error in handleOverdueReasonSubmit:", err);
     }
-  };
-
-  // Add this function to close overdue notifications
-  const closeOverdueNotification = (taskId) => {
-    setOverdueNotifications((prev) =>
-      prev.filter((task) => task.id !== taskId)
-    );
+    setOverdueNotifications((prev) => prev.filter((t) => t.id !== task.Id));
   };
 
   // Add this function to handle when a message is sent to the chatbot
@@ -1889,19 +1932,26 @@ const StudentDashboard = () => {
                 <h3>Your Subjects (Tasks)</h3>
                 <div className="subjects-grid assignments scrollable-x">
                   {Object.keys(tasksBySubject).length > 0 ? (
-                    Object.keys(tasksBySubject).map((subject) => (
-                      <div
-                        key={subject}
-                        className="assignment-box"
-                        style={{ backgroundColor: "#c5cae9" }}
-                        onClick={() => {
-                          setSelectedSubject(subject);
-                          setActiveContainer("tasks-container");
-                        }}
-                      >
-                        {subject} ({tasksBySubject[subject].length})
-                      </div>
-                    ))
+                    Object.keys(tasksBySubject).map((subject) => {
+                      const completedCount = tasksBySubject[subject].filter(
+                        (task) =>
+                          task.completedBy?.includes(auth.currentUser?.uid)
+                      ).length;
+                      const totalCount = tasksBySubject[subject].length;
+                      return (
+                        <div
+                          key={subject}
+                          className="assignment-box"
+                          style={{ backgroundColor: "#c5cae9" }}
+                          onClick={() => {
+                            setSelectedSubject(subject);
+                            setActiveContainer("tasks-container");
+                          }}
+                        >
+                          {subject} ({completedCount}/{totalCount} completed)
+                        </div>
+                      );
+                    })
                   ) : (
                     <p className="empty-message">No tasks assigned yet.</p>
                   )}
@@ -2043,26 +2093,32 @@ const StudentDashboard = () => {
                         No tasks available for {selectedSubject}.
                       </p>
                     ) : (
-                      tasksBySubject[selectedSubject].map((task) => (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          role="student"
-                          onCopy={copyTopicAndAskAI}
-                          onStartQuiz={() => {
-                            setPendingQuizTask(task);
-                            setNotifications((prev) => [
-                              ...prev,
-                              {
-                                id: Date.now(),
-                                type: "quiz",
-                                message: `Start a quiz on "${task.content}"?`,
-                                task,
-                              },
-                            ]);
-                          }}
-                        />
-                      ))
+                      tasksBySubject[selectedSubject].map((task) => {
+                        const isCompleted = task.completedBy?.includes(
+                          auth.currentUser?.uid
+                        );
+                        return (
+                          <TaskItem
+                            key={task.id}
+                            task={task}
+                            role="student"
+                            onCopy={copyTopicAndAskAI}
+                            onStartQuiz={() => {
+                              setPendingQuizTask(task);
+                              setNotifications((prev) => [
+                                ...prev,
+                                {
+                                  id: Date.now(),
+                                  type: "quiz",
+                                  message: `Start a quiz on "${task.content}"?`,
+                                  task,
+                                },
+                              ]);
+                            }}
+                            isCompleted={isCompleted}
+                          />
+                        );
+                      })
                     )}
                     <div style={{ marginTop: 24, textAlign: "center" }}>
                       <button
@@ -2704,7 +2760,11 @@ const StudentDashboard = () => {
                 key={`overdue-${task.id}`}
                 task={task}
                 onSubmitReason={handleOverdueReasonSubmit}
-                onClose={() => closeOverdueNotification(task.id)}
+                onClose={() =>
+                  setOverdueNotifications((prev) =>
+                    prev.filter((t) => t.id !== task.id)
+                  )
+                }
               />
             ))}
 
