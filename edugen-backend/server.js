@@ -68,7 +68,7 @@ app.post("/api/chat", async (req, res) => {
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "google/gemma-3n-e4b-it:free",
+          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
           messages: [
             {
               role: "system",
