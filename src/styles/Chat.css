@@ -1006,6 +1006,7 @@
     min-width: 180px; /* Reduced from 280px */
     flex-direction: row;
     padding: 8px;
+    margin-left: 180px;
   }
 
   .message-options button {

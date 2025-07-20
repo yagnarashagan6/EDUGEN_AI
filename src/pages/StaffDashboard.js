@@ -268,6 +268,20 @@ ChatInterface.propTypes = {
   selectedStudentId: PropTypes.string,
 };
 
+// Place this OUTSIDE the StaffDashboard component
+const loadingIcons = [
+  "fas fa-book",
+  "fas fa-flask",
+  "fas fa-calculator",
+  "fas fa-lightbulb",
+  "fas fa-brain",
+  "fas fa-atom",
+  "fas fa-graduation-cap",
+  "fas fa-laptop-code",
+  "fas fa-globe",
+  "fas fa-microscope",
+];
+
 const StaffDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
@@ -1047,14 +1061,36 @@ const StaffDashboard = () => {
 
   const isDashboardLoading = loading.dashboard || loading.students;
 
+  const [currentIcon, setCurrentIcon] = React.useState(0);
+  const [iconDirection, setIconDirection] = React.useState(1); // For bounce effect
+
+  React.useEffect(() => {
+    if (!isDashboardLoading) return;
+    // Slow down the icon transition (e.g., 240ms instead of 120ms)
+    const interval = setInterval(() => {
+      setCurrentIcon((prev) => (prev + 1) % loadingIcons.length);
+      setIconDirection((prev) => -prev);
+    }, 240);
+    return () => clearInterval(interval);
+  }, [isDashboardLoading]);
+
+  // ...existing code...
   if (isDashboardLoading) {
     return (
-      <div className="loading-dashboard text-center p-8">
-        Loading Staff Dashboard...
+      <div className="loading-dashboard-container">
+        <div className="background-grid"></div>
+        <div className="animation-wrapper">
+          <div className="core-spinner">
+            <i className={loadingIcons[currentIcon]}></i>
+          </div>
+        </div>
+        <div className="loading-message">
+          <span className="rainbow-text">Loading your dashboard...</span>
+        </div>
       </div>
     );
   }
-
+  // ...existing code...
   return (
     <ErrorBoundary>
       <div className="dashboard-container">
@@ -1647,7 +1683,6 @@ const StaffDashboard = () => {
                   onClick={handleLogout}
                   className="add-goal-btn logout-btn"
                   aria-label="Logout"
-                  style={{ backgroundColor: "#dc3545", color: "white" }}
                 >
                   Logout
                 </button>
