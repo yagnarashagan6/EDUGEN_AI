@@ -29,10 +29,22 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Define senderName and userId at component level
-  const user = auth.currentUser;
-  const senderName = user?.displayName || studentName || "Unknown";
-  const userId = user?.uid || "unknown";
+  const [senderName, setSenderName] = useState(studentName || "Unknown");
+
+  useEffect(() => {
+    // Prefer the 'name' field from the profile if available
+    if (studentName && typeof studentName === "object" && studentName.name) {
+      setSenderName(studentName.name);
+    } else if (typeof studentName === "string" && studentName) {
+      setSenderName(studentName);
+    } else if (auth.currentUser && auth.currentUser.displayName) {
+      setSenderName(auth.currentUser.displayName);
+    } else {
+      setSenderName("Unknown");
+    }
+  }, [studentName]);
+
+  const userId = auth.currentUser?.uid || "unknown";
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

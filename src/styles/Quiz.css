@@ -512,7 +512,7 @@
 }
 
 /* Loading State */
-.quiz-loading {
+.quiz-loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -525,11 +525,11 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-.loading-spinner {
+.quiz-loading-spinner {
   margin-bottom: 1.5rem;
 }
 
-.loading-spinner i {
+.quiz-loading-spinner i {
   font-size: 2.5rem;
   color: #667eea;
   animation: spin 1s linear infinite;
@@ -544,7 +544,7 @@
   }
 }
 
-.quiz-loading p {
+.quiz-loading-container p {
   font-size: 1.125rem;
   color: #6b7280;
   margin-bottom: 2rem;

@@ -1709,6 +1709,14 @@ const StudentDashboard = () => {
       const timeSincePosted = now - taskPostedTime;
       if (timeSincePosted < overdueThreshold) continue; // Not overdue yet
 
+      // Check if task is completed by the user (Firestore check)
+      if (
+        Array.isArray(task.completedBy) &&
+        task.completedBy.includes(user.uid)
+      ) {
+        continue; // Task is completed, skip overdue notification
+      }
+
       // Check progress
       const progressKey = `taskProgress_${user.uid}_${task.id}`;
       const progress = JSON.parse(localStorage.getItem(progressKey) || "{}");
@@ -1718,7 +1726,7 @@ const StudentDashboard = () => {
       // Get overdue state
       const overdueState = getOverdueState(user.uid, task.id);
 
-      // 1. If completed, never show
+      // 1. If completed (local), never show
       if (hasCompletedAll) continue;
 
       // 2. If submitted, never show

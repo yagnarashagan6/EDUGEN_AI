@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import "../styles/Quiz.css";
 import jsPDF from "jspdf";
 
+// Add this import at the top
+import confetti from "canvas-confetti";
+
 const Quiz = ({
   topic,
   handleQuizComplete,
@@ -20,6 +23,45 @@ const Quiz = ({
   const [showCorrect, setShowCorrect] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const timerRef = useRef(null);
+
+  // Add a ref to ensure fireworks only trigger once
+  const fireworksShownRef = useRef(false);
+
+  // Fireworks animation config
+  const showFireworks = () => {
+    confetti({
+      particleCount: 111,
+      spread: 114,
+      startVelocity: 25,
+      scalar: 0.8, // elementSize: 8 (relative)
+      ticks: 140, // lifetime
+      gravity: 0.35,
+      wind: 0,
+      decay: 0.98,
+      colors: [
+        "#ff0000",
+        "#00ff00",
+        "#0000ff",
+        "#ffff00",
+        "#ff00ff",
+        "#00ffff",
+      ],
+      origin: { y: 0.6 },
+    });
+  };
+
+  // Show fireworks if user gets full marks or nearly full marks (e.g. 9/10, 5/5, 3/3, etc.)
+  useEffect(() => {
+    if (quizCompleted && !fireworksShownRef.current) {
+      if (
+        questions.length > 0 &&
+        (score === questions.length || score === questions.length - 1)
+      ) {
+        showFireworks();
+        fireworksShownRef.current = true;
+      }
+    }
+  }, [quizCompleted, score, questions.length]);
 
   const handleNext = useCallback(
     (isTimeout = false) => {
