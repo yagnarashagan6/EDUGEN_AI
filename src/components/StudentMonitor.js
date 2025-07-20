@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 // import { collection, getDocs, query, orderBy, limit as firestoreLimit } from 'firebase/firestore';
-// import { db } from '../firebase'; 
+// import { db } from '../firebase';
 // If you have specific styles in StudentMonitor.css, ensure it's correctly linked
 // For this example, we're relying primarily on Tailwind CSS classes
-import '../styles/StudentMonitor.css'; 
+import "../styles/StudentMonitor.css";
 
 const StudentMonitor = () => {
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
-  const [subjectFilter, setSubjectFilter] = useState('All'); // Default to 'All'
-  const [activityFilter, setActivityFilter] = useState('All'); // Default to 'All'
+  const [subjectFilter, setSubjectFilter] = useState("All"); // Default to 'All'
+  const [activityFilter, setActivityFilter] = useState("All"); // Default to 'All'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [summaryStats, setSummaryStats] = useState({
@@ -20,8 +20,25 @@ const StudentMonitor = () => {
 
   // Define available subjects and activity types for filtering
   // These could also be fetched dynamically if they change often
-  const subjects = ['All', 'human_resource', 'it', 'agriculture', 'Cyber Security', 'Embedded System & IOT', 'Software Testing', 'General'];
-  const activityTypes = ['All', 'uploaded note', 'quiz started', 'quiz completed', 'login', 'goal added', 'feedback submitted'];
+  const subjects = [
+    "All",
+    "human_resource",
+    "it",
+    "agriculture",
+    "Cyber Security",
+    "Embedded System & IOT",
+    "Software Testing",
+    "General",
+  ];
+  const activityTypes = [
+    "All",
+    "uploaded note",
+    "quiz started",
+    "quiz completed",
+    "login",
+    "goal added",
+    "feedback submitted",
+  ];
 
   // Callback function to fetch activities from Firestore
   const fetchActivities = useCallback(async () => {
@@ -48,12 +65,16 @@ const StudentMonitor = () => {
   useEffect(() => {
     let currentFiltered = [...activities]; // Start with all fetched activities
 
-    if (subjectFilter !== 'All') {
-      currentFiltered = currentFiltered.filter((activity) => activity.subject === subjectFilter);
+    if (subjectFilter !== "All") {
+      currentFiltered = currentFiltered.filter(
+        (activity) => activity.subject === subjectFilter
+      );
     }
 
-    if (activityFilter !== 'All') {
-      currentFiltered = currentFiltered.filter((activity) => activity.activity === activityFilter);
+    if (activityFilter !== "All") {
+      currentFiltered = currentFiltered.filter(
+        (activity) => activity.activity === activityFilter
+      );
     }
     setFilteredActivities(currentFiltered);
   }, [subjectFilter, activityFilter, activities]);
@@ -69,7 +90,8 @@ const StudentMonitor = () => {
   };
 
   // Conditional rendering for loading state
-  if (loading && activities.length === 0) { // Show loading only on initial load
+  if (loading && activities.length === 0) {
+    // Show loading only on initial load
     return <div className="text-center p-4">Loading student activities...</div>;
   }
 
@@ -79,36 +101,49 @@ const StudentMonitor = () => {
   }
 
   return (
-    <div className="student-monitor p-4 md:p-6 bg-gray-50 min-h-screen">
-      <h2 className="text-xl md:text-2xl font-bold mb-4 text-gray-800">Student Activity Monitor</h2>
+    <div className="student-monitor">
+      <h2 className="student-monitor-title">Student Activity Monitor</h2>
 
       {/* Summary Statistics Section */}
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <h3 className="text-md lg:text-lg font-semibold text-gray-700">Uploads Today</h3>
-          <p className="text-xl lg:text-2xl font-bold text-blue-600">{summaryStats.uploadsToday}</p>
+      <div className="student-monitor-summary">
+        <div className="student-monitor-summary-card">
+          <h3 className="student-monitor-summary-title">Uploads Today</h3>
+          <p className="student-monitor-summary-value uploads">
+            {summaryStats.uploadsToday}
+          </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <h3 className="text-md lg:text-lg font-semibold text-gray-700">Active Students Today</h3>
-          <p className="text-xl lg:text-2xl font-bold text-green-600">{summaryStats.activeStudentsToday}</p>
+        <div className="student-monitor-summary-card">
+          <h3 className="student-monitor-summary-title">
+            Active Students Today
+          </h3>
+          <p className="student-monitor-summary-value active">
+            {summaryStats.activeStudentsToday}
+          </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <h3 className="text-md lg:text-lg font-semibold text-gray-700">Total Recent Activities (Last 20)</h3>
-          <p className="text-xl lg:text-2xl font-bold text-purple-600">{summaryStats.totalRecentActivities}</p>
+        <div className="student-monitor-summary-card">
+          <h3 className="student-monitor-summary-title">
+            Total Recent Activities (Last 20)
+          </h3>
+          <p className="student-monitor-summary-value total">
+            {summaryStats.totalRecentActivities}
+          </p>
         </div>
       </div>
 
       {/* Filters Section */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 p-4 bg-white rounded-lg shadow-md">
-        <div className="flex-1">
-          <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="student-monitor-filters">
+        <div className="student-monitor-filter">
+          <label
+            htmlFor="subject-filter"
+            className="student-monitor-filter-label"
+          >
             Filter by Subject
           </label>
           <select
             id="subject-filter"
             value={subjectFilter}
             onChange={handleSubjectFilterChange}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            className="student-monitor-filter-select"
           >
             {subjects.map((subject) => (
               <option key={subject} value={subject}>
@@ -117,15 +152,18 @@ const StudentMonitor = () => {
             ))}
           </select>
         </div>
-        <div className="flex-1">
-          <label htmlFor="activity-filter" className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="student-monitor-filter">
+          <label
+            htmlFor="activity-filter"
+            className="student-monitor-filter-label"
+          >
             Filter by Activity Type
           </label>
           <select
             id="activity-filter"
             value={activityFilter}
             onChange={handleActivityFilterChange}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+            className="student-monitor-filter-select"
           >
             {activityTypes.map((type) => (
               <option key={type} value={type}>
@@ -137,45 +175,45 @@ const StudentMonitor = () => {
       </div>
 
       {/* Activity Table Section */}
-      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100">
+      <div className="student-monitor-table-container">
+        <table className="student-monitor-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                Student Name
-              </th>
-              <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                Activity Type
-              </th>
-              <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                Subject
-              </th>
-              <th className="px-4 py-3 md:px-6 md:py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                Timestamp
-              </th>
+              <th>Student Name</th>
+              <th>Activity Type</th>
+              <th>Subject</th>
+              <th>Timestamp</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loading && activities.length > 0 && ( // Show subtle loading indicator during refresh
+          <tbody>
+            {loading && activities.length > 0 && (
               <tr>
-                <td colSpan="4" className="px-6 py-4 text-center text-gray-400 text-sm">
+                <td colSpan="4" className="student-monitor-table-refreshing">
                   Refreshing activities...
                 </td>
               </tr>
             )}
             {!loading && filteredActivities.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="4" className="student-monitor-table-empty">
                   No activities found matching your filters.
                 </td>
               </tr>
             ) : (
               filteredActivities.map((activity) => (
-                <tr key={activity.id} className="hover:bg-gray-50 transition-colors duration-150">
-                  <td className="px-4 py-4 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-800">{activity.name}</td>
-                  <td className="px-4 py-4 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-600">{activity.activity}</td>
-                  <td className="px-4 py-4 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-600">{activity.subject || 'N/A'}</td>
-                  <td className="px-4 py-4 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-600">{activity.timestamp}</td>
+                <tr key={activity.id} className="student-monitor-table-row">
+                  <td className="student-monitor-table-cell name">
+                    {activity.name}
+                  </td>
+                  <td className="student-monitor-table-cell activity">
+                    {activity.activity}
+                  </td>
+                  <td className="student-monitor-table-cell subject">
+                    {activity.subject || "N/A"}
+                  </td>
+                  <td className="student-monitor-table-cell timestamp">
+                    {activity.timestamp}
+                  </td>
                 </tr>
               ))
             )}

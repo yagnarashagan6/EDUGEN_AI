@@ -38,7 +38,7 @@
   height: 100%; /* Cover full height */
   width: 100%;
   background: #ffffff;
-  position: absolute;
+
   top: 0; /* Start from top */
   left: 0;
   z-index: 5;
@@ -46,18 +46,16 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-#staff-interaction-container .contact-list-header,
-#staff-interaction-container .chat-header {
+#staff-interaction-container .contact-list-header {
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 22px;
   font-weight: 600;
-  margin-bottom: 20px;
+
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 1.5rem;
-  border-radius: 12px;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
@@ -69,7 +67,7 @@
   background: #f0f0f0;
   scrollbar-width: thin;
   scrollbar-color: #075e54 #e0e0e0;
-  height: 1100px; /* Set a fixed height for the contact list */
+  height: 577px; /* Set a fixed height for the contact list */
 }
 
 #staff-interaction-container .contact-list-body::-webkit-scrollbar {
@@ -382,7 +380,7 @@
   #staff-interaction-container .contact-list.full-container {
     height: 100% !important;
     width: 100% !important;
-    position: absolute !important;
+
     top: 0;
     left: 0;
     z-index: 5;
@@ -409,7 +407,7 @@
   #staff-interaction-container .contact-list.full-container {
     height: 100% !important;
     width: 100% !important;
-    position: absolute !important;
+
     top: 0;
     left: 0;
     z-index: 5;
@@ -418,7 +416,7 @@
   }
 
   #staff-interaction-container .contact-list-body {
-    max-height: 250px;
+    max-height: 560px;
   }
 
   #staff-interaction-container .contact-avatar {

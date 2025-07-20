@@ -2232,8 +2232,24 @@ const StudentDashboard = () => {
             >
               <div className="container-header">🏆 Streak </div>
               <div className="container-body scrollable">
-                <p>Your Streak: {Math.round(streak)} days</p>
-                <p>Your Progress: {Math.round(progress)}%</p>
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: "1.2em",
+                    color: "black",
+                  }}
+                >
+                  🔥 Your Streak: {Math.round(streak)} days
+                </p>
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: "1.2em",
+                    color: "black",
+                  }}
+                >
+                  📈 Your Progress: {Math.round(progress)}%
+                </p>
                 <Leaderboard
                   students={leaderboard}
                   showStats={true}
@@ -2559,7 +2575,7 @@ const StudentDashboard = () => {
               }`}
             >
               <div className="container-header">🧠 Self Analysis</div>
-              <div className="container-body">
+              <div className="selfanalysis">
                 <div className="analysis-summary">
                   <h3>Weekly Progress Summary</h3>
                   <p>
@@ -2714,7 +2730,7 @@ const StudentDashboard = () => {
                 activeContainer === "chatbot-container" ? "active" : ""
               }`}
             >
-              <div className="container-body">
+              <div className="container-body" style={{ padding: "0px" }}>
                 <Chatbot
                   isVisible={window.innerWidth <= 768}
                   copiedTopic={copiedTopic}

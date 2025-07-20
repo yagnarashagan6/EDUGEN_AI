@@ -20,11 +20,11 @@
   align-items: center;
   font-size: 22px;
   font-weight: 600;
-  margin-bottom: 20px;
+
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 1.5rem;
-  border-radius: 12px;
+
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
@@ -46,27 +46,14 @@
   transform: translateY(-1px);
 }
 
-.container-body {
-  flex: 1;
-  background-color: #fff;
-  padding: 0;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-
 /* Container body states */
 .container-body:not(.form-active) {
-  padding: 20px;
+  padding: 10px;
   overflow-y: auto;
 }
 
 .container-body.form-active {
-  padding: 0;
+  padding: 0px;
   overflow: hidden;
   height: 100%;
   border-radius: 12px;

@@ -1,5 +1,11 @@
 // StaffDashboard.js
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
@@ -59,6 +65,8 @@ const ChatInterface = ({
   userNames,
   selectedStudentId,
 }) => {
+  const messagesEndRef = useRef(null);
+
   const selectStudent = useCallback(
     (student) => {
       setSelectedStudentId(student.id);
@@ -91,6 +99,13 @@ const ChatInterface = ({
       acc[date].push({ ...message, originalIndex: index });
       return acc;
     }, {});
+  }, [messages]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+    }
   }, [messages]);
 
   return (
@@ -140,7 +155,7 @@ const ChatInterface = ({
               </div>
             )}
           </div>
-          <div className="messages-container scrollable">
+          <div className="messages-container scrollable" ref={messagesEndRef}>
             {selectedStudentId && Object.keys(groupedMessages).length === 0 ? (
               <p className="empty-message">
                 No messages yet. Start the conversation!
@@ -410,7 +425,7 @@ const StaffDashboard = () => {
           ...sDoc.data(),
           streak: sDoc.data().streak || 0,
           progress: sDoc.data().progress || 0,
-          photoURL: sDoc.data().photoURL || "/default-student.png",
+          photoURL: sDoc.data().photoURL || "./assets/student.png",
         }));
         setStudentStats(studentsData.sort((a, b) => b.streak - a.streak));
         setLoading((prev) => ({ ...prev, students: false }));
@@ -685,7 +700,7 @@ const StaffDashboard = () => {
         <i className="fas fa-bars"></i>
       </button>
     );
-  }, []);
+  }, [isMobile]);
 
   const filteredStudents = useMemo(() => {
     let list = studentStats;
@@ -1111,6 +1126,8 @@ const StaffDashboard = () => {
         <div
           className={`main-content ${sidebarVisible ? "sidebar-active" : ""}`}
         >
+          {/* Place hamburger in the header, like StudentDashboard */}
+          {isMobile && <div className="header">{mobileHamburger}</div>}
           <div className="notifications-area">
             {notifications.map((notif) => (
               <Notification
@@ -1494,7 +1511,7 @@ const StaffDashboard = () => {
                     data are loaded.
                   </p>
                 ) : (
-                  <ul className="results-list">
+                  <ul className="leaderboard">
                     {results
                       .filter(
                         (r) =>
@@ -1503,23 +1520,58 @@ const StaffDashboard = () => {
                           r.name !== "Unknown" &&
                           r.name !== "Unknown User"
                       )
-                      .map((result) => (
-                        <li
-                          key={`result-item-${result.id}`}
-                          className="result-item"
-                        >
-                          <strong>{result.name}:</strong>{" "}
-                          {result.completedTasks} / {result.totalTasks} tasks
-                          completed. (Progress:{" "}
-                          {result.totalTasks > 0
+                      .map((result) => {
+                        // Calculate percentage
+                        const percent =
+                          result.totalTasks > 0
                             ? Math.round(
                                 (result.completedTasks / result.totalTasks) *
                                   100
                               )
-                            : 0}
-                          %)
-                        </li>
-                      ))}
+                            : 0;
+                        // Determine color
+                        let percentColor = "#e53935"; // red for 0
+                        if (percent === 100) percentColor = "#43a047"; // green
+                        else if (percent >= 50) percentColor = "#fb8c00"; // orange
+
+                        return (
+                          <li
+                            key={`result-item-${result.id}`}
+                            className="result-item"
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-start",
+                              gap: "4px",
+                              padding: "10px 0",
+                              borderBottom: "1px solid #eee",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, color: "#222" }}>
+                              {result.name}
+                            </span>
+                            <span style={{ fontSize: 15, color: "#555" }}>
+                              {result.completedTasks} / {result.totalTasks}{" "}
+                              tasks completed
+                            </span>
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                fontSize: 16,
+                                color: percentColor,
+                                background: "#f4f7fc",
+                                borderRadius: 8,
+                                padding: "0px",
+                                marginTop: 2,
+                                display: "inline-block",
+                              }}
+                            >
+                              Progress: {percent}%
+                            </span>
+                          </li>
+                        );
+                      })}
                   </ul>
                 )}
               </div>
@@ -1531,7 +1583,9 @@ const StaffDashboard = () => {
               }`}
             >
               <div className="container-header">
-                Student Activity Monitor
+                <h2 style={{ alignItems: "center", color: "black" }}>
+                  Student Activity Monitor
+                </h2>
                 <button
                   onClick={() => setActiveContainer(null)}
                   className="back-btn small"
@@ -1541,16 +1595,12 @@ const StaffDashboard = () => {
                   Back to Dashboard
                 </button>
               </div>
-              <div className="container-body scrollable" style={{ padding: 0 }}>
-                <div
-                  className="latest-activity-details"
-                  style={{
-                    padding: "16px",
-                    borderBottom: "1px solid #eee",
-                    background: "#f9fafb",
-                  }}
-                >
-                  <strong>Latest Activity:</strong>
+              <div
+                className="container-body scrollable"
+                style={{ padding: 10 }}
+              >
+                <div className="latest-activity-details">
+                  <span style={{ alignItems: "center" }}>Latest Activity:</span>
                   <div style={{ marginTop: "6px", color: "#333" }}>
                     {latestActivity || "No recent activity."}
                   </div>
@@ -1566,9 +1616,9 @@ const StaffDashboard = () => {
                   : ""
               }`}
             >
-              <div className="container-header">Student Chat</div>
+              <div className="contact-list-header">Student Chat</div>
               <div
-                className="container-body"
+                className="contact-list-body"
                 style={{
                   height: "calc(100vh - 200px)",
                   display: "flex",
@@ -1623,7 +1673,7 @@ const StaffDashboard = () => {
                     No students match the current filter.
                   </p>
                 ) : (
-                  <div className="student-list detailed-student-list">
+                  <div className="leaderboard">
                     {filteredStudents
                       .filter(
                         (student) =>
@@ -1635,9 +1685,9 @@ const StaffDashboard = () => {
                       .map((student) => (
                         <div
                           key={`filtered-student-${student.id}`}
-                          className="student-item-detailed"
+                          className="contact-list-body"
                         >
-                          <div className="student-info-detailed">
+                          <div className="contact-body">
                             <h4>{student.name || "Anonymous"}</h4>
                             <p>
                               <strong>Streak:</strong> {student.streak || 0}{" "}

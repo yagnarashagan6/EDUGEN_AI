@@ -661,7 +661,7 @@
   width: 100%;
   box-sizing: border-box;
   overflow-y: auto;
-  max-height: calc(100vh - 160px);
+
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1129,7 +1129,6 @@
 @media (max-width: 768px) {
   .container-body.scrollable {
     max-height: calc(100vh - 140px);
-    padding: 15px;
   }
 }
 
@@ -2302,5 +2301,171 @@
     100% {
       transform: rotate(600deg) translateX(70px);
     }
+  }
+}
+/* Self Analysis Section Styles */
+.selfanalysis {
+  background: linear-gradient(135deg, #f8fafc 60%, #e3eafc 100%);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(4, 56, 175, 0.07);
+  padding: 30px;
+  margin: 0 auto;
+  width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: stretch;
+}
+
+.selfanalysis .analysis-summary {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(33, 150, 243, 0.07);
+  padding: 28px 24px 20px 24px;
+}
+
+.selfanalysis .analysis-summary h3 {
+  color: #1976d2;
+  font-size: 22px;
+  margin-bottom: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.selfanalysis .analysis-summary p {
+  font-size: 16px;
+  color: #333;
+  margin: 10px 0;
+  line-height: 1.6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selfanalysis .analysis-summary b {
+  color: #1976d2;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.selfanalysis .suggestions-container {
+  background: #e3f2fd;
+  border-radius: 12px;
+  padding: 22px 20px 18px 20px;
+  box-shadow: 0 1px 6px rgba(25, 118, 210, 0.06);
+}
+
+.selfanalysis .suggestions-container h3 {
+  color: #1976d2;
+  font-size: 18px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.selfanalysis .suggestions-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #333;
+  font-size: 15px;
+  margin: 0;
+  box-shadow: 0 1px 4px rgba(33, 150, 243, 0.04);
+}
+
+.selfanalysis .feedback-container {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 22px 20px 18px 20px;
+  box-shadow: 0 1px 6px rgba(33, 150, 243, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.selfanalysis .feedback-container h3 {
+  color: #795548;
+  font-size: 18px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.selfanalysis .feedback-container textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-size: 15px;
+  border-radius: 8px;
+  border: 1px solid #bdbdbd;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.selfanalysis .feedback-container textarea:focus {
+  border-color: #1976d2;
+  outline: none;
+}
+
+.selfanalysis .feedback-container .add-goal-btn {
+  background: linear-gradient(90deg, #1976d2 60%, #43a047 100%);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 0;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  margin-top: 4px;
+}
+
+.selfanalysis .feedback-container .add-goal-btn:hover {
+  background: linear-gradient(90deg, #1565c0 60%, #388e3c 100%);
+  transform: translateY(-2px) scale(1.03);
+}
+
+/* Responsive Styles */
+@media (max-width: 900px) {
+  .selfanalysis {
+    max-width: 85vw;
+    padding: 24px 8vw 18px 8vw;
+    gap: 24px;
+    margin: 0px;
+  }
+}
+
+@media (max-width: 600px) {
+  .selfanalysis {
+    padding: 16px 4vw 12px 4vw;
+    gap: 18px;
+    border-radius: 10px;
+  }
+  .selfanalysis .analysis-summary,
+  .selfanalysis .suggestions-container,
+  .selfanalysis .feedback-container {
+    padding: 14px 8px 10px 8px;
+    border-radius: 8px;
+  }
+  .selfanalysis .analysis-summary h3,
+  .selfanalysis .suggestions-container h3,
+  .selfanalysis .feedback-container h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  .selfanalysis .analysis-summary p {
+    font-size: 14px;
+    margin: 7px 0;
+  }
+  .selfanalysis .suggestions-box {
+    font-size: 13px;
+    padding: 10px 8px;
+  }
+  .selfanalysis .feedback-container textarea {
+    font-size: 13px;
+    padding: 8px 6px;
+  }
+  .selfanalysis .feedback-container .add-goal-btn {
+    font-size: 14px;
+    padding: 10px 0;
   }
 }
