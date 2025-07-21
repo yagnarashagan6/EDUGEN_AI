@@ -403,6 +403,24 @@ const Leaderboard = ({ students, showStats = false, currentUserId }) => {
   );
 };
 
+// --- Add this utility function near the top (after imports) ---
+const saveTaskCompletion = async (task) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) return;
+    const taskId = task?.id || task?.content?.replace(/\s+/g, "_");
+    // Firestore rule: /students/{studentId}/task_status/{taskId}
+    const taskStatusRef = doc(db, "students", user.uid, "task_status", taskId);
+    await setDoc(taskStatusRef, {
+      completed: true,
+      topic: task.content,
+      completedAt: new Date(),
+    });
+  } catch (err) {
+    console.error("❌ Error saving task completion:", err);
+  }
+};
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
@@ -478,7 +496,28 @@ const StudentDashboard = () => {
     }
   }, [activeContainer, news.length, newsLoading, selectedCategory]);
 
-  // ...existing code...
+  // 1. Load per-user task completion status from Firestore on mount and when tasks change
+  useEffect(() => {
+    const loadTaskCompletion = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const taskStatusSnap = await getDocs(
+          collection(db, "students", user.uid, "task_status")
+        );
+        const progressMap = {};
+        taskStatusSnap.forEach((doc) => {
+          progressMap[doc.id] = doc.data();
+        });
+        setTaskProgress(progressMap);
+      } catch (err) {
+        // Ignore error, just fallback to empty
+        setTaskProgress({});
+      }
+    };
+    loadTaskCompletion();
+  }, [tasks]); // reload when tasks change
 
   // News categories
   const newsCategories = [
@@ -1247,8 +1286,6 @@ const StudentDashboard = () => {
         count: quizNumQuestions, // Use the selected number of questions
       };
 
-      console.log("Sending quiz request:", requestBody);
-
       const response = await fetch(
         "https://edugen-backend-zbjr.onrender.com/api/generate-quiz",
         {
@@ -1327,7 +1364,21 @@ const StudentDashboard = () => {
       const userRef = doc(db, "students", user.uid);
       await updateDoc(userRef, { progress: newProgress });
 
-      const tasksRef = doc(db, "tasks", "shared");
+      // --- Save completion to student-specific path (ALWAYS allowed) ---
+      const completedTask = tasks.find((t) => t.content === currentTopic);
+      if (completedTask) {
+        setTaskProgress((prev) => ({
+          ...prev,
+          [completedTask.id]: {
+            completed: true,
+            topic: completedTask.content,
+            completedAt: new Date(),
+          },
+        }));
+      }
+
+      // --- Only update shared task doc if needed (for old users) ---
+      /* const tasksRef = doc(db, "tasks", "shared");
       const tasksSnap = await getDoc(tasksRef);
       if (tasksSnap.exists()) {
         const updatedTasks = (tasksSnap.data().tasks || []).map((task) =>
@@ -1342,6 +1393,13 @@ const StudentDashboard = () => {
         await setDoc(tasksRef, { tasks: updatedTasks });
         setTasks(updatedTasks);
       }
+    
+
+      // --- Save completion to student-specific path (fixes permission error) ---
+      const completedTask = tasks.find((t) => t.content === currentTopic);
+      if (completedTask) {
+        await saveTaskCompletion(completedTask);
+      }*/
 
       await updateLeaderboard(user.uid, userData.name, streak, newProgress);
       setNotifications((prev) => [
@@ -1941,9 +1999,12 @@ const StudentDashboard = () => {
                 <div className="subjects-grid assignments scrollable-x">
                   {Object.keys(tasksBySubject).length > 0 ? (
                     Object.keys(tasksBySubject).map((subject) => {
+                      // ✅ Use per-user completion from Firestore (taskProgress), fallback to old completedBy for migration
                       const completedCount = tasksBySubject[subject].filter(
                         (task) =>
-                          task.completedBy?.includes(auth.currentUser?.uid)
+                          !!taskProgress[task.id]?.completed ||
+                          (Array.isArray(task.completedBy) &&
+                            task.completedBy.includes(auth.currentUser?.uid))
                       ).length;
                       const totalCount = tasksBySubject[subject].length;
                       return (
@@ -1964,6 +2025,7 @@ const StudentDashboard = () => {
                     <p className="empty-message">No tasks assigned yet.</p>
                   )}
                 </div>
+
                 <Leaderboard
                   students={leaderboard}
                   showStats={false}
@@ -2102,9 +2164,10 @@ const StudentDashboard = () => {
                       </p>
                     ) : (
                       tasksBySubject[selectedSubject].map((task) => {
-                        const isCompleted = task.completedBy?.includes(
-                          auth.currentUser?.uid
-                        );
+                        // Use per-user completion from Firestore, fallback to old completedBy for migration
+                        const isCompleted =
+                          !!taskProgress[task.id]?.completed ||
+                          task.completedBy?.includes(auth.currentUser?.uid);
                         return (
                           <TaskItem
                             key={task.id}
