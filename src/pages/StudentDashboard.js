@@ -39,6 +39,7 @@ import "../styles/Dashboard.css";
 import "../styles/Sidebar.css";
 import "../styles/Chat.css";
 import "../styles/Notes.css";
+import Youtube from "../components/Youtube";
 
 const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
@@ -543,7 +544,7 @@ const StudentDashboard = () => {
     }
 
     try {
-      const apiKey = process.env.REACT_APP_GNEWS_API_KEY;
+      const apiKey = "b3831cfaa5f710d1e5c81a21e7c6451e";
 
       if (!apiKey) {
         throw new Error("News API key is not configured");
@@ -1677,7 +1678,7 @@ const StudentDashboard = () => {
     },
     [selectedStaffId, messages]
   );
-
+  const youtubeContainerRef = useRef(null);
   const handleEditProfile = () =>
     navigate("/student-form", { state: { isEdit: true, userData } });
 
@@ -2613,6 +2614,29 @@ const StudentDashboard = () => {
                     )}
                   </>
                 )}
+              </div>
+            </div>
+            <div
+              id="youtube-container"
+              className={`toggle-container ${
+                activeContainer === "youtube-container" ? "active" : ""
+              }`}
+            >
+              <div
+                className="container-header"
+                style={{ backgroundColor: "#ff007f" }}
+              >
+                <i
+                  className="fab fa-youtube"
+                  style={{ color: "#fff", marginRight: 8 }}
+                ></i>
+                YouTube Smart Search
+              </div>
+              <div
+                className="container-body scrollable"
+                ref={youtubeContainerRef}
+              >
+                <Youtube containerBodyRef={youtubeContainerRef} />
               </div>
             </div>
             <div

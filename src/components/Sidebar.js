@@ -43,6 +43,11 @@ const Sidebar = ({
     { id: "streak-container", icon: "fas fa-fire", label: "Streaks" },
     { id: "news-container", icon: "fas fa-newspaper", label: "News" },
     {
+      id: "youtube-container", // <-- Add this line
+      icon: "fab fa-youtube", // <-- Use YouTube icon
+      label: "YouTube",
+    },
+    {
       id: "staff-interaction-container",
       icon: "fas fa-users",
       label: "Staff Interaction",
