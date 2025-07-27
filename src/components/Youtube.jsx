@@ -772,65 +772,65 @@ export default function Youtube({ containerBodyRef }) {
       )}
 
       {/* --- Search Results --- */}
-      {!showFavorites && (
-        <h2 id="r" className="results-title" style={{ textAlign: "center" }}>
-          Results
-        </h2>
-      )}
-      {!showFavorites && results.length > 0 && (
-        <div className="results">
-          {filteredVisibleResults.map((video) => {
-            // Check if this video is already in favorites
-            const isFav = Object.values(favorites).some(
-              (videos) =>
-                Array.isArray(videos) && videos.some((v) => v.id === video.id)
-            );
-            return (
-              <div
-                className="video-card"
-                key={video.id}
-                onMouseEnter={() => setPreview(video.id)}
-                onMouseLeave={() => setPreview(null)}
-              >
+      {!showFavorites && topic.trim() && results.length > 0 && (
+        <>
+          <h2 id="r" className="results-title" style={{ textAlign: "center" }}>
+            Results
+          </h2>
+          <div className="results">
+            {filteredVisibleResults.map((video) => {
+              // Check if this video is already in favorites
+              const isFav = Object.values(favorites).some(
+                (videos) =>
+                  Array.isArray(videos) && videos.some((v) => v.id === video.id)
+              );
+              return (
                 <div
-                  className="video-thumbnail-wrapper video-thumbnail-pointer"
-                  onClick={() => handlePlayVideo(video.id)}
+                  className="video-card"
+                  key={video.id}
+                  onMouseEnter={() => setPreview(video.id)}
+                  onMouseLeave={() => setPreview(null)}
                 >
-                  <img src={video.thumbnail} alt={video.title} />
-                </div>
-                <div className="video-info">
-                  <h3>{video.title}</h3>
-                  <p>
-                    <b>Channel:</b> {video.channel}
-                    <br />
-                    <b>Language:</b>{" "}
-                    {LANGUAGES.find((l) => l.code === video.language)?.name ||
-                      video.language}{" "}
-                    | <b>Duration:</b> {video.duration}
-                  </p>
-                  <button
-                    onClick={() => addFavorite(video)}
-                    className={isFav ? "fav-added" : ""}
-                    disabled={isFav}
+                  <div
+                    className="video-thumbnail-wrapper video-thumbnail-pointer"
+                    onClick={() => handlePlayVideo(video.id)}
                   >
-                    {isFav ? "★ Added" : "Add Favorite"}
-                  </button>
+                    <img src={video.thumbnail} alt={video.title} />
+                  </div>
+                  <div className="video-info">
+                    <h3>{video.title}</h3>
+                    <p>
+                      <b>Channel:</b> {video.channel}
+                      <br />
+                      <b>Language:</b>{" "}
+                      {LANGUAGES.find((l) => l.code === video.language)?.name ||
+                        video.language}{" "}
+                      | <b>Duration:</b> {video.duration}
+                    </p>
+                    <button
+                      onClick={() => addFavorite(video)}
+                      className={isFav ? "fav-added" : ""}
+                      disabled={isFav}
+                    >
+                      {isFav ? "★ Added" : "Add Favorite"}
+                    </button>
+                  </div>
                 </div>
+              );
+            })}
+            {(visibleCount < allResults.length || hasMoreResults) && (
+              <div className="load-more-container">
+                <button
+                  className="load-more-btn"
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                >
+                  {loading ? "Loading..." : "Load More"}
+                </button>
               </div>
-            );
-          })}
-          {(visibleCount < allResults.length || hasMoreResults) && (
-            <div className="load-more-container">
-              <button
-                className="load-more-btn"
-                onClick={handleLoadMore}
-                disabled={loading}
-              >
-                {loading ? "Loading..." : "Load More"}
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </>
   );

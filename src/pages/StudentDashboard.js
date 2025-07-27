@@ -2622,13 +2622,14 @@ const StudentDashboard = () => {
                 activeContainer === "youtube-container" ? "active" : ""
               }`}
             >
-              <div
-                className="container-header"
-                style={{ backgroundColor: "#ff007f" }}
-              >
+              <div className="container-header">
                 <i
                   className="fab fa-youtube"
-                  style={{ color: "#fff", marginRight: 8 }}
+                  style={{
+                    color: "#fff",
+                    marginRight: 8,
+                    display: "inline-block",
+                  }}
                 ></i>
                 YouTube Smart Search
               </div>
