@@ -24,11 +24,20 @@ const StaffLogin = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const docRef = doc(db, "staff", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().formFilled === true) {
+          navigate("/staff-dashboard");
+        } else {
+          navigate("/staff-form");
+        }
+      }
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

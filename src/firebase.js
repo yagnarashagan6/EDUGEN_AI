@@ -5,8 +5,16 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  browserSessionPersistence,
+  setPersistence,
 } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -21,6 +29,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Set session-only persistence (not local)
+setPersistence(auth, browserSessionPersistence);
+
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();

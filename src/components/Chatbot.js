@@ -87,7 +87,9 @@ const Chatbot = ({
     if (chatBoxRef.current) {
       // Timeout ensures scroll after DOM update
       setTimeout(() => {
-        chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+        if (chatBoxRef.current) {
+          chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+        }
       }, 10);
     }
   }, [messages, isFullScreen]);

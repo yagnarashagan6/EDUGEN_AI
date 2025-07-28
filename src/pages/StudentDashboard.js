@@ -422,6 +422,19 @@ const saveTaskCompletion = async (task) => {
   }
 };
 
+const loadingIcons = [
+  "fas fa-book",
+  "fas fa-flask",
+  "fas fa-calculator",
+  "fas fa-lightbulb",
+  "fas fa-brain",
+  "fas fa-atom",
+  "fas fa-graduation-cap",
+  "fas fa-laptop-code",
+  "fas fa-globe",
+  "fas fa-microscope",
+];
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
@@ -484,41 +497,56 @@ const StudentDashboard = () => {
   const sessionStartTimeRef = useRef(null);
 
   const [mobileHamburger, setMobileHamburger] = useState(null);
+  const [loading, setLoading] = useState({
+    dashboard: true,
+    tasks: true,
+    assignments: true,
+    goals: true,
+    students: true,
+  });
+
+  // Add this state for initial loading animation
+  const [showInitialLoading, setShowInitialLoading] = useState(true);
   // ...existing code...
-
-  // Add this useEffect to fetch news when news container is activated
+  const [currentIcon, setCurrentIcon] = useState(0);
+  const [iconDirection, setIconDirection] = useState(1);
+  // ...existing code...
+  // Animation effect:
   useEffect(() => {
-    if (
-      activeContainer === "news-container" &&
-      news.length === 0 &&
-      !newsLoading
-    ) {
-      fetchNews(selectedCategory, 1, false);
-    }
-  }, [activeContainer, news.length, newsLoading, selectedCategory]);
+    // Always run animation for 3 seconds after mount
+    const interval = setInterval(() => {
+      setCurrentIcon((prev) => (prev + 1) % loadingIcons.length);
+      setIconDirection((prev) => -prev);
+    }, 240);
 
-  // 1. Load per-user task completion status from Firestore on mount and when tasks change
-  useEffect(() => {
-    const loadTaskCompletion = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    const timer = setTimeout(() => setShowInitialLoading(false), 3000);
 
-      try {
-        const taskStatusSnap = await getDocs(
-          collection(db, "students", user.uid, "task_status")
-        );
-        const progressMap = {};
-        taskStatusSnap.forEach((doc) => {
-          progressMap[doc.id] = doc.data();
-        });
-        setTaskProgress(progressMap);
-      } catch (err) {
-        // Ignore error, just fallback to empty
-        setTaskProgress({});
-      }
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
     };
-    loadTaskCompletion();
-  }, [tasks]); // reload when tasks change
+  }, []);
+
+  // Set loading states in your data fetching useEffects:
+  // Example for dashboard data:
+  useEffect(
+    () => {
+      // ...existing code...
+      setLoading((prev) => ({ ...prev, dashboard: true }));
+      // fetch data...
+      // after fetch:
+      setLoading((prev) => ({ ...prev, dashboard: false }));
+    },
+    [
+      /* dependencies */
+    ]
+  );
+
+  // Do similar for tasks, assignments, goals, etc.
+
+  // Define isDashboardLoading as true until all required data is loaded:
+  const isDashboardLoading =
+    loading.dashboard || loading.tasks || loading.assignments || loading.goals;
 
   // News categories
   const newsCategories = [
@@ -1925,6 +1953,23 @@ const StudentDashboard = () => {
       updateTaskProgress(currentTask.id, "chatbotSend");
     }
   };
+
+  // Place this at the top of your return statement:
+  if (showInitialLoading) {
+    return (
+      <div className="loading-dashboard-container">
+        <div className="background-grid"></div>
+        <div className="animation-wrapper">
+          <div className="core-spinner">
+            <i className={loadingIcons[currentIcon]}></i>
+          </div>
+        </div>
+        <div className="loading-message">
+          <span className="rainbow-text">Loading your dashboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
