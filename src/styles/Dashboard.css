@@ -2333,13 +2333,69 @@
 }
 
 .selfanalysis .analysis-summary p {
-  font-size: 16px;
-  color: #333;
-  margin: 10px 0;
-  line-height: 1.6;
+  margin-bottom: 16px;
+  font-size: 1em;
+  word-break: break-word;
+}
+.progress-group {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  width: 100%;
+}
+
+.progress-label {
+  min-width: 160px;
+  text-align: left;
+  font-size: 1em;
+  color: #1976d2;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.progress-bar {
+  flex: 1 1 auto;
+  height: 12px;
+  border-radius: 8px;
+  background: #e3f2fd;
+  margin: 0 10px;
+  appearance: none;
+}
+
+.progress-bar::-webkit-progress-bar {
+  background-color: #e3f2fd;
+  border-radius: 8px;
+}
+
+.progress-bar::-webkit-progress-value {
+  background-color: #1976d2;
+  border-radius: 8px;
+}
+
+.progress-bar::-moz-progress-bar {
+  background-color: #1976d2;
+  border-radius: 8px;
+}
+
+.progress-percent {
+  min-width: 48px;
+  text-align: right;
+  font-weight: 700;
+  color: #1976d2;
+  font-size: 1em;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .analysis-summary p {
+    font-size: 0.95em;
+    margin-bottom: 12px;
+  }
+  .progress-percent {
+    font-size: 0.95em;
+    margin-left: 6px;
+  }
 }
 
 .selfanalysis .analysis-summary b {

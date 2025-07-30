@@ -1396,6 +1396,8 @@ const StudentDashboard = () => {
       // --- Save completion to student-specific path (ALWAYS allowed) ---
       const completedTask = tasks.find((t) => t.content === currentTopic);
       if (completedTask) {
+        await saveTaskCompletion(completedTask); // <-- UNCOMMENT THIS LINE
+        // Also update local taskProgress state for immediate UI feedback
         setTaskProgress((prev) => ({
           ...prev,
           [completedTask.id]: {
@@ -1405,30 +1407,6 @@ const StudentDashboard = () => {
           },
         }));
       }
-
-      // --- Only update shared task doc if needed (for old users) ---
-      /* const tasksRef = doc(db, "tasks", "shared");
-      const tasksSnap = await getDoc(tasksRef);
-      if (tasksSnap.exists()) {
-        const updatedTasks = (tasksSnap.data().tasks || []).map((task) =>
-          task.content === currentTopic && !task.completedBy?.includes(user.uid)
-            ? {
-                ...task,
-                completedBy: [...(task.completedBy || []), user.uid],
-                completed: true,
-              }
-            : task
-        );
-        await setDoc(tasksRef, { tasks: updatedTasks });
-        setTasks(updatedTasks);
-      }
-    
-
-      // --- Save completion to student-specific path (fixes permission error) ---
-      const completedTask = tasks.find((t) => t.content === currentTopic);
-      if (completedTask) {
-        await saveTaskCompletion(completedTask);
-      }*/
 
       await updateLeaderboard(user.uid, userData.name, streak, newProgress);
       setNotifications((prev) => [
@@ -1860,6 +1838,38 @@ const StudentDashboard = () => {
     setTaskProgress(allProgress);
   }, [tasks]);
 
+  // Check task completion status from Firestore
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const fetchTaskStatus = async () => {
+      try {
+        const statusCol = collection(db, "students", user.uid, "task_status");
+        const snapshot = await getDocs(statusCol);
+        const firestoreProgress = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.completed) {
+            firestoreProgress[docSnap.id] = {
+              ...data,
+              completed: true,
+            };
+          }
+        });
+        // Merge with localStorage progress (Firestore wins for completed)
+        setTaskProgress((prev) => ({
+          ...prev,
+          ...firestoreProgress,
+        }));
+      } catch (err) {
+        console.error("Error loading task completion from Firestore:", err);
+      }
+    };
+
+    fetchTaskStatus();
+  }, [tasks]);
+
   // Handle overdue reason submission
   const handleOverdueReasonSubmit = async (task, reason) => {
     const user = auth.currentUser;
@@ -1953,6 +1963,19 @@ const StudentDashboard = () => {
       updateTaskProgress(currentTask.id, "chatbotSend");
     }
   };
+  useEffect(() => {
+    if (
+      activeContainer === "news-container" &&
+      (selectedCategory !== "general" || news.length === 0)
+    ) {
+      setSelectedCategory("general");
+      setNewsPage(1);
+      setHasMoreNews(true);
+      setNewsError(null);
+      setNews([]);
+      fetchNews("general", 1, false);
+    }
+  }, [activeContainer]);
 
   // Place this at the top of your return statement:
   if (showInitialLoading) {
@@ -2719,23 +2742,63 @@ const StudentDashboard = () => {
               <div className="selfanalysis">
                 <div className="analysis-summary">
                   <h3>Weekly Progress Summary</h3>
-                  <p>
-                    <b>Learning Rate:</b> {selfAnalysis.learningRate}%
-                  </p>
-                  <p>
-                    <b>Communication Skill:</b>{" "}
-                    {selfAnalysis.communicationSkill}%
-                  </p>
-                  <p>
-                    <b>Goal Completion Rate:</b>{" "}
-                    {selfAnalysis.goalCompletionRate}%
-                  </p>
-                  <p>
-                    <b>Quiz Engagement:</b> {selfAnalysis.quizEngagement}%
-                  </p>
-                  <p>
-                    <b>Time Spent:</b> {selfAnalysis.timeSpent}
-                  </p>
+                  <div className="progress-group">
+                    <span className="progress-label">
+                      <b>Learning Rate:</b>
+                    </span>
+                    <progress
+                      value={selfAnalysis.learningRate}
+                      max="100"
+                      className="progress-bar"
+                    />
+                    <span className="progress-percent">
+                      {selfAnalysis.learningRate}%
+                    </span>
+                  </div>
+                  <div className="progress-group">
+                    <span className="progress-label">
+                      <b>Communication Skill:</b>
+                    </span>
+                    <progress
+                      value={selfAnalysis.communicationSkill}
+                      max="100"
+                      className="progress-bar"
+                    />
+                    <span className="progress-percent">
+                      {selfAnalysis.communicationSkill}%
+                    </span>
+                  </div>
+                  <div className="progress-group">
+                    <span className="progress-label">
+                      <b>Goal Completion Rate:</b>
+                    </span>
+                    <progress
+                      value={selfAnalysis.goalCompletionRate}
+                      max="100"
+                      className="progress-bar"
+                    />
+                    <span className="progress-percent">
+                      {selfAnalysis.goalCompletionRate}%
+                    </span>
+                  </div>
+                  <div className="progress-group">
+                    <span className="progress-label">
+                      <b>Quiz Engagement:</b>
+                    </span>
+                    <progress
+                      value={selfAnalysis.quizEngagement}
+                      max="100"
+                      className="progress-bar"
+                    />
+                    <span className="progress-percent">
+                      {selfAnalysis.quizEngagement}%
+                    </span>
+                  </div>
+                  <div className="progress-group">
+                    <span>
+                      <b>Time Spent:</b> {selfAnalysis.timeSpent}
+                    </span>
+                  </div>
                 </div>
                 <div className="suggestions-container">
                   <h3>Personalized Learning Tips 💡</h3>
@@ -2750,48 +2813,15 @@ const StudentDashboard = () => {
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}
                     placeholder="Share your thoughts on your learning experience..."
-                    className="goal-input"
-                    style={{ height: "100px" }}
                   ></textarea>
                   <button
                     onClick={handleFeedbackSubmit}
                     className="add-goal-btn"
+                    id="submit-feedback"
                   >
-                    Submit Feedback
+                    <i className="fas fa-paper-plane"></i> Submit Feedback
                   </button>
                 </div>
-              </div>
-            </div>
-
-            <div
-              id="settings-container"
-              className={`toggle-container ${
-                activeContainer === "settings-container" ? "active" : ""
-              }`}
-            >
-              <div className="container-header">⚙️ Settings</div>
-              <div className="container-body">
-                <button
-                  onClick={handleEditProfile}
-                  className="add-goal-btn"
-                  style={{ marginTop: "20px", marginBottom: "10px" }}
-                >
-                  Edit Profile
-                </button>
-                <button
-                  onClick={() => setActiveContainer("about-container")}
-                  className="add-goal-btn"
-                  style={{ marginBottom: "10px" }}
-                >
-                  About the App
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="add-goal-btn"
-                  style={{ marginBottom: "200px" }}
-                >
-                  Logout
-                </button>
               </div>
             </div>
             <div

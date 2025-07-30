@@ -68,7 +68,7 @@ app.post("/api/chat", async (req, res) => {
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "google/gemma-3n-e2b-it:free",
           messages: [
             {
               role: "system",
@@ -191,7 +191,7 @@ Now generate ${questionCount} questions about "${topic}":`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "google/gemma-3n-e2b-it:free",
           messages: [
             {
               role: "system",
