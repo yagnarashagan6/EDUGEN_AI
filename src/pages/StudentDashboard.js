@@ -2825,6 +2825,38 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div
+              id="settings-container"
+              className={`toggle-container ${
+                activeContainer === "settings-container" ? "active" : ""
+              }`}
+            >
+              <div className="container-header">⚙️ Settings</div>
+              <div className="container-body">
+                <button
+                  onClick={handleEditProfile}
+                  className="add-goal-btn"
+                  style={{ marginTop: "130px" }}
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="add-goal-btn"
+                  style={{ marginBottom: "40px" }}
+                >
+                  Logout
+                </button>
+                <button
+                  onClick={() => setActiveContainer("about-container")}
+                  className="add-goal-btn"
+                  style={{ marginTop: "0px" }}
+                >
+                  About the App
+                </button>
+              </div>
+            </div>
+
+            <div
               id="about-container"
               className={`toggle-container ${
                 activeContainer === "about-container" ? "active" : ""
@@ -2841,7 +2873,6 @@ const StudentDashboard = () => {
                     designed to enhance academic performance, engagement, and
                     communication in an intuitive and interactive way.
                   </p>
-
                   <h4>✨ It features:</h4>
                   <ul className="features-list">
                     <li>
@@ -2862,7 +2893,6 @@ const StudentDashboard = () => {
                       performance
                     </li>
                   </ul>
-
                   <p>
                     EduGen AI empowers students to learn effectively and helps
                     staff monitor, guide, and support learners efficiently. With
@@ -2870,7 +2900,6 @@ const StudentDashboard = () => {
                     performance tracking, EduGen AI is your all-in-one
                     AI-powered education assistant.
                   </p>
-
                   <div className="contact-section">
                     <h4>📧 Need Help?</h4>
                     <p>For any queries about the app, please contact us at:</p>
@@ -2883,7 +2912,6 @@ const StudentDashboard = () => {
                       edugenai7@gmail.com
                     </a>
                   </div>
-
                   <div style={{ marginTop: "30px", textAlign: "center" }}>
                     <button
                       onClick={() => setActiveContainer("settings-container")}

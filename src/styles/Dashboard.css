@@ -1916,18 +1916,66 @@
     font-size: 14px;
   }
 }
+/* --- Professional Settings Container Button Styles --- */
+#settings-container .container-body .add-goal-btn {
+  background: linear-gradient(90deg, #6366f1 60%, #1976d2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 18px 0;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 28px 0;
+  width: 80%;
+  max-width: 340px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.1);
+  transition: background 0.2s, transform 0.18s, box-shadow 0.18s;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
 
+#settings-container .container-body .add-goal-btn:hover,
+#settings-container .container-body .add-goal-btn:focus {
+  background: linear-gradient(90deg, #1976d2 60%, #6366f1 100%);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.18);
+  outline: none;
+}
+
+#settings-container .container-body .add-goal-btn:active {
+  background: linear-gradient(90deg, #3949ab 60%, #6366f1 100%);
+  transform: scale(0.98);
+}
+
+#settings-container .container-body .add-goal-btn + .add-goal-btn {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  #settings-container .container-body .add-goal-btn {
+    font-size: 15px;
+    padding: 14px 0;
+    max-width: 95vw;
+    margin: 18px auto;
+  }
+}
+
+/* Center the buttons inside the settings container */
 #settings-container .container-body {
-  flex: 1;
-  background-color: #fff;
-  padding: 0;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
   display: flex;
-  margin-top: 120px;
   flex-direction: column;
-  position: relative;
+  align-items: center; /* Center children horizontally */
+  justify-content: flex-start; /* Keep buttons at the top */
+  padding-top: 60px; /* Optional: add top padding for better look */
+  margin-bottom: 20px;
+}
+
+#settings-container .container-body .add-goal-btn {
+  margin-left: 0;
+  margin-right: 0;
 }
 /* App.css - Enhanced Loading Animation for Staff Dashboard */
 
