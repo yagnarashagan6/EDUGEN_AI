@@ -21,12 +21,25 @@ const Chatbot = ({
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [showOptionsForMessage, setShowOptionsForMessage] = useState(null);
-  const [optionsPosition, setOptionsPosition] = useState({ x: 0, y: 0 }); // NEW: Track position
+  const [optionsPosition, setOptionsPosition] = useState({ x: 0, y: 0 });
   const [isPdfView, setIsPdfView] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // New states for chat history
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSessions, setSelectedSessions] = useState([]);
+
+  // Add a new state to track the current session ID
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+
+  // Add new state for temporary chat mode
+  const [isNewSession, setIsNewSession] = useState(true);
+
   const chatBoxRef = useRef(null);
   const longPressTimeout = useRef(null);
   const synth = useRef(window.speechSynthesis);
@@ -71,21 +84,105 @@ const Chatbot = ({
     };
   }, []);
 
+  // Load chat history from localStorage on component mount
+  useEffect(() => {
+    const loadChatHistory = () => {
+      try {
+        const stored = localStorage.getItem("edugen_chat_history");
+        if (stored) {
+          const parsedHistory = JSON.parse(stored);
+          setChatHistory(parsedHistory);
+        }
+      } catch (error) {
+        console.error("Error loading chat history:", error);
+      }
+    };
+    loadChatHistory();
+  }, []);
+
+  // Save current chat to history when messages change
+  useEffect(() => {
+    const saveChatToHistory = () => {
+      // Only save if there are user messages (not just the initial bot message)
+      const hasUserMessages = messages.some((msg) => msg.sender === "user");
+      if (!hasUserMessages || messages.length < 2) return;
+
+      const firstUserMessage = messages.find((msg) => msg.sender === "user");
+      const title = firstUserMessage
+        ? firstUserMessage.text.substring(0, 50) +
+          (firstUserMessage.text.length > 50 ? "..." : "")
+        : "Chat Session";
+
+      try {
+        const existingHistory = JSON.parse(
+          localStorage.getItem("edugen_chat_history") || "[]"
+        );
+
+        // If we have a current session ID, update that session
+        if (currentSessionId) {
+          const sessionIndex = existingHistory.findIndex(
+            (session) => session.id === currentSessionId
+          );
+
+          if (sessionIndex !== -1) {
+            // Update existing session
+            existingHistory[sessionIndex] = {
+              ...existingHistory[sessionIndex],
+              messages: [...messages],
+              timestamp: new Date().toISOString(),
+              messageCount: messages.filter((msg) => msg.sender === "user")
+                .length,
+            };
+          }
+        } else {
+          // Create new session only if no current session ID
+          const sessionId = Date.now();
+          const chatSession = {
+            id: sessionId,
+            title,
+            timestamp: new Date().toISOString(),
+            messages: [...messages],
+            messageCount: messages.filter((msg) => msg.sender === "user")
+              .length,
+          };
+
+          // Set this as the current session
+          setCurrentSessionId(sessionId);
+
+          // Add new session at the beginning
+          existingHistory.unshift(chatSession);
+        }
+
+        // Keep only last 50 sessions to prevent localStorage overflow
+        const limitedHistory = existingHistory.slice(0, 50);
+
+        localStorage.setItem(
+          "edugen_chat_history",
+          JSON.stringify(limitedHistory)
+        );
+        setChatHistory(limitedHistory);
+      } catch (error) {
+        console.error("Error saving chat to history:", error);
+      }
+    };
+
+    const timeoutId = setTimeout(saveChatToHistory, 1000); // Debounce saves
+    return () => clearTimeout(timeoutId);
+  }, [messages, currentSessionId]);
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
-      // If switching from mobile to desktop, exit full screen
       if (window.innerWidth > 768 && isFullScreen) {
         setIsFullScreen(false);
       }
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isFullScreen]); // Depend on isFullScreen to re-evaluate on resize
+  }, [isFullScreen]);
 
   useEffect(() => {
     if (chatBoxRef.current) {
-      // Timeout ensures scroll after DOM update
       setTimeout(() => {
         if (chatBoxRef.current) {
           chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
@@ -106,17 +203,18 @@ const Chatbot = ({
       if (isPdfView) {
         setIsPdfView(false);
         setShowOptionsForMessage(null);
+      } else if (showHistory) {
+        setShowHistory(false);
       }
     };
 
     window.addEventListener("popstate", handleBackButton);
     return () => window.removeEventListener("popstate", handleBackButton);
-  }, [isPdfView]);
+  }, [isPdfView, showHistory]);
 
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
 
-    // Existing quick responses
     if (
       lowerInput.includes("coxco") ||
       lowerInput.includes("agni student portal")
@@ -130,7 +228,6 @@ const Chatbot = ({
       return "Use this PDF tool: https://www.ilovepdf.com/";
     }
 
-    // New educational resource quick responses
     if (
       lowerInput.includes("khan academy") ||
       lowerInput.includes("free courses")
@@ -149,14 +246,11 @@ const Chatbot = ({
     return null;
   };
 
-  // --- ADD: Request lock state for API throttling ---
   const isRequestingRef = useRef(false);
 
-  // Modified sendMessage function with safe synchronization
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    // Prevent overlapping API requests
     if (isRequestingRef.current) {
       setMessages((prev) => [
         ...prev,
@@ -173,7 +267,11 @@ const Chatbot = ({
     setInput("");
     setIsLoading(true);
 
-    // Track chatbot send progress
+    // Mark as no longer a new session once user sends first message
+    if (isNewSession) {
+      setIsNewSession(false);
+    }
+
     if (onMessageSent) {
       onMessageSent();
     }
@@ -185,7 +283,6 @@ const Chatbot = ({
       return;
     }
 
-    // --- LOCK: Prevent overlapping requests for 10 seconds ---
     isRequestingRef.current = true;
     const lockTimeout = setTimeout(() => {
       isRequestingRef.current = false;
@@ -205,6 +302,7 @@ const Chatbot = ({
         signal: controller.signal,
         body: JSON.stringify({ message: userMessage.text }),
       });
+
       if (response.status === 429) {
         setMessages((prev) => [
           ...prev,
@@ -246,7 +344,6 @@ const Chatbot = ({
       ]);
     } finally {
       setIsLoading(false);
-      // Release lock after 10 seconds (if not already released)
       setTimeout(() => {
         isRequestingRef.current = false;
       }, 10000);
@@ -260,32 +357,26 @@ const Chatbot = ({
     }
   };
 
-  // UPDATED: Handle message click with better position calculation
   const handleMessageClick = (e, index, message) => {
     if (message.sender === "bot") {
       if (showOptionsForMessage === index) {
-        // Close if already open
         setShowOptionsForMessage(null);
       } else {
-        // Calculate position based on click/touch
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = e.clientX || (e.touches && e.touches[0].clientX);
         const clickY = e.clientY || (e.touches && e.touches[0].clientY);
 
-        // Use click coordinates if available, otherwise center of message
         const x = clickX || rect.left + rect.width / 2;
         const y = clickY || rect.top + rect.height / 2;
 
-        // Adjust position to keep options in viewport and above the content
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const optionsWidth = isMobile ? 280 : 320;
         const optionsHeight = isMobile ? 80 : 60;
 
-        let adjustedX = x - optionsWidth / 2; // Center horizontally on click point
-        let adjustedY = y - optionsHeight - 20; // Position above the click point
+        let adjustedX = x - optionsWidth / 2;
+        let adjustedY = y - optionsHeight - 20;
 
-        // Keep horizontal position in bounds
         if (adjustedX + optionsWidth > viewportWidth - 20) {
           adjustedX = viewportWidth - optionsWidth - 20;
         }
@@ -293,12 +384,10 @@ const Chatbot = ({
           adjustedX = 20;
         }
 
-        // Keep vertical position in bounds - if too close to top, show below instead
         if (adjustedY < 20) {
-          adjustedY = y + 20; // Show below the click point if not enough space above
+          adjustedY = y + 20;
         }
 
-        // Ensure it doesn't go below viewport
         if (adjustedY + optionsHeight > viewportHeight - 20) {
           adjustedY = viewportHeight - optionsHeight - 20;
         }
@@ -309,14 +398,42 @@ const Chatbot = ({
     }
   };
 
-  // UPDATED: Remove long press handlers - now only using click
-  const handleLongPressStart = () => {};
-  const handleLongPressEnd = () => {};
-
+  // Add the missing handleRightClick function
   const handleRightClick = (e, index, message) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default context menu
     if (message.sender === "bot") {
       handleMessageClick(e, index, message);
+    }
+  };
+
+  // Add long press handlers for history items
+  const handleHistoryItemTouchStart = (e, sessionId) => {
+    longPressTimeout.current = setTimeout(() => {
+      // Enable selection mode on long press
+      if (!selectedSessions.includes(sessionId)) {
+        setSelectedSessions((prev) => [...prev, sessionId]);
+      }
+    }, 500); // 500ms long press
+  };
+
+  const handleHistoryItemTouchEnd = () => {
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
+    }
+  };
+
+  const handleHistoryItemClick = (session) => {
+    // If in selection mode (some items selected), toggle selection
+    if (selectedSessions.length > 0) {
+      if (selectedSessions.includes(session.id)) {
+        setSelectedSessions((prev) => prev.filter((id) => id !== session.id));
+      } else {
+        setSelectedSessions((prev) => [...prev, session.id]);
+      }
+    } else {
+      // Normal click - load conversation
+      loadChatSession(session);
     }
   };
 
@@ -325,6 +442,59 @@ const Chatbot = ({
     setShowOptionsForMessage(null);
     window.history.pushState({}, "");
   };
+
+  // New function to show history
+  const handleShowHistory = () => {
+    setShowHistory(true);
+    setShowOptionsForMessage(null);
+    window.history.pushState({}, "");
+  };
+
+  // Function to load a chat session from history
+  const loadChatSession = (session) => {
+    setMessages(session.messages);
+    setCurrentSessionId(session.id); // Set the current session ID
+    setShowHistory(false);
+    setSelectedSessions([]);
+    setSearchQuery("");
+  };
+
+  // Function to delete selected sessions
+  const deleteSelectedSessions = () => {
+    if (selectedSessions.length === 0) return;
+
+    const updatedHistory = chatHistory.filter(
+      (session) => !selectedSessions.includes(session.id)
+    );
+
+    setChatHistory(updatedHistory);
+    localStorage.setItem("edugen_chat_history", JSON.stringify(updatedHistory));
+    setSelectedSessions([]);
+  };
+
+  // Function to start new chat
+  const startNewChatConversation = () => {
+    setMessages([
+      {
+        sender: "bot",
+        text: "Hi! I'm EduGen AI. Ask me anything from your syllabus for a quick, clear answer.",
+      },
+    ]);
+    setCurrentSessionId(null); // Reset current session ID for new chat
+    setIsNewSession(true); // Mark as new session
+    setShowHistory(false);
+    setSelectedSessions([]);
+    setSearchQuery("");
+  };
+
+  // Filter chat history based on search query
+  const filteredHistory = chatHistory.filter(
+    (session) =>
+      session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      session.messages.some((msg) =>
+        msg.text.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+  );
 
   const handleReadAloud = (text) => {
     if (synth.current.speaking) {
@@ -396,30 +566,25 @@ const Chatbot = ({
       "why",
       "with",
     ];
-    // Split the text into words, remove stop words, and clean
+
     let words = text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "") // Remove special characters
+      .replace(/[^a-z0-9\s]/g, "")
       .split(/\s+/)
       .filter((word) => word.length > 2 && !stopWords.includes(word));
 
-    // Take up to 3 words to keep filename concise
     words = words.slice(0, 3);
-
-    // Join words with underscores and ensure non-empty
     const topic = words.length > 0 ? words.join("_") : "chat";
     return `${topic}_edugen-ai.pdf`;
   };
 
   const downloadChatAsPdf = () => {
-    // Find the last user message to use as the topic
     const lastUserMessage =
       messages
         .slice()
         .reverse()
         .find((msg) => msg.sender === "user")?.text || "default";
 
-    // Generate filename based on the last user message
     const filename = extractTopicForFilename(lastUserMessage);
 
     const element = document.createElement("div");
@@ -506,6 +671,170 @@ const Chatbot = ({
     return null;
   }
 
+  // Chat History View
+  if (showHistory) {
+    return (
+      <div
+        className={`
+        ${isMobile ? "chat-container-mobile" : "chat-container-desktop"}
+        ${!isVisible ? "hidden" : ""}
+        ${isInContainer ? "sidebar" : ""}
+        ${isMobile && isFullScreen ? "fullscreen-mobile" : ""}
+      `}
+      >
+        <div
+          className={isMobile ? "chat-header-mobile" : "chat-header-desktop"}
+        >
+          <button
+            className="history-back-btn"
+            onClick={() => setShowHistory(false)}
+            title="Back to chat"
+          >
+            <i className="fas fa-arrow-left"></i>
+          </button>
+          <span
+            className={isMobile ? "chat-title-mobile" : "chat-title-desktop"}
+          >
+            Chat History
+          </span>
+          {/* Removed the plus button */}
+          <div style={{ width: "40px" }}></div> {/* Spacer for alignment */}
+        </div>
+
+        <div className="history-container">
+          <div className="history-controls">
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="history-search-input"
+              />
+              <i className="fas fa-search search-icon"></i>
+            </div>
+
+            {selectedSessions.length > 0 && (
+              <div
+                className={`delete-controls ${
+                  selectedSessions.length > 0 ? "show" : ""
+                }`}
+              >
+                <span className="selected-count">
+                  {selectedSessions.length} selected
+                </span>
+                <button
+                  className="delete-selected-btn"
+                  onClick={deleteSelectedSessions}
+                  title="Delete selected sessions"
+                >
+                  <i className="fas fa-trash"></i>
+                  Delete Selected ({selectedSessions.length})
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="history-list">
+            {filteredHistory.length === 0 ? (
+              <div className="empty-history">
+                <i className="fas fa-comments"></i>
+                <p>
+                  {searchQuery
+                    ? "No conversations found"
+                    : "No chat history yet"}
+                </p>
+                <p>Start a conversation to see it here!</p>
+              </div>
+            ) : (
+              filteredHistory.map((session) => (
+                <div
+                  key={session.id}
+                  className={`history-item ${
+                    selectedSessions.includes(session.id) ? "selected" : ""
+                  }`}
+                  onTouchStart={(e) =>
+                    handleHistoryItemTouchStart(e, session.id)
+                  }
+                  onTouchEnd={handleHistoryItemTouchEnd}
+                  onMouseDown={(e) => {
+                    // For desktop long press simulation
+                    longPressTimeout.current = setTimeout(() => {
+                      if (!selectedSessions.includes(session.id)) {
+                        setSelectedSessions((prev) => [...prev, session.id]);
+                      }
+                    }, 500);
+                  }}
+                  onMouseUp={() => {
+                    if (longPressTimeout.current) {
+                      clearTimeout(longPressTimeout.current);
+                      longPressTimeout.current = null;
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (longPressTimeout.current) {
+                      clearTimeout(longPressTimeout.current);
+                      longPressTimeout.current = null;
+                    }
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    className="session-checkbox"
+                    checked={selectedSessions.includes(session.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedSessions((prev) => [...prev, session.id]);
+                      } else {
+                        setSelectedSessions((prev) =>
+                          prev.filter((id) => id !== session.id)
+                        );
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display:
+                        selectedSessions.length > 0 ||
+                        selectedSessions.includes(session.id)
+                          ? "block"
+                          : "none",
+                    }}
+                  />
+
+                  <div
+                    className="history-item-content"
+                    onClick={() => handleHistoryItemClick(session)}
+                  >
+                    <div className="history-item-header">
+                      <h4 className="history-title">{session.title}</h4>
+                      <span className="history-timestamp">
+                        {new Date(session.timestamp).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </span>
+                    </div>
+                    <div className="history-item-meta">
+                      <span className="message-count">
+                        <i className="fas fa-comments"></i>
+                        {session.messageCount} messages
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isPdfView) {
     return (
       <div className="pdf-view-container">
@@ -572,14 +901,36 @@ const Chatbot = ({
             EduGen AI 🤖
           </span>
 
-          <button
-            className={isMobile ? "pdf-button-mobile" : "pdf-button-desktop"}
-            onClick={downloadChatAsPdf}
-            title="Download PDF"
-          >
-            <i className="fas fa-file-pdf"></i>
-            <span className="pdf-button-label"></span>
-          </button>
+          <div className="chat-header-actions">
+            {/* Replace temporary chat button with new chat button */}
+            <button
+              className="new-chat-btn"
+              onClick={startNewChatConversation}
+              title="Start new conversation"
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+
+            <button
+              className={
+                isMobile ? "history-button-mobile" : "history-button-desktop"
+              }
+              onClick={handleShowHistory}
+              title="Chat History"
+            >
+              <i className="fas fa-history"></i>
+              <span className="history-button-label"></span>
+            </button>
+
+            <button
+              className={isMobile ? "pdf-button-mobile" : "pdf-button-desktop"}
+              onClick={downloadChatAsPdf}
+              title="Download PDF"
+            >
+              <i className="fas fa-file-pdf"></i>
+              <span className="pdf-button-label"></span>
+            </button>
+          </div>
         </div>
 
         <div
@@ -604,7 +955,7 @@ const Chatbot = ({
               onClick={(e) => handleMessageClick(e, index, message)}
               style={{
                 cursor: message.sender === "bot" ? "pointer" : "default",
-                position: "relative", // Ensure proper stacking context
+                position: "relative",
                 zIndex: showOptionsForMessage === index ? 1 : "auto",
               }}
             >
@@ -659,12 +1010,11 @@ const Chatbot = ({
         </div>
       </div>
 
-      {/* UPDATED: Message options overlay with proper z-index */}
       {showOptionsForMessage !== null && (
         <div
           className="message-options-overlay"
           onClick={() => setShowOptionsForMessage(null)}
-          style={{ zIndex: 9999 }} // Ensure it's on top
+          style={{ zIndex: 9999 }}
         >
           <div
             className="message-options"
@@ -672,9 +1022,9 @@ const Chatbot = ({
               position: "fixed",
               left: `${optionsPosition.x}px`,
               top: `${optionsPosition.y}px`,
-              zIndex: 10000, // Highest z-index
+              zIndex: 10000,
             }}
-            onClick={(e) => e.stopPropagation()} // Prevent overlay click from closing
+            onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() =>

@@ -31,8 +31,9 @@
   border: 1px solid #ddd;
   transform: translateX(0);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  overflow: hidden; /* Ensure no overflow in mini view */
+  overflow: hidden;
 }
+
 /* When chatbot is in sidebar container */
 .chat-container.sidebar.chat-container-mobile {
   position: relative;
@@ -43,11 +44,11 @@
   overflow: hidden;
   background: white;
 }
+
 .chat-container.mini.hidden {
   display: none;
 }
 
-/* Active state for the mini chat container */
 .chat-container.mini.active {
   display: flex;
 }
@@ -71,12 +72,10 @@
   font-size: 18px;
 }
 
-/* Show toggle button only in minimized view */
 .chat-container:not(.mini) ~ .chat-toggle-btn {
   display: none;
 }
 
-/* Always show toggle button in minimized view */
 .chat-container.mini ~ .chat-toggle-btn {
   display: flex;
 }
@@ -122,6 +121,50 @@
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 }
 
+/* Header Actions Container */
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* History Button Styles */
+.history-button-desktop {
+  background: #28a745;
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.history-button-desktop:hover {
+  background: #218838;
+}
+
+.history-button-mobile {
+  background: #28a745;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.history-button-mobile:hover {
+  background: #218838;
+}
+
 .pdf-button-desktop {
   background: yellow;
   border: none;
@@ -144,6 +187,293 @@
   background: rgba(237, 237, 3, 0.6);
 }
 
+/* Back button in history view */
+.history-back-btn {
+  background: transparent;
+  width: 30px;
+  color: white;
+  font-size: 18px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.history-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* New chat button styles - replaces temporary chat button */
+.new-chat-btn {
+  background: #28a745;
+  border: none;
+  color: white;
+  font-size: 16px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  width: 40px;
+  height: 40px;
+}
+
+.new-chat-btn:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+/* History Container Styles */
+.history-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+.history-controls {
+  padding: 16px;
+  background: white;
+  border-bottom: 1px solid #eee;
+}
+
+.search-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.history-search-input {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.history-search-input:focus {
+  border-color: #0438af;
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 14px;
+}
+
+.delete-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 8px 0;
+}
+
+.selected-count {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.delete-selected-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s;
+}
+
+.delete-selected-btn:hover {
+  background: #c82333;
+}
+
+/* History List */
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.history-item {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  user-select: none; /* Prevent text selection during long press */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.history-item:hover {
+  background: #f8f9fa;
+  border-color: #0438af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(4, 56, 175, 0.1);
+}
+
+.history-item.selected {
+  background: #e3f2fd;
+  border-color: #0438af;
+  box-shadow: 0 2px 8px rgba(4, 56, 175, 0.2);
+}
+
+/* Long press animation */
+.history-item:active {
+  transform: scale(0.98);
+  background: #f0f0f0;
+}
+
+.session-checkbox {
+  margin-top: 2px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  width: 18px;
+  height: 18px;
+}
+
+/* Hide checkbox by default, show when in selection mode */
+.session-checkbox {
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.history-item.selected .session-checkbox,
+.history-item:has(.session-checkbox:checked) .session-checkbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Show checkboxes when any item is selected */
+.history-list:has(.history-item.selected) .session-checkbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.history-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.history-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-timestamp {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.history-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-count {
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-count i {
+  font-size: 10px;
+}
+
+/* Selection mode styles */
+.delete-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 8px 0;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.delete-controls.show {
+  opacity: 1;
+  max-height: 60px;
+}
+
+/* Mobile specific improvements */
+@media screen and (max-width: 768px) {
+  .history-item {
+    padding: 16px 12px; /* Larger touch target */
+    margin-bottom: 12px;
+  }
+
+  .session-checkbox {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Improve touch feedback */
+  .history-item:active {
+    background: #e8f4f8;
+    transform: scale(0.97);
+  }
+
+  .delete-controls {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .delete-selected-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    font-size: 14px;
+  }
+}
+
 .chat-box {
   flex-grow: 1;
   padding: 12px;
@@ -152,23 +482,21 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  height: calc(
-    100% - 64px - 60px
-  ); /* Subtract header (44px + padding) and input (40px + padding) heights */
+  height: calc(100% - 64px - 60px);
   box-sizing: border-box;
 }
 
 .chat-container.mini .chat-box {
   padding: 8px;
   max-height: 200px;
-  overflow-y: auto; /* Ensure scrollable in mini view */
+  overflow-y: auto;
 }
 
 /* Desktop/Laptop Chat Box Styles */
 .chat-box-desktop {
   flex: 1;
   padding: 20px;
-  padding-bottom: 60px; /* Extra space for message options */
+  padding-bottom: 60px;
   overflow-y: auto;
   background: #f8f9fa;
   display: flex;
@@ -469,6 +797,54 @@
     padding: 12px;
     box-sizing: border-box;
   }
+
+  /* Mobile History Styles */
+  .history-container {
+    height: calc(100vh - 60px);
+  }
+
+  .history-controls {
+    padding: 12px;
+  }
+
+  .history-search-input {
+    padding: 10px 35px 10px 12px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .history-item {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .history-title {
+    font-size: 14px;
+  }
+
+  .history-timestamp {
+    font-size: 11px;
+  }
+
+  .delete-controls {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .delete-selected-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .chat-header-actions {
+    gap: 4px;
+  }
+
+  .history-button-mobile,
+  .pdf-button-mobile {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
 }
 
 /* Base Mobile Container */
@@ -482,7 +858,7 @@
   background: white;
   flex-direction: column;
   overflow: hidden;
-  z-index: 100; /* Default z-index for mobile chatbot, allowing sidebar to open over it */
+  z-index: 100;
   transition: all 0.3s ease;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
@@ -494,7 +870,7 @@
   left: 0;
   width: 100%;
   height: 100vh;
-  z-index: 1000; /* Highest z-index for true full screen */
+  z-index: 1000;
   border-radius: 0;
   transition: all 0.3s ease;
 }
@@ -502,7 +878,6 @@
 /* Handle transition from fullscreen to normal */
 .chat-container-mobile:not(.fullscreen-mobile) {
   position: relative;
-
   transition: all 0.3s ease;
 }
 
@@ -532,7 +907,7 @@
   cursor: pointer;
   border-radius: 20%;
   transition: all 0.2s ease;
-  margin-right: 40px; /* Space between button and title */
+  margin-right: 40px;
 }
 
 .fullscreen-toggle-btn:hover {
@@ -548,15 +923,15 @@
   display: flex;
   flex-direction: column;
   gap: 25px;
-  height: calc(100% - 130px); /* Subtract header and input heights */
+  height: calc(100% - 130px);
   -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
 }
 
 /* Adjust chat box height in fullscreen mobile */
 .chat-container-mobile.fullscreen-mobile .chat-box-mobile {
-  height: calc(100vh - 60px - 70px); /* Header (60px) + Input (70px) */
-  padding-bottom: 16px; /* Reset padding for full screen */
+  height: calc(100vh - 60px - 70px);
+  padding-bottom: 16px;
 }
 
 /* Adjust chat box for non-fullscreen mode */
@@ -668,11 +1043,11 @@
 
 /* Mobile view transitions */
 @media screen and (max-width: 768px) {
-  .chat-container-mobile {
+  .chat-container_mobile {
     transform: translateX(0);
   }
 
-  .chat-container-mobile.hidden {
+  .chat-container_mobile.hidden {
     transform: translateX(100%);
   }
 }
@@ -771,6 +1146,11 @@
     border-radius: 0;
   }
 
+  /* Hidden state for mobile */
+  .chat-container-mobile.hidden {
+    transform: translateX(100%);
+  }
+
   /* Fullscreen mode for mobile */
   .chat-container-mobile.fullscreen-mobile {
     position: fixed;
@@ -780,6 +1160,7 @@
     height: 100%;
     z-index: 1000;
     border-radius: 0;
+    transform: translateX(0);
   }
 
   /* Chat box styles */
@@ -790,6 +1171,9 @@
     background: #f8f9fa;
     height: calc(100vh - 130px); /* Subtract header (60px) and input (70px) */
     -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
   /* Input area styles */
@@ -811,11 +1195,6 @@
     flex-shrink: 0;
   }
 
-  /* Input area styles for fullscreen mode */
-  .chat-container-mobile.fullscreen-mobile .chat-input-mobile {
-    position: fixed;
-  }
-
   /* Header styles */
   .chat-header-mobile {
     position: relative;
@@ -833,20 +1212,12 @@
     flex-shrink: 0;
   }
 
-  /* Header styles for fullscreen mode */
-  .chat-container-mobile.fullscreen-mobile .chat-header-mobile {
-    position: fixed;
-  }
-
-  /* Toggle button */
-  .chat-toggle-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 50px;
-    height: 50px;
-    box-shadow: 0 2px 10px rgba(4, 56, 175, 0.3);
-    z-index: 9999;
+  /* Ensure mobile elements are visible */
+  .chat-container-mobile,
+  .chat-header-mobile,
+  .chat-box-mobile,
+  .chat-input-mobile {
+    display: flex !important;
   }
 
   /* Hide desktop elements */
@@ -855,6 +1226,12 @@
   .chat-box-desktop,
   .chat-input-desktop {
     display: none !important;
+  }
+
+  /* Override any hidden states */
+  .chat-container-mobile:not(.hidden) {
+    display: flex !important;
+    transform: translateX(0) !important;
   }
 }
 
