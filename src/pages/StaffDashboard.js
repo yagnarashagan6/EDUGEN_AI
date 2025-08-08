@@ -329,6 +329,8 @@ const StaffDashboard = () => {
   const [newAssignmentSubject, setNewAssignmentSubject] = useState("");
   const [newAssignmentLink, setNewAssignmentLink] = useState("");
   const [newAssignmentDeadline, setNewAssignmentDeadline] = useState("");
+  const [newAssignmentDeadlineTime, setNewAssignmentDeadlineTime] =
+    useState("23:59");
   const [latestActivity, setLatestActivity] = useState(null);
   const [showMarkingUI, setShowMarkingUI] = useState(false);
   const [selectedStudentForMarking, setSelectedStudentForMarking] =
@@ -921,9 +923,13 @@ const StaffDashboard = () => {
 
       let deadlineTimestamp = null;
       if (newAssignmentDeadline) {
-        const deadlineDate = new Date(newAssignmentDeadline + "T23:59:59");
+        const deadlineDateTime = newAssignmentDeadlineTime
+          ? `${newAssignmentDeadline}T${newAssignmentDeadlineTime}:00`
+          : `${newAssignmentDeadline}T23:59:00`;
+
+        const deadlineDate = new Date(deadlineDateTime);
         if (isNaN(deadlineDate.getTime())) {
-          addNotification("Invalid deadline date provided.", "warning");
+          addNotification("Invalid deadline date/time provided.", "warning");
           return;
         }
         deadlineTimestamp = Timestamp.fromDate(deadlineDate);
@@ -964,6 +970,7 @@ const StaffDashboard = () => {
       setNewAssignmentSubject("");
       setNewAssignmentLink("");
       setNewAssignmentDeadline("");
+      setNewAssignmentDeadlineTime("23:59");
     } catch (err) {
       console.error("Error posting assignment:", err);
       addNotification("Failed to post assignment: " + err.message, "error");
@@ -1337,14 +1344,34 @@ const StaffDashboard = () => {
                     className="goal-input"
                     aria-label="New assignment Google Drive link"
                   />
-                  <input
-                    type="date"
-                    value={newAssignmentDeadline}
-                    onChange={(e) => setNewAssignmentDeadline(e.target.value)}
-                    className="goal-input"
-                    title="Optional: Set a deadline for the assignment"
-                    aria-label="New assignment deadline"
-                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <input
+                      type="date"
+                      value={newAssignmentDeadline}
+                      onChange={(e) => setNewAssignmentDeadline(e.target.value)}
+                      className="goal-input"
+                      style={{ flex: 1 }}
+                      title="Set deadline date for the assignment"
+                      aria-label="New assignment deadline date"
+                    />
+                    <input
+                      type="time"
+                      value={newAssignmentDeadlineTime}
+                      onChange={(e) =>
+                        setNewAssignmentDeadlineTime(e.target.value)
+                      }
+                      className="goal-input"
+                      style={{ flex: 1 }}
+                      title="Set deadline time for the assignment"
+                      aria-label="New assignment deadline time"
+                    />
+                  </div>
                   <button
                     onClick={postAssignment}
                     className="add-goal-btn"
@@ -1428,71 +1455,272 @@ const StaffDashboard = () => {
                 ) : (
                   <div
                     className="assignment-list scrollable"
-                    style={{ maxHeight: "300px" }}
+                    style={{ maxHeight: "400px" }}
                   >
-                    {assignments.map((assignment) => (
-                      <div
-                        key={`posted-assignment-${assignment.id}`}
-                        className="assignment-item task-item"
-                      >
-                        <p style={{ flexGrow: 1 }}>
-                          {assignment.subject}
-                          <small className="assignment-meta">
-                            {" "}
-                            (Posted:{" "}
-                            {assignment.postedAt?.toDate
-                              ? assignment.postedAt.toLocaleDateString()
-                              : "N/A"}
-                            )
-                          </small>
-                          {assignment.deadline && (
-                            <small
-                              className="assignment-meta"
+                    {assignments.map((assignment) => {
+                      // Check if assignment deadline has expired
+                      const isExpired =
+                        assignment.deadline &&
+                        new Date(assignment.deadline) < new Date();
+
+                      return (
+                        <div
+                          key={`posted-assignment-${assignment.id}`}
+                          className={`assignment-card ${
+                            isExpired ? "expired" : ""
+                          }`}
+                          style={{
+                            background: isExpired ? "#f8f9fa" : "#ffffff",
+                            border: `1px solid ${
+                              isExpired ? "#dee2e6" : "#e3f2fd"
+                            }`,
+                            borderRadius: "12px",
+                            padding: "16px",
+                            marginBottom: "16px",
+                            boxShadow: isExpired
+                              ? "0 2px 4px rgba(0,0,0,0.05)"
+                              : "0 2px 8px rgba(25, 118, 210, 0.1)",
+                            transition: "all 0.3s ease",
+                            position: "relative",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {/* Status Badge */}
+                          {isExpired && (
+                            <div
                               style={{
-                                color:
-                                  new Date(assignment.deadline) < new Date()
-                                    ? "red"
-                                    : "darkorange",
+                                position: "absolute",
+                                top: "8px",
+                                right: "8px",
+                                background: "#ff5252",
+                                color: "white",
+                                padding: "4px 8px",
+                                borderRadius: "12px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                textTransform: "uppercase",
                               }}
                             >
-                              {" "}
-                              (Deadline:{" "}
-                              {assignment.deadline?.toDate
-                                ? assignment.deadline.toLocaleDateString()
-                                : "N/A"}
-                              )
-                              {new Date(assignment.deadline) < new Date()
-                                ? " - Expired"
-                                : ""}
-                            </small>
+                              Expired
+                            </div>
                           )}
-                        </p>
-                        <div className="assignment-actions">
-                          <button
-                            className="action-btn view-btn"
-                            onClick={() =>
-                              window.open(
-                                assignment.driveLink,
-                                "_blank",
-                                "noopener,noreferrer"
-                              )
-                            }
-                            aria-label={`Open assignment ${assignment.subject}`}
-                          >
-                            <i className="fas fa-external-link-alt"></i> Open
-                          </button>
-                          {assignment.staffId === auth.currentUser?.uid && (
-                            <button
-                              className="action-btn delete-btn"
-                              onClick={() => deleteAssignment(assignment.id)}
-                              aria-label={`Delete assignment ${assignment.subject}`}
+
+                          {/* Assignment Header */}
+                          <div style={{ marginBottom: "12px" }}>
+                            <h3
+                              style={{
+                                margin: "0 0 8px 0",
+                                fontSize: "18px",
+                                fontWeight: "600",
+                                color: isExpired ? "#6c757d" : "#1976d2",
+                                paddingRight: isExpired ? "80px" : "0",
+                              }}
                             >
-                              <i className="fas fa-trash"></i> Delete
-                            </button>
-                          )}
+                              {assignment.subject}
+                            </h3>
+                          </div>
+
+                          {/* Assignment Details */}
+                          <div style={{ marginBottom: "16px" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection:
+                                  window.innerWidth <= 768 ? "column" : "row",
+                                gap: window.innerWidth <= 768 ? "8px" : "16px",
+                                fontSize: "14px",
+                                color: "#666",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                }}
+                              >
+                                <i
+                                  className="fas fa-calendar-plus"
+                                  style={{ color: "#28a745", fontSize: "12px" }}
+                                ></i>
+                                <span>
+                                  <strong>Posted:</strong>{" "}
+                                  {assignment.postedAt?.toLocaleDateString
+                                    ? assignment.postedAt.toLocaleDateString(
+                                        "en-US",
+                                        {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        }
+                                      )
+                                    : "N/A"}
+                                </span>
+                              </div>
+
+                              {assignment.deadline && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <i
+                                    className="fas fa-clock"
+                                    style={{
+                                      color: isExpired ? "#ff5252" : "#ff9800",
+                                      fontSize: "12px",
+                                    }}
+                                  ></i>
+                                  <span
+                                    style={{
+                                      color: isExpired ? "#ff5252" : "#666",
+                                    }}
+                                  >
+                                    <strong>Deadline:</strong>{" "}
+                                    {assignment.deadline?.toLocaleDateString
+                                      ? `${assignment.deadline.toLocaleDateString(
+                                          "en-US",
+                                          {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          }
+                                        )} at ${assignment.deadline.toLocaleTimeString(
+                                          "en-US",
+                                          {
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                            hour12: true,
+                                          }
+                                        )}`
+                                      : "N/A"}
+                                    {isExpired && (
+                                      <span
+                                        style={{
+                                          marginLeft: "8px",
+                                          fontWeight: "bold",
+                                        }}
+                                      >
+                                        (Expired)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection:
+                                window.innerWidth <= 768 ? "column" : "row",
+                              gap: "8px",
+                              justifyContent: "flex-end",
+                            }}
+                          >
+                            {!isExpired ? (
+                              <button
+                                className="assignment-action-btn view-btn"
+                                onClick={() =>
+                                  window.open(
+                                    assignment.driveLink,
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                  )
+                                }
+                                aria-label={`Open assignment ${assignment.subject}`}
+                                style={{
+                                  background: "#1976d2",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "8px 16px",
+                                  fontSize: "14px",
+                                  fontWeight: "500",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  transition: "background-color 0.2s ease",
+                                  minWidth:
+                                    window.innerWidth <= 768 ? "100%" : "auto",
+                                  justifyContent: "center",
+                                }}
+                                onMouseOver={(e) =>
+                                  (e.target.style.backgroundColor = "#1565c0")
+                                }
+                                onMouseOut={(e) =>
+                                  (e.target.style.backgroundColor = "#1976d2")
+                                }
+                              >
+                                <i className="fas fa-external-link-alt"></i>
+                                Open Assignment
+                              </button>
+                            ) : (
+                              <div
+                                style={{
+                                  background: "#e0e0e0",
+                                  color: "#757575",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "8px 16px",
+                                  fontSize: "14px",
+                                  fontWeight: "500",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  minWidth:
+                                    window.innerWidth <= 768 ? "100%" : "auto",
+                                  justifyContent: "center",
+                                }}
+                                title="Assignment link unavailable - deadline expired"
+                              >
+                                <i className="fas fa-lock"></i>
+                                Link Expired
+                              </div>
+                            )}
+
+                            {assignment.staffId === auth.currentUser?.uid && (
+                              <button
+                                className="assignment-action-btn delete-btn"
+                                onClick={() => deleteAssignment(assignment.id)}
+                                aria-label={`Delete assignment ${assignment.subject}`}
+                                style={{
+                                  background: "#f44336",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "8px 16px",
+                                  fontSize: "14px",
+                                  fontWeight: "500",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  transition: "background-color 0.2s ease",
+                                  minWidth:
+                                    window.innerWidth <= 768 ? "100%" : "auto",
+                                  justifyContent: "center",
+                                }}
+                                onMouseOver={(e) =>
+                                  (e.target.style.backgroundColor = "#d32f2f")
+                                }
+                                onMouseOut={(e) =>
+                                  (e.target.style.backgroundColor = "#f44336")
+                                }
+                              >
+                                <i className="fas fa-trash"></i>
+                                Delete
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1719,7 +1947,7 @@ const StaffDashboard = () => {
                 activeContainer === "settings-container" ? "active" : ""
               }`}
             >
-              <div className="container-header">Settings</div>
+              <div className="container-header">⚙️ Settings</div>
               <div className="container-body">
                 <h3>Profile Options</h3>
                 <button

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { auth } from "../firebase";
 
 const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
   const [reason, setReason] = useState("");
@@ -37,13 +38,35 @@ const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
     setReason(e.target.value);
   };
 
+  // ...existing code...
   const handleCloseClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isSubmitting) {
+      try {
+        // FIXED: Use imported auth
+        const user = auth.currentUser;
+        if (user) {
+          const reasonKey = `overdueReason_${user.uid}_${task.id}`;
+          localStorage.setItem(
+            reasonKey,
+            JSON.stringify({
+              canceledAt: Date.now(),
+            })
+          );
+          console.log(
+            `Cancellation stored for task ${task.id} at ${Date.now()}`
+          ); // Debug log
+        } else {
+          console.warn("No user found when trying to store cancellation");
+        }
+      } catch (error) {
+        console.error("Error storing cancellation:", error);
+      }
       onClose();
     }
   };
+  // ...existing code...
 
   const handleContainerClick = (e) => {
     e.stopPropagation();
@@ -86,8 +109,8 @@ const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
           }}
         >
           Your reason has been sent to{" "}
-          <strong>{task.staffName || "the staff member"}</strong> who posted this
-          task. This notification will close automatically.
+          <strong>{task.staffName || "the staff member"}</strong> who posted
+          this task. This notification will close automatically.
         </p>
         <button
           onClick={handleCloseClick}
@@ -133,7 +156,7 @@ const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
             fontWeight: "600",
           }}
         >
-          ⚠️ Task Overdue (2 Days)
+          ⚠️ Task Overdue (2+ Days)
         </h4>
         <p
           style={{
@@ -267,8 +290,11 @@ const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
             borderRadius: "4px",
           }}
         >
-          Debug: Task posted by staff "{task.staffName || "Unknown"}" (2 days
-          overdue)
+          Debug: Task posted{" "}
+          {Math.floor(
+            (Date.now() - new Date(task.date).getTime()) / (24 * 60 * 60 * 1000)
+          )}{" "}
+          days ago
         </div>
       )}
     </div>

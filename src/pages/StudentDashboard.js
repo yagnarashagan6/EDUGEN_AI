@@ -224,6 +224,7 @@ const ChatInterface = ({
     </div>
   );
 };
+// ...existing code...
 
 // AssignmentItem for MAIN CONTENT AREA (assignment name left, marks right in a bubble)
 const AssignmentSummaryCard = ({ assignment }) => {
@@ -248,55 +249,194 @@ const AssignmentSummaryCard = ({ assignment }) => {
     fetchMarks();
   }, [assignment.id]);
 
+  // Check if assignment has expired
+  const isExpired =
+    assignment.deadline && new Date(assignment.deadline) < new Date();
+
   return (
     <div
-      className="task-item"
+      className="assignment-summary-card"
       style={{
-        marginBottom: "10px",
-        cursor: "default",
-        minWidth: 220,
+        marginBottom: "16px",
+        cursor: "pointer",
+        width: "100%",
+        maxWidth: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingRight: 16,
-        paddingLeft: 16,
+        padding: window.innerWidth <= 768 ? "12px" : "20px",
+        background: isExpired ? "#f8f9fa" : "#ffffff",
+        border: `2px solid ${isExpired ? "#dee2e6" : "#1976d2"}`,
+        borderRadius: "12px",
+        boxShadow: isExpired
+          ? "0 2px 4px rgba(0,0,0,0.1)"
+          : "0 4px 16px rgba(25, 118, 210, 0.15)",
+        transition: "all 0.3s ease",
+        opacity: 1,
+        minHeight: window.innerWidth <= 768 ? "70px" : "100px",
+        boxSizing: "border-box",
+      }}
+      onMouseOver={(e) => {
+        if (!isExpired) {
+          e.currentTarget.style.transform = "translateY(-2px)";
+          e.currentTarget.style.boxShadow =
+            "0 6px 20px rgba(25, 118, 210, 0.2)";
+        }
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = isExpired
+          ? "0 2px 4px rgba(0,0,0,0.1)"
+          : "0 4px 16px rgba(25, 118, 210, 0.15)";
       }}
     >
-      <h3 style={{ margin: 0, flex: 1 }}>{assignment.subject}</h3>
       <div
         style={{
-          minWidth: 60,
-          marginLeft: 16,
+          flex: 1,
+          paddingRight: window.innerWidth <= 768 ? "8px" : "16px",
+          minWidth: 0,
+          overflow: "hidden",
+        }}
+      >
+        <h3
+          style={{
+            margin: "0 0 4px 0",
+            fontSize: window.innerWidth <= 768 ? "14px" : "20px",
+            fontWeight: "600",
+            color: isExpired ? "#6c757d" : "#1976d2",
+            lineHeight: "1.3",
+            wordBreak: "break-word",
+            hyphens: "auto",
+          }}
+        >
+          {assignment.subject}
+          {isExpired && (
+            <span
+              style={{
+                marginLeft: "6px",
+                fontSize: window.innerWidth <= 768 ? "8px" : "10px",
+                color: "#ff5252",
+                fontWeight: "bold",
+                background: "#ffebee",
+                padding: "2px 4px",
+                borderRadius: "4px",
+                display: window.innerWidth <= 768 ? "block" : "inline",
+                marginTop: window.innerWidth <= 768 ? "2px" : "0",
+              }}
+            >
+              EXPIRED
+            </span>
+          )}
+        </h3>
+
+        {/* Deadline info */}
+        {assignment.deadline && (
+          <div
+            style={{
+              fontSize: window.innerWidth <= 768 ? "10px" : "14px",
+              color: isExpired ? "#ff5252" : "#666",
+              marginBottom: "2px",
+              display: "flex",
+              alignItems: "center",
+              gap: window.innerWidth <= 768 ? "4px" : "6px",
+              flexWrap: window.innerWidth <= 768 ? "wrap" : "nowrap",
+            }}
+          >
+            <i
+              className="fas fa-clock"
+              style={{
+                fontSize: window.innerWidth <= 768 ? "10px" : "12px",
+                flexShrink: 0,
+              }}
+            ></i>
+            <span
+              style={{
+                lineHeight: "1.2",
+                wordBreak: "break-word",
+              }}
+            >
+              Due:{" "}
+              {new Date(assignment.deadline).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: window.innerWidth <= 768 ? undefined : "numeric",
+              })}{" "}
+              {window.innerWidth <= 768 ? "" : "at "}
+              {new Date(assignment.deadline).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })}
+            </span>
+          </div>
+        )}
+
+        {isExpired && (
+          <p
+            style={{
+              margin: "0",
+              fontSize: window.innerWidth <= 768 ? "9px" : "12px",
+              color: "#ff5252",
+              fontWeight: "500",
+              lineHeight: "1.2",
+            }}
+          >
+            Link no longer available
+          </p>
+        )}
+      </div>
+
+      <div
+        style={{
+          minWidth: window.innerWidth <= 768 ? 45 : 80,
+          maxWidth: window.innerWidth <= 768 ? 50 : 80,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          flexShrink: 0,
         }}
       >
         <span
           style={{
             display: "inline-block",
-            background: "#e3f2fd",
-            color: "#1976d2",
+            background: isExpired
+              ? "linear-gradient(135deg, #e0e0e0, #bdbdbd)"
+              : "linear-gradient(135deg, #e3f2fd, #bbdefb)",
+            color: isExpired ? "#757575" : "#1976d2",
             borderRadius: "50%",
-            minWidth: 44,
-            minHeight: 44,
+            width: window.innerWidth <= 768 ? 40 : 70,
+            height: window.innerWidth <= 768 ? 40 : 70,
             fontWeight: 700,
-            fontSize: 18,
-            lineHeight: "44px",
+            fontSize: window.innerWidth <= 768 ? 12 : 20,
+            lineHeight: window.innerWidth <= 768 ? "40px" : "70px",
             textAlign: "center",
-            boxShadow: "0 2px 8px rgba(25, 118, 210, 0.10)",
-            border: "2px solid #90caf9",
-            padding: "0 10px",
+            boxShadow: isExpired
+              ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+              : "0 3px 8px rgba(25, 118, 210, 0.2), inset 0 2px 4px rgba(255,255,255,0.5)",
+            border: isExpired ? "2px solid #e0e0e0" : "2px solid #1976d2",
+            boxSizing: "border-box",
           }}
         >
           {marksLoading ? (
-            <span style={{ color: "#888", fontWeight: 400, fontSize: 14 }}>
+            <span
+              style={{
+                color: "#888",
+                fontWeight: 400,
+                fontSize: window.innerWidth <= 768 ? 8 : 12,
+              }}
+            >
               ...
             </span>
           ) : marks && marks.marks !== undefined ? (
             marks.marks
           ) : (
-            <span style={{ color: "#888", fontWeight: 400, fontSize: 12 }}>
+            <span
+              style={{
+                color: "#888",
+                fontWeight: 400,
+                fontSize: window.innerWidth <= 768 ? 8 : 12,
+              }}
+            >
               N/A
             </span>
           )}
@@ -305,6 +445,8 @@ const AssignmentSummaryCard = ({ assignment }) => {
     </div>
   );
 };
+
+// ...existing code...
 
 // AssignmentItem for ASSIGNMENTS CONTAINER (show full details)
 const AssignmentItem = ({ assignment }) => {
@@ -329,44 +471,202 @@ const AssignmentItem = ({ assignment }) => {
     fetchMarks();
   }, [assignment.id]);
 
+  // Check if assignment has expired
+  const isExpired =
+    assignment.deadline && new Date(assignment.deadline) < new Date();
+
   return (
-    <div className="task-item" style={{ marginBottom: "10px" }}>
-      <div className="task-header">
-        <h3>
-          <a
-            href={assignment.driveLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "#1976d2", textDecoration: "underline" }}
-            title="Open assignment link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {assignment.subject}
-          </a>
+    <div
+      className={`assignment-detail-card ${isExpired ? "expired" : ""}`}
+      style={{
+        marginBottom: "16px",
+        background: isExpired ? "#f8f9fa" : "#ffffff",
+        border: `1px solid ${isExpired ? "#dee2e6" : "#e3f2fd"}`,
+        borderRadius: "12px",
+        padding: "16px",
+        boxShadow: isExpired
+          ? "0 2px 4px rgba(0,0,0,0.05)"
+          : "0 2px 8px rgba(25, 118, 210, 0.1)",
+        position: "relative",
+      }}
+    >
+      {/* Status Badge */}
+      {isExpired && (
+        <div
+          style={{
+            position: "absolute",
+            top: "12px",
+            right: "12px",
+            background: "#ff5252",
+            color: "white",
+            padding: "4px 8px",
+            borderRadius: "12px",
+            fontSize: "11px",
+            fontWeight: "bold",
+            textTransform: "uppercase",
+          }}
+        >
+          EXPIRED
+        </div>
+      )}
+
+      {/* Assignment Title */}
+      <div
+        style={{ marginBottom: "16px", paddingRight: isExpired ? "80px" : "0" }}
+      >
+        <h3
+          style={{
+            margin: "0",
+            fontSize: "20px",
+            fontWeight: "600",
+            color: isExpired ? "#6c757d" : "#1976d2",
+          }}
+        >
+          {!isExpired ? (
+            <a
+              href={assignment.driveLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: "#1976d2",
+                textDecoration: "none",
+                borderBottom: "2px solid transparent",
+                transition: "border-bottom-color 0.2s ease",
+              }}
+              onMouseOver={(e) =>
+                (e.target.style.borderBottomColor = "#1976d2")
+              }
+              onMouseOut={(e) =>
+                (e.target.style.borderBottomColor = "transparent")
+              }
+              title="Click to open assignment"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {assignment.subject}
+              <i
+                className="fas fa-external-link-alt"
+                style={{ marginLeft: "8px", fontSize: "14px" }}
+              ></i>
+            </a>
+          ) : (
+            <span style={{ color: "#6c757d" }}>{assignment.subject}</span>
+          )}
         </h3>
       </div>
-      <p>
-        <b>Deadline:</b>{" "}
-        {assignment.deadline
-          ? new Date(assignment.deadline).toLocaleDateString()
-          : "N/A"}
-      </p>
-      <p>
-        <b>Posted At:</b>{" "}
-        {assignment.postedAt
-          ? new Date(assignment.postedAt).toLocaleDateString()
-          : "N/A"}
-      </p>
-      <div style={{ fontWeight: 600, color: "#4CAF50", marginTop: 8 }}>
-        {marksLoading
-          ? "Loading marks..."
-          : marks && marks.marks !== undefined
-          ? `Marks: ${marks.marks}`
-          : "Marks: Not assigned yet"}
+
+      {/* Assignment Details */}
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: window.innerWidth <= 768 ? "1fr" : "1fr 1fr",
+            gap: "12px",
+            fontSize: "14px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <i
+              className="fas fa-clock"
+              style={{
+                color: isExpired ? "#ff5252" : "#ff9800",
+                fontSize: "14px",
+              }}
+            ></i>
+            <div>
+              <strong>Deadline:</strong>{" "}
+              {assignment.deadline ? (
+                <span style={{ color: isExpired ? "red" : "inherit" }}>
+                  {new Date(assignment.deadline).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  at{" "}
+                  {new Date(assignment.deadline).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </span>
+              ) : (
+                "No deadline set"
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <i
+              className="fas fa-calendar-plus"
+              style={{ color: "#28a745", fontSize: "14px" }}
+            ></i>
+            <div>
+              <strong>Posted:</strong>{" "}
+              {assignment.postedAt
+                ? new Date(assignment.postedAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "N/A"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Warning Message for Expired */}
+      {isExpired && (
+        <div
+          style={{
+            background: "#ffebee",
+            border: "1px solid #ffcdd2",
+            borderRadius: "8px",
+            padding: "12px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <i
+            className="fas fa-exclamation-triangle"
+            style={{ color: "#f44336", fontSize: "16px" }}
+          ></i>
+          <span
+            style={{ color: "#d32f2f", fontWeight: "500", fontSize: "14px" }}
+          >
+            This assignment link is no longer available as the deadline has
+            passed.
+          </span>
+        </div>
+      )}
+
+      {/* Marks Section */}
+      <div
+        style={{
+          background: "#f5f5f5",
+          borderRadius: "8px",
+          padding: "12px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <i
+          className="fas fa-award"
+          style={{ color: "#4CAF50", fontSize: "16px" }}
+        ></i>
+        <div style={{ fontWeight: 600, color: "#4CAF50", fontSize: "15px" }}>
+          {marksLoading
+            ? "Loading marks..."
+            : marks && marks.marks !== undefined
+            ? `Marks: ${marks.marks}`
+            : "Marks: Not assigned yet"}
+        </div>
       </div>
     </div>
   );
 };
+// ...existing code...
 
 const Leaderboard = ({ students, showStats = false, currentUserId }) => {
   const filteredStudents = students.filter(
@@ -1751,6 +2051,10 @@ const StudentDashboard = () => {
   function getOverdueState(userId, taskId) {
     const reasonKey = `overdueReason_${userId}_${taskId}`;
     const data = JSON.parse(localStorage.getItem(reasonKey) || "{}");
+
+    // Debug logging
+    console.log(`Overdue state for task ${taskId}:`, data);
+
     return {
       submitted: !!data.submittedAt,
       canceledAt: data.canceledAt || null,
@@ -1759,6 +2063,8 @@ const StudentDashboard = () => {
 
   // Check for overdue tasks
 
+  // ...existing code...
+  // ...existing code...
   const checkOverdueTasks = useCallback(async () => {
     const user = auth.currentUser;
     if (!user || tasks.length === 0) return;
@@ -1772,7 +2078,9 @@ const StudentDashboard = () => {
     for (const task of tasks) {
       const taskPostedTime = new Date(task.date).getTime();
       const timeSincePosted = now - taskPostedTime;
-      if (timeSincePosted < overdueThreshold) continue; // Not overdue yet
+
+      // FIXED: Only proceed if task is actually overdue (2+ days)
+      if (timeSincePosted < overdueThreshold) continue;
 
       // Check if task is completed by the user (Firestore check)
       if (
@@ -1788,8 +2096,21 @@ const StudentDashboard = () => {
       const hasCompletedAll =
         progress.copyAndAsk && progress.chatbotSend && progress.startQuiz;
 
-      // Get overdue state
+      // Get overdue state with better debugging
       const overdueState = getOverdueState(user.uid, task.id);
+
+      // Debug logging
+      console.log(`Task ${task.id} overdue state:`, {
+        submitted: overdueState.submitted,
+        canceledAt: overdueState.canceledAt,
+        timeSinceCanceled: overdueState.canceledAt
+          ? now - overdueState.canceledAt
+          : "N/A",
+        showAgainThreshold,
+        shouldShow:
+          !overdueState.canceledAt ||
+          now - overdueState.canceledAt >= showAgainThreshold,
+      });
 
       // 1. If completed (local), never show
       if (hasCompletedAll) continue;
@@ -1799,7 +2120,15 @@ const StudentDashboard = () => {
 
       // 3. If canceled, only show again after 24h
       if (overdueState.canceledAt) {
-        if (now - overdueState.canceledAt < showAgainThreshold) continue;
+        const timeSinceCanceled = now - overdueState.canceledAt;
+        if (timeSinceCanceled < showAgainThreshold) {
+          console.log(
+            `Skipping task ${task.id} - canceled ${Math.round(
+              timeSinceCanceled / (60 * 1000)
+            )} minutes ago`
+          );
+          continue;
+        }
       }
 
       // 4. Otherwise, show notification
@@ -1810,8 +2139,11 @@ const StudentDashboard = () => {
       });
     }
 
+    console.log(`Found ${overdueTasks.length} overdue tasks to show`);
     setOverdueNotifications(overdueTasks);
-  }, [tasks, staffList]); // Add staffList as dependency
+  }, [tasks, staffList]);
+  // ...existing code...
+  // Add staffList as dependency
 
   // Check for overdue tasks every minute
   useEffect(() => {
@@ -2824,6 +3156,7 @@ const StudentDashboard = () => {
                 </div>
               </div>
             </div>
+
             <div
               id="settings-container"
               className={`toggle-container ${
@@ -2832,24 +3165,28 @@ const StudentDashboard = () => {
             >
               <div className="container-header">⚙️ Settings</div>
               <div className="container-body">
+                <h3>Profile Options</h3>
                 <button
                   onClick={handleEditProfile}
                   className="add-goal-btn"
-                  style={{ marginTop: "130px" }}
+                  aria-label="Edit profile"
                 >
                   Edit Profile
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="add-goal-btn"
-                  style={{ marginBottom: "40px" }}
+                  className="add-goal-btn logout-btn"
+                  aria-label="Logout"
                 >
                   Logout
                 </button>
+
+                <h3 style={{ marginTop: "30px" }}>App Information</h3>
                 <button
                   onClick={() => setActiveContainer("about-container")}
                   className="add-goal-btn"
-                  style={{ marginTop: "0px" }}
+                  aria-label="About the app"
+                  style={{ backgroundColor: "#17a2b8", color: "white" }}
                 >
                   About the App
                 </button>
@@ -2862,7 +3199,7 @@ const StudentDashboard = () => {
                 activeContainer === "about-container" ? "active" : ""
               }`}
             >
-              <div className="container-header"> 📱 About the App</div>
+              <div className="container-header">📱 About the App</div>
               <div className="container-body">
                 <div className="about-content">
                   <h3> EDUGEN AI </h3>
@@ -2873,6 +3210,7 @@ const StudentDashboard = () => {
                     designed to enhance academic performance, engagement, and
                     communication in an intuitive and interactive way.
                   </p>
+
                   <h4>✨ It features:</h4>
                   <ul className="features-list">
                     <li>
@@ -2893,6 +3231,7 @@ const StudentDashboard = () => {
                       performance
                     </li>
                   </ul>
+
                   <p>
                     EduGen AI empowers students to learn effectively and helps
                     staff monitor, guide, and support learners efficiently. With
@@ -2900,6 +3239,7 @@ const StudentDashboard = () => {
                     performance tracking, EduGen AI is your all-in-one
                     AI-powered education assistant.
                   </p>
+
                   <div className="contact-section">
                     <h4>📧 Need Help?</h4>
                     <p>For any queries about the app, please contact us at:</p>
@@ -2912,6 +3252,7 @@ const StudentDashboard = () => {
                       edugenai7@gmail.com
                     </a>
                   </div>
+
                   <div style={{ marginTop: "30px", textAlign: "center" }}>
                     <button
                       onClick={() => setActiveContainer("settings-container")}
@@ -2923,6 +3264,7 @@ const StudentDashboard = () => {
                 </div>
               </div>
             </div>
+
             <div
               id="chatbot-container"
               className={`toggle-container ${
