@@ -400,9 +400,9 @@ const AssignmentSummaryCard = ({ assignment }) => {
           style={{
             display: "inline-block",
             background: isExpired
-              ? "linear-gradient(135deg, #e0e0e0, #bdbdbd)"
-              : "linear-gradient(135deg, #e3f2fd, #bbdefb)",
-            color: isExpired ? "#757575" : "#1976d2",
+              ? "linear-gradient(135deg, #3742fa, #2f3542)"
+              : "linear-gradient(135deg, #3742fa, #2f3542)",
+            color: isExpired ? "#43ffc7ff" : "#1976d2",
             borderRadius: "50%",
             width: window.innerWidth <= 768 ? 40 : 70,
             height: window.innerWidth <= 768 ? 40 : 70,
@@ -420,7 +420,7 @@ const AssignmentSummaryCard = ({ assignment }) => {
           {marksLoading ? (
             <span
               style={{
-                color: "#888",
+                color: "#43ffc7ff",
                 fontWeight: 400,
                 fontSize: window.innerWidth <= 768 ? 8 : 12,
               }}
@@ -432,7 +432,7 @@ const AssignmentSummaryCard = ({ assignment }) => {
           ) : (
             <span
               style={{
-                color: "#888",
+                color: "#43ffc7ff",
                 fontWeight: 400,
                 fontSize: window.innerWidth <= 768 ? 8 : 12,
               }}

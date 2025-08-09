@@ -805,6 +805,7 @@
 
   .history-controls {
     padding: 12px;
+    width: 340px;
   }
 
   .history-search-input {
