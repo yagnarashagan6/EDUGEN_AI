@@ -224,8 +224,6 @@ const ChatInterface = ({
     </div>
   );
 };
-// ...existing code...
-
 // AssignmentItem for MAIN CONTENT AREA (assignment name left, marks right in a bubble)
 const AssignmentSummaryCard = ({ assignment }) => {
   const [marks, setMarks] = useState(null);
@@ -446,8 +444,6 @@ const AssignmentSummaryCard = ({ assignment }) => {
   );
 };
 
-// ...existing code...
-
 // AssignmentItem for ASSIGNMENTS CONTAINER (show full details)
 const AssignmentItem = ({ assignment }) => {
   const [marks, setMarks] = useState(null);
@@ -666,7 +662,6 @@ const AssignmentItem = ({ assignment }) => {
     </div>
   );
 };
-// ...existing code...
 
 const Leaderboard = ({ students, showStats = false, currentUserId }) => {
   const filteredStudents = students.filter(
@@ -2064,86 +2059,34 @@ const StudentDashboard = () => {
   // Check for overdue tasks
 
   // ...existing code...
-  // ...existing code...
   const checkOverdueTasks = useCallback(async () => {
     const user = auth.currentUser;
     if (!user || tasks.length === 0) return;
 
     const now = Date.now();
-    const overdueThreshold = 2 * 24 * 60 * 60 * 1000; // 48 hours
+    const overdueThreshold = 24 * 60 * 60 * 1000; // 24 hours (1 day)
     const showAgainThreshold = 24 * 60 * 60 * 1000; // 24 hours
 
     const overdueTasks = [];
 
     for (const task of tasks) {
-      const taskPostedTime = new Date(task.date).getTime();
-      const timeSincePosted = now - taskPostedTime;
-
-      // FIXED: Only proceed if task is actually overdue (2+ days)
-      if (timeSincePosted < overdueThreshold) continue;
-
-      // Check if task is completed by the user (Firestore check)
+      // Parse the posted date
+      const postedDate = new Date(task.date).getTime();
+      // Only show if more than 1 day has passed and not completed
       if (
-        Array.isArray(task.completedBy) &&
-        task.completedBy.includes(user.uid)
+        !taskProgress[task.id]?.completed &&
+        now - postedDate > overdueThreshold
       ) {
-        continue; // Task is completed, skip overdue notification
-      }
-
-      // Check progress
-      const progressKey = `taskProgress_${user.uid}_${task.id}`;
-      const progress = JSON.parse(localStorage.getItem(progressKey) || "{}");
-      const hasCompletedAll =
-        progress.copyAndAsk && progress.chatbotSend && progress.startQuiz;
-
-      // Get overdue state with better debugging
-      const overdueState = getOverdueState(user.uid, task.id);
-
-      // Debug logging
-      console.log(`Task ${task.id} overdue state:`, {
-        submitted: overdueState.submitted,
-        canceledAt: overdueState.canceledAt,
-        timeSinceCanceled: overdueState.canceledAt
-          ? now - overdueState.canceledAt
-          : "N/A",
-        showAgainThreshold,
-        shouldShow:
-          !overdueState.canceledAt ||
-          now - overdueState.canceledAt >= showAgainThreshold,
-      });
-
-      // 1. If completed (local), never show
-      if (hasCompletedAll) continue;
-
-      // 2. If submitted, never show
-      if (overdueState.submitted) continue;
-
-      // 3. If canceled, only show again after 24h
-      if (overdueState.canceledAt) {
-        const timeSinceCanceled = now - overdueState.canceledAt;
-        if (timeSinceCanceled < showAgainThreshold) {
-          console.log(
-            `Skipping task ${task.id} - canceled ${Math.round(
-              timeSinceCanceled / (60 * 1000)
-            )} minutes ago`
-          );
-          continue;
+        // Check localStorage for reason/cancellation
+        const overdueState = getOverdueState(user.uid, task.id);
+        if (!overdueState.submitted && !overdueState.canceledAt) {
+          overdueTasks.push(task);
         }
       }
-
-      // 4. Otherwise, show notification
-      overdueTasks.push({
-        ...task,
-        staffName:
-          staffList.find((s) => s.id === task.staffId)?.name || "Staff",
-      });
     }
 
-    console.log(`Found ${overdueTasks.length} overdue tasks to show`);
     setOverdueNotifications(overdueTasks);
-  }, [tasks, staffList]);
-  // ...existing code...
-  // Add staffList as dependency
+  }, [tasks, staffList, taskProgress]);
 
   // Check for overdue tasks every minute
   useEffect(() => {

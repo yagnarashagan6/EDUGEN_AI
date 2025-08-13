@@ -1,124 +1,135 @@
 .login-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: url('../assets/background.avif') no-repeat center center/cover;
-  }
-  
-  .login-container, .registration-container {
-    background: white;
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    width: 350px;
-  }
-  
-  .login-container img {
-    width: 120px;
-    height: 120px;
-    border-radius: 40%;
-    margin-bottom: 15px;
-    transition: transform 0.3s ease;
-  }
-  
-  .login-container img:hover {
-    transform: scale(1.1);
-  }
-  
-  .login-title {
-    background: #f4a900;
-    padding: 10px;
-    border-radius: 25px;
-    font-size: 20px;
-    font-weight: bold;
-    color: black;
-    margin-bottom: 20px;
-  }
-  
-  .registration-container .login-title {
-    background: #4CAF50;
-  }
-  
-  .input-group {
-    display: flex;
-    align-items: center;
-    margin: 15px 0;
-    border-bottom: 2px solid #f4a900;
-    padding-bottom: 5px;
-    position: relative;
-  }
-  
-  .registration-container .input-group {
-    border-bottom: 2px solid #4CAF50;
-  }
-  
-  .input-group input {
-    border: none;
-    outline: none;
-    width: 100%;
-    padding: 8px;
-    font-size: 16px;
-    background: transparent;
-  }
-  
-  .input-group i {
-    margin-right: 10px;
-    font-size: 18px;
-    color: black;
-  }
-  
-  .eye-icon {
-    position: absolute;
-    right: 10px;
-    cursor: pointer;
-    font-size: 18px;
-    color: #555;
-    transition: color 0.3s ease;
-  }
-  
-  .eye-icon:hover {
-    color: #000;
-  }
-  
-  .login-btn {
-    background: #f4a900;
-    color: black;
-    border: none;
-    padding: 10px;
-    width: 100%;
-    font-size: 18px;
-    font-weight: bold;
-    border-radius: 25px;
-    cursor: pointer;
-    margin-top: 10px;
-    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
-    transition: background 0.3s ease;
-  }
-  
-  .login-btn:hover {
-    background: #e69500;
-  }
-  
-  .registration-container .login-btn {
-    background: #4CAF50;
-  }
-  
-  .registration-container .login-btn:hover {
-    background: #45a049;
-  }
-  
-  .google-btn {
-    background: #4285F4;
-  }
-  
-  .google-btn:hover {
-    background: #357abd;
-  }
-  
-  .error-message {
-    color: red;
-    font-size: 14px;
-    margin-top: 10px;
-  }
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: url("../assets/background.avif") no-repeat center center/cover;
+}
+
+.login-container,
+.registration-container {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  width: 350px;
+}
+
+.login-container img {
+  width: 120px;
+  height: 120px;
+  border-radius: 40%;
+  margin-bottom: 15px;
+  transition: transform 0.3s ease;
+}
+
+.login-container img:hover {
+  transform: scale(1.1);
+}
+
+.login-title {
+  background: #f4a900;
+  padding: 10px;
+  border-radius: 25px;
+  font-size: 20px;
+  font-weight: bold;
+  color: black;
+  margin-bottom: 20px;
+}
+
+.registration-container .login-title {
+  background: #4caf50;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  margin: 15px 0;
+  border-bottom: 2px solid #f4a900;
+  padding-bottom: 5px;
+  position: relative;
+}
+
+.registration-container .input-group {
+  border-bottom: 2px solid #4caf50;
+}
+
+.input-group input {
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 8px;
+  font-size: 16px;
+  background: transparent;
+}
+
+.input-group i {
+  margin-right: 10px;
+  font-size: 18px;
+  color: black;
+}
+
+.eye-icon {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  color: #555;
+  transition: color 0.3s ease;
+}
+
+.eye-icon:hover {
+  color: #000;
+}
+
+.login-btn {
+  background: #f4a900;
+  color: black;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  margin-top: 10px;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+  transition: background 0.3s ease;
+}
+
+.login-btn:hover {
+  background: #e69500;
+}
+
+.registration-container .login-btn {
+  background: #4caf50;
+}
+
+.registration-container .login-btn:hover {
+  background: #45a049;
+}
+
+.google-btn {
+  background: #4285f4;
+}
+
+.google-btn:hover {
+  background: #357abd;
+}
+
+.error-messages {
+  color: rgb(0, 0, 0);
+  font-size: 14px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}

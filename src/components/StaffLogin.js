@@ -23,6 +23,18 @@ const StaffLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const allowedEmails = [
+    "yaknarashagan2@gmail.com",
+    "aidshod@act.edu.in",
+    "amala.aids@act.edu.in",
+    "rupavathy.aids@act.edu.in",
+    "pandiselvi.aids@act.edu.in",
+    "gayathiri.aids@act.edu.in",
+    "vinotha.aids@act.edu.in",
+  ];
+
+  const isEmailAllowed = (email) => allowedEmails.includes(email);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -49,6 +61,11 @@ const StaffLogin = () => {
         password
       );
       const user = userCredential.user;
+      if (!isEmailAllowed(user.email)) {
+        setError("Access denied. Your email is not authorized.");
+        await auth.signOut();
+        return;
+      }
       const docRef = doc(db, "staff", user.uid);
       const docSnap = await getDoc(docRef);
       console.log(
@@ -70,6 +87,10 @@ const StaffLogin = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     const email = `${username}@example.com`;
+    if (!isEmailAllowed(email)) {
+      setError("Access denied. Your email is not authorized for registration.");
+      return;
+    }
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -93,6 +114,11 @@ const StaffLogin = () => {
     try {
       const userCredential = await signInWithPopup(auth, googleProvider);
       const user = userCredential.user;
+      if (!isEmailAllowed(user.email)) {
+        setError("Access denied. Your email is not authorized.");
+        await auth.signOut();
+        return;
+      }
       const docRef = doc(db, "staff", user.uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists() && docSnap.data().formFilled === true) {
@@ -154,7 +180,7 @@ const StaffLogin = () => {
               {showPassword ? "🙈" : "👁"}
             </span>
           </div>
-          {error && <p className="error-message">{error}</p>}
+          {error && <p className="error-messages">{error}</p>}
           <button type="submit" className="login-btn">
             {isRegistering ? "CREATE" : "LOGIN"}
           </button>

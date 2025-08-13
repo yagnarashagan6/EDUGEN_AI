@@ -38,9 +38,25 @@ const StudentLogin = () => {
     return () => unsubscribe();
   }, [navigate]);
 
+  // Helper function to validate allowed usernames
+  const isAllowedUsername = (username) => {
+    if (username === "yaknarashagan2") return true;
+    const match = username.match(/^22aids(\d{3})$/);
+    if (!match) return false;
+    const num = parseInt(match[1], 10);
+    return num >= 1 && num <= 58;
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    const email = `${username}@example.com`;
+    if (!isAllowedUsername(username)) {
+      setError("Only users with IDs from 22aids001 to 22aids058 can login.");
+      return;
+    }
+    const email =
+      username === "yaknarashagan2"
+        ? "yaknarashagan2@gmail.com"
+        : `${username}@act.edu.in`;
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -64,7 +80,14 @@ const StudentLogin = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const email = `${username}@example.com`;
+    if (!isAllowedUsername(username)) {
+      setError("Only users with IDs from 22aids001 to 22aids058 can register.");
+      return;
+    }
+    const email =
+      username === "yaknarashagan2"
+        ? "yaknarashagan2@gmail.com"
+        : `${username}@act.edu.in`;
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -89,6 +112,22 @@ const StudentLogin = () => {
     try {
       const userCredential = await signInWithPopup(auth, googleProvider);
       const user = userCredential.user;
+
+      // Restrict Google sign-in to allowed student emails or yaknarashagan2@gmail.com
+      const emailMatch = user.email.match(/^22aids(\d{3})@act\.edu\.in$/);
+      const isYaknarashagan = user.email === "yaknarashagan2@gmail.com";
+      let allowed = false;
+      if (emailMatch) {
+        const num = parseInt(emailMatch[1], 10);
+        allowed = num >= 1 && num <= 58;
+      }
+      if (!allowed && !isYaknarashagan) {
+        setError(
+          "Google sign-in is only allowed for 22aids001@act.edu.in to 22aids058@act.edu.in"
+        );
+        await auth.signOut();
+        return;
+      }
 
       const docRef = doc(db, "students", user.uid);
       const docSnap = await getDoc(docRef);
@@ -147,7 +186,7 @@ const StudentLogin = () => {
               {showPassword ? "👁️‍🗨️" : "👁"}
             </span>
           </div>
-          {error && <p className="error-message">{error}</p>}
+          {error && <p className="error-messages">{error}</p>}
           <button type="submit" className="login-btn">
             {isRegistering ? "CREATE" : "LOGIN"}
           </button>
