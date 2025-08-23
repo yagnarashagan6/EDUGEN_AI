@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { auth, db, doc, setDoc } from '../firebase';
-import '../styles/Form.css';
+import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { auth, db, doc, setDoc } from "../firebase";
+import "../styles/Form.css";
 
 const StudentForm = () => {
   const navigate = useNavigate();
@@ -10,19 +10,19 @@ const StudentForm = () => {
   const userData = location.state?.userData || {};
 
   const [formData, setFormData] = useState({
-    regNumber: userData.regNumber || '',
-    rollNumber: userData.rollNumber || '',
-    course: userData.course || '',
-    name: userData.name || '',
-    dob: userData.dob || '',
-    gender: userData.gender || '',
-    bloodGroup: userData.bloodGroup || '',
-    studentContact: userData.studentContact || '',
-    email: userData.email || '',
-    aadhaar: userData.aadhaar || '',
+    regNumber: userData.regNumber || "",
+    rollNumber: userData.rollNumber || "",
+    course: userData.course || "",
+    name: userData.name || "",
+    dob: userData.dob || "",
+    gender: userData.gender || "",
+    bloodGroup: userData.bloodGroup || "",
+    studentContact: userData.studentContact || "",
+    email: userData.email || "",
+    aadhaar: userData.aadhaar || "",
     image: null,
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -37,7 +37,7 @@ const StudentForm = () => {
     e.preventDefault();
     const user = auth.currentUser;
     if (!user) {
-      setError('User not authenticated.');
+      setError("User not authenticated.");
       return;
     }
 
@@ -57,12 +57,17 @@ const StudentForm = () => {
           };
 
           try {
-            await setDoc(doc(db, 'students', user.uid), studentData, { merge: true });
-            console.log('Student form data saved successfully, formFilled set to true for UID:', user.uid);
-            navigate('/student-dashboard', { replace: false });
+            await setDoc(doc(db, "students", user.uid), studentData, {
+              merge: true,
+            });
+            console.log(
+              "Student form data saved successfully, formFilled set to true for UID:",
+              user.uid
+            );
+            navigate("/student-dashboard", { replace: false });
           } catch (err) {
-            setError('Error saving data: ' + err.message);
-            console.error('Error saving student form data:', err);
+            setError("Error saving data: " + err.message);
+            console.error("Error saving student form data:", err);
           } finally {
             setLoading(false);
           }
@@ -74,25 +79,33 @@ const StudentForm = () => {
           image: imageData,
           formFilled: true,
         };
-        await setDoc(doc(db, 'students', user.uid), studentData, { merge: true });
-        console.log('Student form data saved successfully, formFilled set to true for UID:', user.uid);
-        navigate('/student-dashboard', { replace: false });
+        await setDoc(doc(db, "students", user.uid), studentData, {
+          merge: true,
+        });
+        console.log(
+          "Student form data saved successfully, formFilled set to true for UID:",
+          user.uid
+        );
+        navigate("/student-dashboard", { replace: false });
       }
     } catch (err) {
-      setError('Error processing form: ' + err.message);
+      setError("Error processing form: " + err.message);
       setLoading(false);
     }
   };
 
   const handleBackToLogin = () => {
-    navigate('/student-login');
+    navigate("/student-login");
   };
 
   return (
     <div className="form-page">
       <div className="container">
-        <h2>{isEdit ? 'Edit Profile' : 'Registration Form'}</h2>
-        <p>Fill out the form carefully to {isEdit ? 'update your profile' : 'register'}</p>
+        <h2>{isEdit ? "Edit Profile" : "Registration Form"}</h2>
+        <p>
+          Fill out the form carefully to{" "}
+          {isEdit ? "update your profile" : "register"}
+        </p>
         {error && <p className="error-message">{error}</p>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -216,7 +229,7 @@ const StudentForm = () => {
             </div>
           </div>
           <div>
-            <label>Upload Image:</label>
+            <label>Upload Image: for your profile</label>
             <input
               type="file"
               id="image"
@@ -226,13 +239,13 @@ const StudentForm = () => {
             />
           </div>
           <button type="submit" disabled={loading}>
-            {loading ? 'Submitting...' : isEdit ? 'Update Profile' : 'Submit'}
+            {loading ? "Submitting..." : isEdit ? "Update Profile" : "Submit"}
           </button>
           {!isEdit && (
             <button
               type="button"
               onClick={handleBackToLogin}
-              style={{ marginTop: '10px', background: '#f4a900' }}
+              style={{ marginTop: "10px", background: "#f4a900" }}
             >
               Back to Login
             </button>
