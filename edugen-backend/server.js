@@ -2,11 +2,15 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
-import rateLimit from "express-rate-limit"; // Add this import
+import rateLimit from "express-rate-limit";
+import helmet from "helmet"; // Add helmet
 
 dotenv.config();
 
 const app = express();
+
+// Use helmet for security headers
+app.use(helmet());
 
 // CORS configuration
 const allowedOrigins = [
@@ -20,6 +24,8 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      // Log suspicious origin
+      console.warn(`[SECURITY] Blocked CORS origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -37,6 +43,11 @@ const apiLimiter = rateLimit({
   message: { error: "Too many requests, please wait and try again." },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    // Log rate limit exceeded
+    console.warn(`[SECURITY] Rate limit exceeded for IP: ${req.ip}`);
+    res.status(options.statusCode).json(options.message);
+  },
 });
 
 // Apply the limiter to chat and quiz endpoints only
@@ -279,6 +290,10 @@ Now generate ${questionCount} questions about "${topic}":`;
 
 // 404 Handler
 app.all("*", (req, res) => {
+  // Log suspicious 404 access
+  console.warn(
+    `[SECURITY] 404 Not Found: ${req.method} ${req.originalUrl} from IP ${req.ip}`
+  );
   res.status(404).json({ error: "Not Found" });
 });
 
