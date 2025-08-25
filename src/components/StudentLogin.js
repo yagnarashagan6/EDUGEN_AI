@@ -16,7 +16,6 @@ import "../styles/Login.css";
 
 const StudentLogin = () => {
   const navigate = useNavigate();
-  const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -80,32 +79,12 @@ const StudentLogin = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!isAllowedUsername(username)) {
-      setError("Only users with IDs from 22aids001 to 22aids058 can register.");
-      return;
-    }
-    const email =
-      username === "yaknarashagan2"
-        ? "yaknarashagan2@gmail.com"
-        : `${username}@act.edu.in`;
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-
-      await setDoc(doc(db, "students", user.uid), {
-        username,
-        email,
-        formFilled: false,
-      });
-
-      navigate("/student-form");
-    } catch (err) {
-      setError("Error during registration: " + err.message);
-    }
+    setError(
+      "Google sign-in is only allowed for 22aids001@act.edu.in to 22aids058@act.edu.in"
+    );
+    // Optionally sign out if needed (not required for registration, but for consistency):
+    await auth.signOut?.();
+    return;
   };
 
   const handleGoogleSignIn = async () => {
@@ -153,16 +132,10 @@ const StudentLogin = () => {
 
   return (
     <div className="login-page">
-      <div
-        className={`login-container ${
-          isRegistering ? "registration-container" : ""
-        }`}
-      >
-        <div className="login-title">
-          {isRegistering ? "CREATE ACCOUNT" : "STUDENT LOGIN"}
-        </div>
+      <div className="login-container">
+        <div className="login-title">STUDENT LOGIN</div>
         <img src={studentIcon} alt="Student" />
-        <form onSubmit={isRegistering ? handleRegister : handleLogin}>
+        <form onSubmit={handleLogin}>
           <div className="input-group">
             <i>👤</i>
             <input
@@ -188,22 +161,19 @@ const StudentLogin = () => {
           </div>
           {error && <p className="error-messages">{error}</p>}
           <button type="submit" className="login-btn">
-            {isRegistering ? "CREATE" : "LOGIN"}
+            LOGIN
           </button>
         </form>
-        {!isRegistering && (
-          <button onClick={handleGoogleSignIn} className="login-btn google-btn">
-            Sign in with Google
-          </button>
-        )}
-        <p>
-          {isRegistering
-            ? "Already have an account?"
-            : "Don't have an account?"}{" "}
+        <button onClick={handleGoogleSignIn} className="login-btn google-btn">
+          Sign in with Google
+        </button>
+        {/* Registration temporarily disabled */}
+        {/* <p>
+          Don't have an account?{" "}
           <a href="#" onClick={() => setIsRegistering(!isRegistering)}>
-            {isRegistering ? "Login here" : "Register here"}
+            Register here
           </a>
-        </p>
+        </p> */}
       </div>
     </div>
   );

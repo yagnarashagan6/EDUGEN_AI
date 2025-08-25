@@ -16,7 +16,6 @@ import "../styles/Login.css";
 
 const StaffLogin = () => {
   const navigate = useNavigate();
-  const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -147,16 +146,10 @@ const StaffLogin = () => {
 
   return (
     <div className="login-page">
-      <div
-        className={`login-container ${
-          isRegistering ? "registration-container" : ""
-        }`}
-      >
-        <div className="login-title">
-          {isRegistering ? "CREATE STAFF ACCOUNT" : "STAFF LOGIN"}
-        </div>
+      <div className="login-container">
+        <div className="login-title">STAFF LOGIN</div>
         <img src={staffIcon} alt="Staff" />
-        <form onSubmit={isRegistering ? handleRegister : handleLogin}>
+        <form onSubmit={handleLogin}>
           <div className="input-group">
             <i className="fas fa-user"></i>
             <input
@@ -182,22 +175,19 @@ const StaffLogin = () => {
           </div>
           {error && <p className="error-messages">{error}</p>}
           <button type="submit" className="login-btn">
-            {isRegistering ? "CREATE" : "LOGIN"}
+            LOGIN
           </button>
         </form>
-        {!isRegistering && (
-          <button onClick={handleGoogleSignIn} className="login-btn google-btn">
-            Sign in with Google
-          </button>
-        )}
-        <p>
-          {isRegistering
-            ? "Already have an account?"
-            : "Don't have an account?"}{" "}
+        <button onClick={handleGoogleSignIn} className="login-btn google-btn">
+          Sign in with Google
+        </button>
+        {/* Registration temporarily disabled */}
+        {/* <p>
+          Don't have an account?{" "}
           <a href="#" onClick={() => setIsRegistering(!isRegistering)}>
-            {isRegistering ? "Login here" : "Register here"}
+            Register here
           </a>
-        </p>
+        </p> */}
       </div>
     </div>
   );
