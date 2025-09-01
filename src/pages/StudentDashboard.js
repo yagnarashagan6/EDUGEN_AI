@@ -136,15 +136,6 @@ const ChatInterface = ({
               </button>
               {selectedStaffId && (
                 <>
-                  <img
-                    src={
-                      staffList.find((s) => s.id === selectedStaffId)
-                        ?.photoURL || "/default-staff.png"
-                    }
-                    alt="Staff"
-                    className="recipient-avatar"
-                    onError={(e) => (e.target.src = "/default-staff.png")}
-                  />
                   <div className="recipient-info">
                     <h3>{selectedStaffName}</h3>
                     <p className="status">Online</p>

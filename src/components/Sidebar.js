@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { auth } from "../firebase"; // Add missing auth import
 import "../styles/Sidebar.css";
 import "../styles/Dashboard.css";
 
@@ -12,11 +13,13 @@ const Sidebar = ({
   setMobileHamburger,
   copiedTopic,
   clearCopiedTopic,
-  activeContainer, // This prop tracks the currently active container
+  activeContainer,
+  unreadMessageCounts = {}, // Add this prop
 }) => {
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   // Track window resize for mobile detection
   useEffect(() => {
@@ -83,7 +86,7 @@ const Sidebar = ({
     {
       id: "staff-interaction-container",
       icon: "fas fa-users",
-      label: "Staff Interaction",
+      label: "Student Interaction",
     },
     {
       id: "quick-stats-container",
@@ -170,6 +173,27 @@ const Sidebar = ({
     setTouchStart(null);
   };
 
+  // Add unread message counter effect
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // This is a simplified version - you might want to implement
+    // a more comprehensive unread counter based on your needs
+    const checkUnreadMessages = () => {
+      // Implementation would depend on your specific requirements
+      // For now, this is a placeholder
+    };
+
+    checkUnreadMessages();
+  }, []);
+
+  // Calculate total unread messages for staff interaction
+  const totalUnreadMessages = Object.values(unreadMessageCounts || {}).reduce(
+    (sum, count) => sum + count,
+    0
+  );
+
   return (
     <div
       ref={sidebarRef}
@@ -217,7 +241,20 @@ const Sidebar = ({
             }`}
             title={window.innerWidth > 768 ? item.label : ""}
           >
-            <i className={item.icon}></i> <span>{item.label}</span>
+            <i className={item.icon}></i>
+            <span>
+              {isVisible && item.label}
+              {item.id === "staff-interaction-container" &&
+                totalUnreadMessages > 0 && (
+                  <span className="unread-badge">{totalUnreadMessages}</span>
+                )}
+            </span>
+            {/* Badge for collapsed state */}
+            {!isVisible &&
+              item.id === "staff-interaction-container" &&
+              totalUnreadMessages > 0 && (
+                <span className="unread-badge">{totalUnreadMessages}</span>
+              )}
           </li>
         ))}
       </ul>

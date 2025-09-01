@@ -94,6 +94,7 @@
   cursor: pointer;
   border-bottom: 1px solid #ddd;
   transition: background 0.3s ease;
+  position: relative;
 }
 
 #staff-interaction-container .contact-item:hover {
@@ -136,7 +137,77 @@
   left: 0;
   z-index: 10;
 }
+#staff-interaction-container .unread-indicator {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#staff-interaction-container .unread-count {
+  background: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+}
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(255, 68, 68, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+  }
+}
+/* Adjust contact-info to make room for the indicator */
+#staff-interaction-container .contact-item .contact-info {
+  flex: 1;
+  margin-right: 40px; /* Add margin to prevent overlap with indicator */
+}
 
+/* Hide indicator when contact item is active/selected */
+#staff-interaction-container .contact-item.active .unread-indicator {
+  display: none;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  #staff-interaction-container .unread-count {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  #staff-interaction-container .contact-item .contact-info {
+    margin-right: 35px;
+  }
+}
+
+@media (max-width: 480px) {
+  #staff-interaction-container .unread-count {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+
+  #staff-interaction-container .contact-item .contact-info {
+    margin-right: 30px;
+  }
+}
 /* Chat Header */
 #staff-interaction-container .chat-header {
   flex-shrink: 0;

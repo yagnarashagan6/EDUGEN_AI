@@ -64,16 +64,29 @@ const ChatInterface = ({
   selectedStudentName,
   userNames,
   selectedStudentId,
+  unreadMessageCounts,
+  selectStudentAndMarkAsRead, // Add this prop
 }) => {
   const messagesEndRef = useRef(null);
 
+  // UPDATED: Use the new function that marks messages as read
   const selectStudent = useCallback(
     (student) => {
-      setSelectedStudentId(student.id);
-      setSelectedStudentName(student.name);
-      setShowContactList(false);
+      if (selectStudentAndMarkAsRead) {
+        selectStudentAndMarkAsRead(student);
+      } else {
+        // Fallback to original behavior
+        setSelectedStudentId(student.id);
+        setSelectedStudentName(student.name);
+        setShowContactList(false);
+      }
     },
-    [setSelectedStudentId, setSelectedStudentName, setShowContactList]
+    [
+      selectStudentAndMarkAsRead,
+      setSelectedStudentId,
+      setSelectedStudentName,
+      setShowContactList,
+    ]
   );
 
   const formatDate = (dateString) => {
@@ -133,6 +146,15 @@ const ChatInterface = ({
                     <h4>{student.name || "Anonymous"}</h4>
                     <p>{student.role || "Student"}</p>
                   </div>
+                  {/* Add unread message indicator */}
+                  {unreadMessageCounts[student.id] &&
+                    unreadMessageCounts[student.id] > 0 && (
+                      <div className="unread-indicator">
+                        <span className="unread-count">
+                          {unreadMessageCounts[student.id]}
+                        </span>
+                      </div>
+                    )}
                 </div>
               ))
             )}
@@ -261,6 +283,7 @@ ChatInterface.propTypes = {
       senderId: PropTypes.string,
       timestamp: PropTypes.string,
       read: PropTypes.bool,
+      unreadMessageCounts: PropTypes.object,
     })
   ).isRequired,
   sendMessage: PropTypes.func.isRequired,
@@ -281,6 +304,7 @@ ChatInterface.propTypes = {
   selectedStudentName: PropTypes.string,
   userNames: PropTypes.object.isRequired,
   selectedStudentId: PropTypes.string,
+  selectStudentAndMarkAsRead: PropTypes.func,
 };
 
 // Place this OUTSIDE the StaffDashboard component
@@ -341,6 +365,7 @@ const StaffDashboard = () => {
   const [userNames, setUserNames] = useState({});
   const [showAbout, setShowAbout] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [unreadMessageCounts, setUnreadMessageCounts] = useState({}); // Add this line
 
   const addNotification = useCallback((message, type = "info") => {
     setNotifications((prev) => [...prev, { id: Date.now(), message, type }]);
@@ -386,6 +411,38 @@ const StaffDashboard = () => {
     },
     [addNotification]
   );
+
+  // Add new function to count unread messages - UPDATED VERSION
+  const countUnreadMessages = useCallback(async () => {
+    try {
+      const staffUserId = auth.currentUser?.uid;
+      if (!staffUserId) return;
+
+      const unreadCounts = {};
+
+      // Check messages with all students
+      for (const student of studentStats) {
+        const chatId = [staffUserId, student.id].sort().join("_");
+        const messagesRef = doc(db, "messages", chatId);
+        const messagesSnap = await getDoc(messagesRef);
+
+        if (messagesSnap.exists()) {
+          const messages = messagesSnap.data().messages || [];
+          const unreadCount = messages.filter(
+            (msg) => msg.sender === "student" && !msg.read
+          ).length;
+
+          if (unreadCount > 0) {
+            unreadCounts[student.id] = unreadCount;
+          }
+        }
+      }
+
+      setUnreadMessageCounts(unreadCounts);
+    } catch (error) {
+      console.error("Error counting unread messages:", error);
+    }
+  }, [studentStats]);
 
   useEffect(() => {
     const fetchInitialDashboardData = async () => {
@@ -638,6 +695,7 @@ const StaffDashboard = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // UPDATED: useEffect for handling message reading and real-time unread counting
   useEffect(() => {
     if (!selectedStudentId) {
       setMessages([]);
@@ -646,7 +704,7 @@ const StaffDashboard = () => {
     const staffUserId = auth.currentUser?.uid;
     if (!staffUserId) return;
 
-    const chatId = `${staffUserId}_${selectedStudentId}`;
+    const chatId = [staffUserId, selectedStudentId].sort().join("_");
     const messagesRef = doc(db, "messages", chatId);
     const unsubscribe = onSnapshot(
       messagesRef,
@@ -655,21 +713,31 @@ const StaffDashboard = () => {
           if (docSnap.exists()) {
             const currentMessages = docSnap.data().messages || [];
             setMessages(currentMessages);
-            const updatedMessages = currentMessages.map((msg) =>
-              msg.sender === "student" && !msg.read
-                ? { ...msg, read: true }
-                : msg
+
+            // Only mark messages as read if this chat is currently open/selected
+            // This ensures messages are only marked as read when the chat is actually viewed
+            const unreadStudentMessages = currentMessages.filter(
+              (msg) => msg.sender === "student" && !msg.read
             );
-            if (
-              JSON.stringify(currentMessages) !==
-              JSON.stringify(updatedMessages)
-            ) {
+
+            if (unreadStudentMessages.length > 0) {
+              // Mark student messages as read since we're viewing this chat
+              const updatedMessages = currentMessages.map((msg) =>
+                msg.sender === "student" && !msg.read
+                  ? { ...msg, read: true }
+                  : msg
+              );
+
               await setDoc(
                 messagesRef,
                 { messages: updatedMessages },
                 { merge: true }
               );
+
+              // Update unread counts after marking as read
+              countUnreadMessages();
             }
+
             const senderIds = currentMessages
               .map((msg) => msg.senderId)
               .filter((id) => id && !userNames[id]);
@@ -690,142 +758,45 @@ const StaffDashboard = () => {
       }
     );
     return () => unsubscribe();
-  }, [selectedStudentId, addNotification, fetchUserNames, userNames]);
+  }, [
+    selectedStudentId,
+    addNotification,
+    fetchUserNames,
+    userNames,
+    countUnreadMessages,
+  ]);
 
+  // ADD: New useEffect to listen for real-time message changes across all chats
   useEffect(() => {
-    setMobileHamburger(
-      <button
-        className="mobile-hamburger"
-        onClick={toggleSidebar}
-        aria-label="Toggle sidebar"
-      >
-        <i className="fas fa-bars"></i>
-      </button>
-    );
-  }, [isMobile]);
+    const staffUserId = auth.currentUser?.uid;
+    if (!staffUserId || studentStats.length === 0) return;
 
-  const filteredStudents = useMemo(() => {
-    let list = studentStats;
-    if (activeContainer && filterType) {
-      const today = new Date();
-      switch (filterType) {
-        case "active":
-          list = studentStats.filter((student) => {
-            const lastLogin = student.lastLogin?.toDate
-              ? student.lastLogin.toDate()
-              : student.lastLogin
-              ? new Date(student.lastLogin)
-              : null;
-            return (
-              lastLogin &&
-              (today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <=
-                7
-            );
-          });
-          break;
-        case "performance":
-          list = studentStats.filter(
-            (student) => (student.progress || 0) >= 50
-          );
-          break;
-        default:
-          break;
-      }
+    const unsubscribes = [];
+
+    // Listen to each student's chat for real-time updates
+    studentStats.forEach((student) => {
+      const chatId = [staffUserId, student.id].sort().join("_");
+      const messagesRef = doc(db, "messages", chatId);
+
+      const unsubscribe = onSnapshot(messagesRef, (docSnap) => {
+        // Only update unread counts, don't mark as read unless chat is open
+        countUnreadMessages();
+      });
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [studentStats, countUnreadMessages]);
+
+  // UPDATED: Remove the periodic interval, rely on real-time updates instead
+  useEffect(() => {
+    if (studentStats.length > 0) {
+      countUnreadMessages();
     }
-    // Only filter out "Unknown User"
-    return list.filter(
-      (student) =>
-        student.name &&
-        student.name !== "Anonymous" &&
-        student.name !== "Unknown" &&
-        student.name !== "Unknown User"
-    );
-  }, [filterType, studentStats, activeContainer]);
-
-  const toggleContainer = useCallback(
-    (containerId, filter = null) => {
-      setActiveContainer((prev) =>
-        prev === containerId && filter === filterType ? null : containerId
-      );
-      setFilterType(filter);
-
-      // Handle chatbot container specifically
-      if (containerId === "chatbot-container") {
-        if (isMobile) {
-          // On mobile, show chatbot in container
-          setIsChatbotOpen(false); // Hide floating chatbot
-        } else {
-          // On desktop, this shouldn't happen as option is hidden
-          setIsChatbotOpen(true);
-        }
-      }
-    },
-    [filterType, isMobile]
-  );
-
-  const toggleSidebar = () => {
-    setSidebarVisible((prev) => !prev);
-  };
-
-  const postTask = async () => {
-    try {
-      const contentInput = document.getElementById("task-content");
-      const content = contentInput?.value.trim();
-      if (!content) {
-        addNotification("Please enter a topic for the task.", "warning");
-        return;
-      }
-
-      // Make sure to include the current staff's UID
-      const currentStaffId = auth.currentUser?.uid;
-      if (!currentStaffId) {
-        addNotification("User not authenticated to post task.", "error");
-        return;
-      }
-
-      const newTask = {
-        id: Date.now().toString(),
-        content,
-        date: new Date().toLocaleDateString(),
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        completed: false,
-        completedBy: [],
-        subject: userData?.subject || "General",
-        staffId: currentStaffId, // Ensure this is always set
-        staffName: userData?.name || "Staff", // Optional: add staff name for reference
-      };
-
-      const tasksRef = doc(db, "tasks", "shared");
-      const tasksSnap = await getDoc(tasksRef);
-      const existingTasks = tasksSnap.exists()
-        ? tasksSnap.data().tasks || []
-        : [];
-      await setDoc(tasksRef, { tasks: [...existingTasks, newTask] });
-
-      if (contentInput) contentInput.value = "";
-      addNotification("Task posted successfully!", "success");
-    } catch (err) {
-      console.error("Error posting task:", err);
-      addNotification("Failed to post task: " + err.message, "error");
-    }
-  };
-
-  const deleteTask = async (taskId) => {
-    try {
-      if (!window.confirm("Are you sure you want to delete this task?")) return;
-      const tasksRef = doc(db, "tasks", "shared");
-      const tasksSnap = await getDoc(tasksRef);
-      if (tasksSnap.exists()) {
-        const existingTasks = tasksSnap.data().tasks || [];
-        const updatedTasks = existingTasks.filter((task) => task.id !== taskId);
-        await setDoc(tasksRef, { tasks: updatedTasks });
-        addNotification("Task deleted successfully!", "success");
-      }
-    } catch (err) {
-      console.error("Error deleting task:", err);
-      addNotification("Failed to delete task: " + err.message, "error");
-    }
-  };
+  }, [studentStats, countUnreadMessages]);
 
   const sendMessage = useCallback(async () => {
     try {
@@ -843,7 +814,8 @@ const StaffDashboard = () => {
         addNotification("User not authenticated to send message.", "error");
         return;
       }
-      const chatId = `${staffUserId}_${selectedStudentId}`;
+
+      const chatId = [staffUserId, selectedStudentId].sort().join("_");
       const newMessage = {
         text,
         sender: "staff",
@@ -851,11 +823,13 @@ const StaffDashboard = () => {
         timestamp: new Date().toISOString(),
         read: false,
       };
+
       const messagesRef = doc(db, "messages", chatId);
       const messagesSnap = await getDoc(messagesRef);
       const existingMessages = messagesSnap.exists()
         ? messagesSnap.data().messages || []
         : [];
+
       await setDoc(
         messagesRef,
         { messages: [...existingMessages, newMessage] },
@@ -863,6 +837,26 @@ const StaffDashboard = () => {
       );
 
       if (input) input.value = "";
+
+      // Send notification to student
+      try {
+        const studentNotifRef = collection(
+          db,
+          "students",
+          selectedStudentId,
+          "notifications"
+        );
+        await addDoc(studentNotifRef, {
+          message: `New message from staff: ${text.substring(0, 50)}${
+            text.length > 50 ? "..." : ""
+          }`,
+          type: "message",
+          staffId: staffUserId,
+          timestamp: Timestamp.now(),
+        });
+      } catch (notifError) {
+        console.warn("Failed to send notification to student:", notifError);
+      }
     } catch (err) {
       console.error("Error sending message:", err);
       addNotification("Failed to send message: " + err.message, "error");
@@ -878,11 +872,10 @@ const StaffDashboard = () => {
           addNotification("User not authenticated to delete message.", "error");
           return;
         }
-        const chatId = `${staffUserId}_${selectedStudentId}`;
+        const chatId = [staffUserId, selectedStudentId].sort().join("_");
         const updatedMessages = messages.filter((_, i) => i !== originalIndex);
         const messagesRef = doc(db, "messages", chatId);
         await setDoc(messagesRef, { messages: updatedMessages });
-        addNotification("Message deleted.", "info");
       } catch (err) {
         console.error("Error deleting message:", err);
         addNotification("Failed to delete message: " + err.message, "error");
@@ -1096,7 +1089,240 @@ const StaffDashboard = () => {
     return () => clearInterval(interval);
   }, [isDashboardLoading]);
 
-  // ...existing code...
+  // Add missing toggleContainer function
+  const toggleContainer = useCallback(
+    (containerId, filterType = null) => {
+      setActiveContainer(activeContainer === containerId ? null : containerId);
+      if (filterType) {
+        setFilterType(filterType);
+      }
+
+      // Close sidebar on mobile after selection
+      if (isMobile && sidebarVisible) {
+        setSidebarVisible(false);
+      }
+    },
+    [activeContainer, isMobile, sidebarVisible]
+  );
+
+  // Add missing toggleSidebar function
+  const toggleSidebar = useCallback(() => {
+    setSidebarVisible((prev) => !prev);
+  }, []);
+
+  // Add missing postTask function
+  const postTask = useCallback(async () => {
+    try {
+      const taskInput = document.getElementById("task-content");
+      const taskContent = taskInput?.value.trim();
+
+      if (!taskContent) {
+        addNotification("Please enter a task description.", "warning");
+        return;
+      }
+
+      const user = auth.currentUser;
+      if (!user) {
+        addNotification("User not authenticated to post task.", "error");
+        return;
+      }
+
+      const staffDocSnap = await getDoc(doc(db, "staff", user.uid));
+      if (!staffDocSnap.exists() || !staffDocSnap.data().formFilled) {
+        addNotification("Staff profile incomplete or not found.", "error");
+        return;
+      }
+
+      const newTask = {
+        id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        content: taskContent,
+        staffId: user.uid,
+        staffName: staffDocSnap.data().name || "Staff",
+        postedAt: Timestamp.now(),
+        completedBy: [],
+      };
+
+      const tasksRef = doc(db, "tasks", "shared");
+      const tasksSnap = await getDoc(tasksRef);
+      const existingTasks = tasksSnap.exists()
+        ? tasksSnap.data().tasks || []
+        : [];
+
+      await setDoc(
+        tasksRef,
+        {
+          tasks: [...existingTasks, newTask],
+        },
+        { merge: true }
+      );
+
+      // Notify all students about the new task
+      const studentsRef = collection(db, "students");
+      const studentSnapshot = await getDocs(studentsRef);
+
+      const notificationPromises = studentSnapshot.docs.map(
+        async (studentDoc) => {
+          const studentNotifRef = collection(
+            db,
+            "students",
+            studentDoc.id,
+            "notifications"
+          );
+          return addDoc(studentNotifRef, {
+            message: `New task posted: ${taskContent}`,
+            type: "task",
+            taskId: newTask.id,
+            timestamp: Timestamp.now(),
+          });
+        }
+      );
+
+      await Promise.all(notificationPromises);
+
+      if (taskInput) taskInput.value = "";
+      addNotification("Task posted successfully!", "success");
+    } catch (err) {
+      console.error("Error posting task:", err);
+      addNotification("Failed to post task: " + err.message, "error");
+    }
+  }, [addNotification]);
+
+  // Add missing deleteTask function
+  const deleteTask = useCallback(
+    async (taskId) => {
+      try {
+        if (
+          !window.confirm(
+            "Are you sure you want to delete this task? This action cannot be undone."
+          )
+        ) {
+          return;
+        }
+
+        const user = auth.currentUser;
+        if (!user) {
+          addNotification("User not authenticated to delete task.", "error");
+          return;
+        }
+
+        const tasksRef = doc(db, "tasks", "shared");
+        const tasksSnap = await getDoc(tasksRef);
+
+        if (!tasksSnap.exists()) {
+          addNotification("No tasks found.", "error");
+          return;
+        }
+
+        const existingTasks = tasksSnap.data().tasks || [];
+        const taskToDelete = existingTasks.find((task) => task.id === taskId);
+
+        if (!taskToDelete) {
+          addNotification("Task not found.", "error");
+          return;
+        }
+
+        // Check if the current staff member owns this task
+        if (taskToDelete.staffId !== user.uid) {
+          addNotification("You can only delete your own tasks.", "error");
+          return;
+        }
+
+        const updatedTasks = existingTasks.filter((task) => task.id !== taskId);
+
+        await setDoc(
+          tasksRef,
+          {
+            tasks: updatedTasks,
+          },
+          { merge: true }
+        );
+
+        addNotification("Task deleted successfully!", "success");
+      } catch (err) {
+        console.error("Error deleting task:", err);
+        addNotification("Failed to delete task: " + err.message, "error");
+      }
+    },
+    [addNotification]
+  );
+
+  // Add missing filteredStudents computed value
+  const filteredStudents = useMemo(() => {
+    if (!filterType) return studentStats;
+
+    const today = new Date();
+
+    switch (filterType) {
+      case "total":
+        return studentStats;
+      case "active":
+        return studentStats.filter((student) => {
+          const lastLoginDate = student.lastLogin?.toDate
+            ? student.lastLogin.toDate()
+            : student.lastLogin
+            ? new Date(student.lastLogin)
+            : null;
+          return (
+            lastLoginDate &&
+            (today.getTime() - lastLoginDate.getTime()) /
+              (1000 * 60 * 60 * 24) <=
+              7
+          );
+        });
+      case "performance":
+        return studentStats.filter((student) => (student.progress || 0) >= 75);
+      default:
+        return studentStats;
+    }
+  }, [studentStats, filterType]);
+
+  // ADD: selectStudentAndMarkAsRead function - UPDATED VERSION
+  const selectStudentAndMarkAsRead = useCallback(
+    async (student) => {
+      const staffUserId = auth.currentUser?.uid;
+      if (!staffUserId) return;
+
+      // Set the selected student
+      setSelectedStudentId(student.id);
+      setSelectedStudentName(student.name);
+      setShowContactList(false);
+
+      // Immediately mark messages as read when opening the chat
+      try {
+        const chatId = [staffUserId, student.id].sort().join("_");
+        const messagesRef = doc(db, "messages", chatId);
+        const messagesSnap = await getDoc(messagesRef);
+
+        if (messagesSnap.exists()) {
+          const currentMessages = messagesSnap.data().messages || [];
+          const hasUnreadMessages = currentMessages.some(
+            (msg) => msg.sender === "student" && !msg.read
+          );
+
+          if (hasUnreadMessages) {
+            const updatedMessages = currentMessages.map((msg) =>
+              msg.sender === "student" && !msg.read
+                ? { ...msg, read: true }
+                : msg
+            );
+
+            await setDoc(
+              messagesRef,
+              { messages: updatedMessages },
+              { merge: true }
+            );
+
+            // Update unread counts
+            countUnreadMessages();
+          }
+        }
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
+    },
+    [countUnreadMessages]
+  );
+
   if (isDashboardLoading) {
     return (
       <div className="loading-dashboard-container">
@@ -1112,7 +1338,6 @@ const StaffDashboard = () => {
       </div>
     );
   }
-  // ...existing code...
   return (
     <ErrorBoundary>
       <div className="dashboard-container">
@@ -1129,6 +1354,7 @@ const StaffDashboard = () => {
           toggleSidebar={toggleSidebar}
           setMobileHamburger={setMobileHamburger}
           activeContainer={activeContainer}
+          unreadMessageCounts={unreadMessageCounts} // Add this line
         />
         <div
           className={`main-content ${sidebarVisible ? "sidebar-active" : ""}`}
@@ -1873,6 +2099,8 @@ const StaffDashboard = () => {
                   selectedStudentName={selectedStudentName}
                   selectedStudentId={selectedStudentId}
                   userNames={userNames}
+                  unreadMessageCounts={unreadMessageCounts}
+                  selectStudentAndMarkAsRead={selectStudentAndMarkAsRead} // This function is now defined
                 />
               </div>
             </div>

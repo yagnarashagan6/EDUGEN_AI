@@ -281,3 +281,72 @@
 .sidebar-toggle-btn .hamburger span {
   background-color: #2d0ef1;
 }
+
+/* Unread message badge styling */
+.unread-badge {
+  background-color: #ff4444;
+  color: white;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: bold;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+  z-index: 10;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+  }
+}
+
+/* When sidebar is open (active) */
+.sidebar.active .unread-badge {
+  margin-left: 8px;
+  position: relative;
+  top: auto;
+  right: auto;
+}
+
+/* When sidebar is collapsed (not active) */
+.sidebar:not(.active) .unread-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  margin-left: 0;
+  min-width: 16px;
+  height: 16px;
+  font-size: 9px;
+  padding: 2px 4px;
+}
+
+/* Ensure the menu item has relative positioning for absolute badge */
+.sidebar .sidebar-menu-item {
+  position: relative;
+}
+
+/* When sidebar is active, show text normally with badge */
+.sidebar.active .sidebar-menu-item span {
+  display: flex;
+  align-items: center;
+}
+
+/* When sidebar is collapsed, hide text but show badge */
+.sidebar:not(.active) .sidebar-menu-item span {
+  display: none;
+}
+
+/* Force badge to show even when span is hidden */
+.sidebar:not(.active) .sidebar-menu-item .unread-badge {
+  display: flex !important;
+}

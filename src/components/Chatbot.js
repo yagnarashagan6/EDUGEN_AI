@@ -643,7 +643,48 @@ const Chatbot = ({
   };
 
   const renderMessageContent = (text) => {
-    return <div dangerouslySetInnerHTML={{ __html: marked.parse(text) }} />;
+    // Configure marked for better rendering
+    const renderer = new marked.Renderer();
+
+    // Improve link rendering
+    renderer.link = (href, title, text) => {
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${
+        title || text
+      }">${text}</a>`;
+    };
+
+    // Improve code block rendering
+    renderer.code = (code, language) => {
+      return `<pre><code class="language-${
+        language || "text"
+      }">${code}</code></pre>`;
+    };
+
+    // Configure marked options
+    marked.setOptions({
+      renderer: renderer,
+      breaks: true,
+      gfm: true,
+      sanitize: false,
+      smartLists: true,
+      smartypants: true,
+    });
+
+    const parsedContent = marked.parse(text);
+
+    return (
+      <div
+        className="message-content"
+        dangerouslySetInnerHTML={{ __html: parsedContent }}
+        style={{
+          fontSize: "inherit",
+          lineHeight: "inherit",
+          wordWrap: "break-word",
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
+        }}
+      />
+    );
   };
 
   // Function to toggle full screen mode for mobile
@@ -681,28 +722,109 @@ const Chatbot = ({
         ${isInContainer ? "sidebar" : ""}
         ${isMobile && isFullScreen ? "fullscreen-mobile" : ""}
       `}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: isMobile ? 0 : "auto",
+          right: isMobile ? "auto" : 0,
+          width: isMobile ? "100%" : "350px",
+          height: "100vh",
+          zIndex: isMobile ? 1000 : 999,
+          transform: "translateX(0)",
+          transition: "all 0.3s ease",
+        }}
       >
         <div
           className={isMobile ? "chat-header-mobile" : "chat-header-desktop"}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            position: "relative",
+            flexShrink: 0,
+          }}
         >
-          <button
-            className="history-back-btn"
-            onClick={() => setShowHistory(false)}
-            title="Back to chat"
-          >
-            <i className="fas fa-arrow-left"></i>
-          </button>
-          <span
-            className={isMobile ? "chat-title-mobile" : "chat-title-desktop"}
-          >
-            Chat History
-          </span>
-          {/* Removed the plus button */}
-          <div style={{ width: "40px" }}></div> {/* Spacer for alignment */}
+          {isMobile ? (
+            <>
+              <div className="chat-header-left">
+                <button
+                  className="history-back-btn"
+                  onClick={() => setShowHistory(false)}
+                  title="Back to chat"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "white",
+                    fontSize: "18px",
+                    padding: "8px",
+                    cursor: "pointer",
+                    borderRadius: "50%",
+                    transition: "background-color 0.2s",
+                    width: "36px",
+                    height: "36px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <i className="fas fa-arrow-left"></i>
+                </button>
+              </div>
+
+              <span className="chat-title-mobile">Chat History</span>
+
+              <div className="chat-header-right">
+                <div style={{ width: "36px" }}></div>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                className="history-back-btn"
+                onClick={() => setShowHistory(false)}
+                title="Back to chat"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "white",
+                  fontSize: "18px",
+                  padding: "8px",
+                  cursor: "pointer",
+                  borderRadius: "50%",
+                  transition: "background-color 0.2s",
+                  width: "36px",
+                  height: "36px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <i className="fas fa-arrow-left"></i>
+              </button>
+              <span className="chat-title-desktop">Chat History</span>
+              <div style={{ width: "40px" }}></div>
+            </>
+          )}
         </div>
 
-        <div className="history-container">
-          <div className="history-controls">
+        <div
+          className="history-container"
+          style={{
+            width: "100%",
+            height: isMobile ? "calc(100vh - 60px)" : "calc(100vh - 80px)",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            className="history-controls"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              flexShrink: 0,
+            }}
+          >
             <div className="search-container">
               <input
                 type="text"
@@ -710,6 +832,10 @@ const Chatbot = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="history-search-input"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
               />
               <i className="fas fa-search search-icon"></i>
             </div>
@@ -735,7 +861,16 @@ const Chatbot = ({
             )}
           </div>
 
-          <div className="history-list">
+          <div
+            className="history-list"
+            style={{
+              flex: 1,
+              width: "100%",
+              boxSizing: "border-box",
+              overflowY: "auto",
+              minHeight: 0,
+            }}
+          >
             {filteredHistory.length === 0 ? (
               <div className="empty-history">
                 <i className="fas fa-comments"></i>
@@ -776,6 +911,10 @@ const Chatbot = ({
                       clearTimeout(longPressTimeout.current);
                       longPressTimeout.current = null;
                     }
+                  }}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
                   }}
                 >
                   <input
@@ -883,59 +1022,92 @@ const Chatbot = ({
         <div
           className={isMobile ? "chat-header-mobile" : "chat-header-desktop"}
         >
-          {isMobile && (
-            <button
-              className="fullscreen-toggle-btn"
-              onClick={toggleFullScreen}
-            >
-              <i
-                className={`fas ${
-                  isFullScreen ? "fa-compress-alt" : "fa-expand-alt"
-                }`}
-              ></i>
-            </button>
+          {isMobile ? (
+            <>
+              <div className="chat-header-left">
+                <button
+                  className="fullscreen-toggle-btn"
+                  onClick={toggleFullScreen}
+                  title={isFullScreen ? "Exit fullscreen" : "Enter fullscreen"}
+                >
+                  <i
+                    className={`fas ${
+                      isFullScreen ? "fa-compress-alt" : "fa-expand-alt"
+                    }`}
+                  ></i>
+                </button>
+              </div>
+
+              <span className="chat-title-mobile">EduGen AI 🤖</span>
+
+              <div className="chat-header-right">
+                <div className="chat-header-actions">
+                  <button
+                    className="new-chat-btn"
+                    onClick={startNewChatConversation}
+                    title="Start new conversation"
+                  >
+                    <i className="fas fa-plus"></i>
+                  </button>
+
+                  <button
+                    className="history-button-mobile"
+                    onClick={handleShowHistory}
+                    title="Chat History"
+                  >
+                    <i className="fas fa-history"></i>
+                  </button>
+
+                  <button
+                    className="pdf-button-mobile"
+                    onClick={downloadChatAsPdf}
+                    title="Download PDF"
+                  >
+                    <i className="fas fa-file-pdf"></i>
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="chat-title-desktop">EduGen AI 🤖</span>
+
+              <div className="chat-header-actions">
+                <button
+                  className="new-chat-btn"
+                  onClick={startNewChatConversation}
+                  title="Start new conversation"
+                >
+                  <i className="fas fa-plus"></i>
+                </button>
+
+                <button
+                  className="history-button-desktop"
+                  onClick={handleShowHistory}
+                  title="Chat History"
+                >
+                  <i className="fas fa-history"></i>
+                </button>
+
+                <button
+                  className="pdf-button-desktop"
+                  onClick={downloadChatAsPdf}
+                  title="Download PDF"
+                >
+                  <i className="fas fa-file-pdf"></i>
+                </button>
+              </div>
+            </>
           )}
-          <span
-            className={isMobile ? "chat-title-mobile" : "chat-title-desktop"}
-          >
-            EduGen AI 🤖
-          </span>
-
-          <div className="chat-header-actions">
-            {/* Replace temporary chat button with new chat button */}
-            <button
-              className="new-chat-btn"
-              onClick={startNewChatConversation}
-              title="Start new conversation"
-            >
-              <i className="fas fa-plus"></i>
-            </button>
-
-            <button
-              className={
-                isMobile ? "history-button-mobile" : "history-button-desktop"
-              }
-              onClick={handleShowHistory}
-              title="Chat History"
-            >
-              <i className="fas fa-history"></i>
-              <span className="history-button-label"></span>
-            </button>
-
-            <button
-              className={isMobile ? "pdf-button-mobile" : "pdf-button-desktop"}
-              onClick={downloadChatAsPdf}
-              title="Download PDF"
-            >
-              <i className="fas fa-file-pdf"></i>
-              <span className="pdf-button-label"></span>
-            </button>
-          </div>
         </div>
 
         <div
           ref={chatBoxRef}
           className={isMobile ? "chat-box-mobile" : "chat-box-desktop"}
+          style={{
+            overflowWrap: "break-word",
+            wordBreak: "break-word",
+          }}
         >
           {messages.map((message, index) => (
             <div
@@ -957,6 +1129,14 @@ const Chatbot = ({
                 cursor: message.sender === "bot" ? "pointer" : "default",
                 position: "relative",
                 zIndex: showOptionsForMessage === index ? 1 : "auto",
+                maxWidth:
+                  message.sender === "bot" ? (isMobile ? "90%" : "85%") : "80%",
+                minWidth: message.sender === "bot" ? "150px" : "auto",
+                wordWrap: "break-word",
+                wordBreak: "break-word",
+                overflowWrap: "break-word",
+                animation: "fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                transform: "translateZ(0)", // Hardware acceleration
               }}
             >
               {renderMessageContent(message.text)}
@@ -964,7 +1144,33 @@ const Chatbot = ({
           ))}
           {isLoading && (
             <div className={isMobile ? "loading-mobile" : "loading-desktop"}>
-              EduGen AI is thinking... (this may take up to 2 mins)
+              <span
+                style={{
+                  display: "inline-block",
+                  animation: "bounce 1.4s infinite ease-in-out both",
+                }}
+              >
+                ●
+              </span>
+              <span
+                style={{
+                  display: "inline-block",
+                  animation: "bounce 1.4s infinite ease-in-out both 0.16s",
+                }}
+              >
+                ●
+              </span>
+              <span
+                style={{
+                  display: "inline-block",
+                  animation: "bounce 1.4s infinite ease-in-out both 0.32s",
+                }}
+              >
+                ●
+              </span>
+              <span style={{ marginLeft: "8px" }}>
+                EduGen AI is thinking...
+              </span>
             </div>
           )}
         </div>
