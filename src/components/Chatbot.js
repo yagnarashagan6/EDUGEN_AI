@@ -40,6 +40,9 @@ const Chatbot = ({
   // Add new state for temporary chat mode
   const [isNewSession, setIsNewSession] = useState(true);
 
+  // Add state for selected text
+  const [selectedText, setSelectedText] = useState("");
+
   const chatBoxRef = useRef(null);
   const longPressTimeout = useRef(null);
   const synth = useRef(window.speechSynthesis);
@@ -212,6 +215,23 @@ const Chatbot = ({
     return () => window.removeEventListener("popstate", handleBackButton);
   }, [isPdfView, showHistory]);
 
+  // Add useEffect to handle text selection
+  useEffect(() => {
+    const handleTextSelection = () => {
+      const selection = window.getSelection();
+      const selectedText = selection.toString().trim();
+      setSelectedText(selectedText);
+    };
+
+    document.addEventListener("mouseup", handleTextSelection);
+    document.addEventListener("touchend", handleTextSelection);
+
+    return () => {
+      document.removeEventListener("mouseup", handleTextSelection);
+      document.removeEventListener("touchend", handleTextSelection);
+    };
+  }, []);
+
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
 
@@ -372,7 +392,7 @@ const Chatbot = ({
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const optionsWidth = isMobile ? 280 : 320;
-        const optionsHeight = isMobile ? 80 : 60;
+        const optionsHeight = isMobile ? 120 : 100; // Increased height for new button
 
         let adjustedX = x - optionsWidth / 2;
         let adjustedY = y - optionsHeight - 20;
@@ -536,6 +556,43 @@ const Chatbot = ({
     }
   };
 
+  // Update the handleCopyText function to copy the entire message if no text is selected
+  const handleCopyText = () => {
+    let textToCopy = selectedText;
+
+    // If no text is selected, copy the entire message
+    if (!textToCopy && showOptionsForMessage !== null) {
+      textToCopy = messages[showOptionsForMessage].text;
+    }
+
+    if (textToCopy) {
+      navigator.clipboard
+        .writeText(textToCopy)
+        .then(() => {
+          alert(
+            selectedText
+              ? "Selected text copied to clipboard!"
+              : "Message copied to clipboard!"
+          );
+        })
+        .catch(() => {
+          // Fallback for older browsers
+          const textArea = document.createElement("textarea");
+          textArea.value = textToCopy;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textArea);
+          alert(
+            selectedText
+              ? "Selected text copied to clipboard!"
+              : "Message copied to clipboard!"
+          );
+        });
+      setShowOptionsForMessage(null);
+    }
+  };
+
   const extractTopicForFilename = (text) => {
     const stopWords = [
       "a",
@@ -593,34 +650,103 @@ const Chatbot = ({
         .pdf-download-container {
           font-family: Arial, sans-serif;
           padding: 20px;
+          line-height: 1.6;
+          color: #333;
         }
         .pdf-message {
-          margin-bottom: 10px;
-          padding: 10px;
+          margin-bottom: 15px;
+          padding: 12px;
           border-radius: 8px;
           word-wrap: break-word;
+          page-break-inside: avoid;
         }
         .pdf-user-message {
           background-color: #e6f7ff;
           text-align: right;
           color: #000;
+          border-left: 4px solid #1890ff;
         }
         .pdf-chatbot-message {
-          background-color: #f0f0f0;
+          background-color: #f9f9f9;
           text-align: left;
           color: #000;
+          border-left: 4px solid #52c41a;
         }
         .pdf-message-sender {
           font-weight: bold;
-          margin-bottom: 5px;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+        .pdf-message-content {
+          font-size: 13px;
+          line-height: 1.5;
+          user-select: text;
+          -webkit-user-select: text;
+          -moz-user-select: text;
+          -ms-user-select: text;
         }
         .pdf-message-content p {
-            margin: 0;
-            padding: 0;
+          margin: 8px 0;
+          padding: 0;
+        }
+        .pdf-message-content h1, .pdf-message-content h2, .pdf-message-content h3 {
+          margin: 12px 0 8px 0;
+          color: #333;
+        }
+        .pdf-message-content ul, .pdf-message-content ol {
+          margin: 8px 0;
+          padding-left: 20px;
+        }
+        .pdf-message-content li {
+          margin: 4px 0;
+        }
+        .pdf-message-content code {
+          background-color: #f5f5f5;
+          padding: 2px 4px;
+          border-radius: 3px;
+          font-family: 'Courier New', monospace;
+        }
+        .pdf-message-content pre {
+          background-color: #f5f5f5;
+          padding: 10px;
+          border-radius: 5px;
+          overflow-x: auto;
+          margin: 8px 0;
+        }
+        .pdf-message-content blockquote {
+          margin: 8px 0;
+          padding: 8px 16px;
+          background-color: #f0f0f0;
+          border-left: 4px solid #ddd;
+        }
+        .pdf-header {
+          text-align: center;
+          margin-bottom: 30px;
+          border-bottom: 2px solid #1890ff;
+          padding-bottom: 20px;
+        }
+        .pdf-header h1 {
+          color: #1890ff;
+          margin: 0;
+          font-size: 24px;
+        }
+        .pdf-header p {
+          color: #666;
+          margin: 5px 0 0 0;
+          font-size: 14px;
+        }
+        * {
+          user-select: text !important;
+          -webkit-user-select: text !important;
+          -moz-user-select: text !important;
+          -ms-user-select: text !important;
         }
       </style>
       <div class="pdf-download-container">
-        <h1>EduGen AI Chat Conversation</h1>
+        <div class="pdf-header">
+          <h1>EduGen AI Chat Conversation</h1>
+          <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        </div>
         ${messages
           .map(
             (msg) => `
@@ -638,7 +764,28 @@ const Chatbot = ({
       </div>
     `;
 
-    html2pdf().from(element).set({ filename }).save();
+    // Improved PDF options for better text selection
+    const opt = {
+      margin: 0.5,
+      filename: filename,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        removeContainer: true,
+      },
+      jsPDF: {
+        unit: "in",
+        format: "letter",
+        orientation: "portrait",
+        compress: true,
+      },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+    };
+
+    html2pdf().set(opt).from(element).save();
     setShowOptionsForMessage(null);
   };
 
@@ -682,6 +829,10 @@ const Chatbot = ({
           wordWrap: "break-word",
           wordBreak: "break-word",
           overflowWrap: "break-word",
+          userSelect: "text", // Enable text selection
+          WebkitUserSelect: "text",
+          MozUserSelect: "text",
+          msUserSelect: "text",
         }}
       />
     );
@@ -986,6 +1137,12 @@ const Chatbot = ({
                   ? "pdf-user-message"
                   : "pdf-chatbot-message"
               }`}
+              style={{
+                userSelect: "text", // Enable text selection in PDF view
+                WebkitUserSelect: "text",
+                MozUserSelect: "text",
+                msUserSelect: "text",
+              }}
             >
               <div className="pdf-message-sender">
                 {msg.sender === "user" ? "You" : "EduGen AI"}:
@@ -1137,6 +1294,10 @@ const Chatbot = ({
                 overflowWrap: "break-word",
                 animation: "fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 transform: "translateZ(0)", // Hardware acceleration
+                userSelect: "text", // Enable text selection
+                WebkitUserSelect: "text",
+                MozUserSelect: "text",
+                msUserSelect: "text",
               }}
             >
               {renderMessageContent(message.text)}
@@ -1240,10 +1401,17 @@ const Chatbot = ({
               <i className="fas fa-volume-up"></i>
               <span>Read Aloud</span>
             </button>
+
+            <button onClick={handleCopyText}>
+              <i className="fas fa-copy"></i>
+              <span>{selectedText ? "Copy Selected Text" : "Copy Text"}</span>
+            </button>
+
             <button onClick={handlePdfView}>
               <i className="fas fa-file-pdf"></i>
               <span>View PDF</span>
             </button>
+
             {isSpeaking && (
               <button onClick={handleStopAudio}>
                 <i className="fas fa-stop"></i>
