@@ -94,8 +94,17 @@ const StudentForm = () => {
     }
   };
 
-  const handleBackToLogin = () => {
-    navigate("/student-login");
+  const handleBackToLogin = async () => {
+    try {
+      // Sign out the user first
+      await auth.signOut();
+      // Then navigate to home page
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      // If sign out fails, still try to navigate
+      navigate("/", { replace: true });
+    }
   };
 
   return (
@@ -247,7 +256,7 @@ const StudentForm = () => {
               onClick={handleBackToLogin}
               style={{ marginTop: "10px", background: "#f4a900" }}
             >
-              Back to Login
+              Back to Home
             </button>
           )}
         </form>

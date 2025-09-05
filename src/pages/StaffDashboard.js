@@ -556,18 +556,21 @@ const StaffDashboard = () => {
         }
 
         // Filter tasks to show only the ones posted by the current staff member
-        const staffTasks = allTasks.filter((task) => {
-          // Debug log to see what's happening
-          console.log(
-            "Task:",
-            task.id,
-            "Staff ID:",
-            task.staffId,
-            "Current Staff:",
-            currentStaffId
-          );
-          return task.staffId === currentStaffId;
-        });
+        const staffTasks = allTasks
+          .filter((task) => {
+            return task.staffId === currentStaffId;
+          })
+          .map((task) => ({
+            ...task,
+            // Ensure date is formatted properly for display
+            date:
+              task.date ||
+              (task.postedAt?.toDate
+                ? task.postedAt.toDate().toLocaleDateString()
+                : new Date().toLocaleDateString()),
+            // Ensure subject is available
+            subject: task.subject || "General",
+          }));
 
         console.log(
           "Filtered tasks for current staff:",
@@ -1133,12 +1136,15 @@ const StaffDashboard = () => {
         return;
       }
 
+      const staffData = staffDocSnap.data();
       const newTask = {
         id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: taskContent,
+        subject: staffData.subject || "General", // Add subject from staff profile
         staffId: user.uid,
-        staffName: staffDocSnap.data().name || "Staff",
+        staffName: staffData.name || "Staff",
         postedAt: Timestamp.now(),
+        date: new Date().toLocaleDateString(), // Add formatted date for display
         completedBy: [],
       };
 

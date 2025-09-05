@@ -37,15 +37,21 @@ const StaffLogin = () => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const docRef = doc(db, "staff", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().formFilled === true) {
-          navigate("/staff-dashboard");
-        } else {
-          navigate("/staff-form");
+        try {
+          const docRef = doc(db, "staff", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().formFilled === true) {
+            navigate("/staff-dashboard", { replace: true });
+          } else {
+            navigate("/staff-form", { replace: true });
+          }
+        } catch (error) {
+          console.error("Error checking staff profile:", error);
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     return () => unsubscribe();
   }, [navigate]);
@@ -73,9 +79,9 @@ const StaffLogin = () => {
       );
 
       if (docSnap.exists() && docSnap.data().formFilled === true) {
-        navigate("/staff-dashboard");
+        navigate("/staff-dashboard", { replace: true });
       } else {
-        navigate("/staff-form");
+        navigate("/staff-form", { replace: true });
       }
     } catch (err) {
       setError("Invalid username or password. Please check your credentials.");
@@ -102,7 +108,7 @@ const StaffLogin = () => {
         { username, email, formFilled: false },
         { merge: true }
       );
-      navigate("/staff-form");
+      navigate("/staff-form", { replace: true });
     } catch (err) {
       setError("Error during registration: " + err.message);
       console.error("Registration error:", err);
@@ -121,7 +127,7 @@ const StaffLogin = () => {
       const docRef = doc(db, "staff", user.uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists() && docSnap.data().formFilled === true) {
-        navigate("/staff-dashboard");
+        navigate("/staff-dashboard", { replace: true });
       } else {
         if (!docSnap.exists()) {
           await setDoc(
@@ -134,7 +140,7 @@ const StaffLogin = () => {
             { merge: true }
           );
         }
-        navigate("/staff-form");
+        navigate("/staff-form", { replace: true });
       }
     } catch (err) {
       setError("Error during Google Sign-In: " + err.message);
@@ -143,6 +149,18 @@ const StaffLogin = () => {
   };
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
+
+  // Show loading if still checking auth state
+  if (isLoading) {
+    return (
+      <div className="login-page">
+        <div className="login-container">
+          <div className="login-title">STAFF LOGIN</div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-page">
