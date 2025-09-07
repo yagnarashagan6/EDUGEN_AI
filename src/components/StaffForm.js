@@ -23,6 +23,27 @@ const StaffForm = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const departments = [
+    "Artificial Intelligence and Data Science",
+    "Computer Science Engineering",
+    "Information Technology",
+    "Electronics and Communication Engineering",
+    "Electrical and Electronics Engineering",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Chemical Engineering",
+    "Biomedical Engineering",
+    "Aerospace Engineering",
+  ];
+
+  const subjects = [
+    "Human Resource and Management",
+    "Human Values and Ethics",
+    "Industrial Hygiene",
+    "Traditional Indian Foods",
+    "IT in Agricultural System",
+  ];
+
   const handleChange = (e) => {
     const { id, value, files } = e.target;
     setFormData((prev) => ({
@@ -128,23 +149,35 @@ const StaffForm = () => {
           <div className="form-group">
             <div>
               <label>Department:</label>
-              <input
-                type="text"
+              <select
                 id="department"
                 value={formData.department}
                 onChange={handleChange}
                 required
-              />
+              >
+                <option value="">Select Department</option>
+                {departments.map((dept, index) => (
+                  <option key={index} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label>Subject:</label>
-              <input
-                type="text"
+              <select
                 id="subject"
                 value={formData.subject}
                 onChange={handleChange}
                 required
-              />
+              >
+                <option value="">Select Subject</option>
+                {subjects.map((subject, index) => (
+                  <option key={index} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="form-group">

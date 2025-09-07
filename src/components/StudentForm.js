@@ -12,18 +12,30 @@ const StudentForm = () => {
   const [formData, setFormData] = useState({
     regNumber: userData.regNumber || "",
     rollNumber: userData.rollNumber || "",
-    course: userData.course || "",
+    department: userData.department || "",
     name: userData.name || "",
     dob: userData.dob || "",
     gender: userData.gender || "",
     bloodGroup: userData.bloodGroup || "",
     studentContact: userData.studentContact || "",
     email: userData.email || "",
-    aadhaar: userData.aadhaar || "",
     image: null,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const departments = [
+    "Artificial Intelligence and Data Science",
+    "Computer Science Engineering",
+    "Information Technology",
+    "Electronics and Communication Engineering",
+    "Electrical and Electronics Engineering",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Chemical Engineering",
+    "Biomedical Engineering",
+    "Aerospace Engineering",
+  ];
 
   const handleChange = (e) => {
     const { id, value, files } = e.target;
@@ -144,14 +156,20 @@ const StudentForm = () => {
           </div>
           <div className="form-group">
             <div>
-              <label>Course:</label>
-              <input
-                type="text"
-                id="course"
-                value={formData.course}
+              <label>Department:</label>
+              <select
+                id="department"
+                value={formData.department}
                 onChange={handleChange}
                 required
-              />
+              >
+                <option value="">Select Department</option>
+                {departments.map((dept, index) => (
+                  <option key={index} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label>Name:</label>
@@ -220,18 +238,6 @@ const StudentForm = () => {
                 type="email"
                 id="email"
                 value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div>
-              <label>Aadhaar No.:</label>
-              <input
-                type="text"
-                id="aadhaar"
-                placeholder="eg: 12 numbers"
-                pattern="[0-9]{12}"
-                value={formData.aadhaar}
                 onChange={handleChange}
                 required
               />
