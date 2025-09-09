@@ -2572,3 +2572,42 @@
     padding: 10px 0;
   }
 }
+/* Add these styles to your existing Dashboard.css */
+
+.copy-topic-btn.quiz-start {
+  background-color: #4caf50 !important;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.copy-topic-btn.quiz-start:hover {
+  background-color: #45a049 !important;
+  transform: translateY(-1px);
+}
+
+.copy-topic-btn.quiz-ready {
+  background-color: #ff9800 !important;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.copy-topic-btn.quiz-ready:hover {
+  background-color: #f57c00 !important;
+  transform: translateY(-1px);
+}
+
+.copy-topic-btn.completed {
+  background-color: #4caf50 !important;
+  color: white;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.task-item {
+  transition: all 0.3s ease;
+}
+
+.task-item.completed {
+  opacity: 0.8;
+  background-color: #f8f9fa;
+}

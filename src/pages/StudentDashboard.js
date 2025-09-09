@@ -1091,7 +1091,68 @@ const StudentDashboard = () => {
     }
     */
   }, []);
+  useEffect(() => {
+    const resetProgressIfNoTasks = async () => {
+      const user = auth.currentUser;
+      if (!user || !userData) return;
 
+      // Check if there are no tasks at all
+      if (
+        tasks.length === 0 &&
+        (userData.progress > 0 || userData.quizCount > 0)
+      ) {
+        try {
+          // Reset progress to 0
+          setProgress(0);
+          setQuizCount(0);
+
+          // Update in Firestore
+          const userRef = doc(db, "students", user.uid);
+          await updateDoc(userRef, {
+            progress: 0,
+            quizCount: 0,
+            lastProgressReset: new Date().toISOString(), // Track when reset happened
+          });
+
+          // Update leaderboard with reset progress
+          await updateLeaderboard(user.uid, userData.name, streak, 0);
+
+          // Clear local task progress since no tasks exist
+          setTaskProgress({});
+
+          // Clear localStorage task progress for this user
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith(`taskProgress_${user.uid}_`)) {
+              localStorage.removeItem(key);
+            }
+          });
+
+          // Only show notification when tasks container is active or when switching to it
+          if (activeContainer === "tasks-container") {
+            setNotifications((prev) => [
+              ...prev,
+              {
+                id: Date.now(),
+                type: "info",
+                message:
+                  "Progress has been reset to 0% as all tasks have been removed by staff.",
+              },
+            ]);
+          }
+
+          console.log("Progress reset to 0 due to no tasks available");
+        } catch (err) {
+          console.error("Error resetting progress:", err);
+          setError("Failed to reset progress.");
+        }
+      }
+    };
+
+    // Only run this check if we have user data and tasks array is loaded
+    if (userData && Array.isArray(tasks)) {
+      resetProgressIfNoTasks();
+    }
+  }, [tasks.length, userData, streak]);
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (sessionStartTimeRef.current) {
@@ -1430,14 +1491,20 @@ const StudentDashboard = () => {
     const user = auth.currentUser;
     if (!user || !userData) return;
 
-    const completedTasks = tasks.filter((t) =>
-      t.completedBy?.includes(user.uid)
-    ).length;
+    // Handle case when no tasks exist
+    const completedTasks =
+      tasks.length > 0
+        ? tasks.filter((t) => t.completedBy?.includes(user.uid)).length
+        : 0;
+
     const totalTasks = tasks.length;
     const taskCompletionRate =
       totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-    const learningRate = Math.min(progress + taskCompletionRate / 5, 100);
+    // Fix: Learning rate should be 0 when no tasks exist
+    const learningRate =
+      totalTasks > 0 ? Math.min(progress + taskCompletionRate / 5, 100) : 0;
+
     const communicationSkill = Math.min(
       messages.filter((m) => m.sender === "student").length * 5,
       100
@@ -1446,18 +1513,25 @@ const StudentDashboard = () => {
       goals.length > 0
         ? (goals.filter((g) => g.completed).length / goals.length) * 100
         : 0;
-    const quizEngagement = Math.min(quizCount * 10, 100);
+    const quizEngagement = totalTasks > 0 ? Math.min(quizCount * 10, 100) : 0;
 
     let suggestions = [];
-    if (learningRate < 60)
-      suggestions.push("Focus on tasks & quizzes to boost learning.");
-    if (communicationSkill < 50) suggestions.push("Interact more with staff.");
-    if (goalCompletionRate < 70 && goals.length > 0)
-      suggestions.push("Set & track goals for progress.");
-    if (quizEngagement < 50)
-      suggestions.push("Take more quizzes to test understanding.");
-    if (suggestions.length === 0)
-      suggestions.push("You're doing great! Keep it up.");
+    if (totalTasks === 0) {
+      suggestions.push(
+        "No tasks available yet. Check back for new assignments."
+      );
+    } else {
+      if (learningRate < 60)
+        suggestions.push("Focus on tasks & quizzes to boost learning.");
+      if (communicationSkill < 50)
+        suggestions.push("Interact more with staff.");
+      if (goalCompletionRate < 70 && goals.length > 0)
+        suggestions.push("Set & track goals for progress.");
+      if (quizEngagement < 50)
+        suggestions.push("Take more quizzes to test understanding.");
+      if (suggestions.length === 0)
+        suggestions.push("You're doing great! Keep it up.");
+    }
 
     setSelfAnalysis({
       learningRate,
@@ -1505,9 +1579,6 @@ const StudentDashboard = () => {
       updateTaskProgress(taskId, "copyAndAsk");
     }
 
-    // Don't change the active container - keep tasks visible
-    // setActiveContainer("chatbot-container"); // Remove this line
-
     // For mobile, open chatbot container, for desktop keep current view
     if (window.innerWidth <= 768) {
       setActiveContainer("chatbot-container");
@@ -1527,10 +1598,23 @@ const StudentDashboard = () => {
     ]);
   };
 
-  const startQuizForTopic = (topicContent) => {
+  const startQuizForTopic = (topicContent, taskId = null) => {
     if (!inQuiz) {
       setCurrentTopic(topicContent);
-      setQuizReady(true);
+
+      // Show "Start Quiz" notification and begin quiz setup
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: "start-quiz",
+          message: `Starting quiz for "${topicContent}"...`,
+          topic: topicContent,
+        },
+      ]);
+
+      // Set up quiz parameters and start generation
+      setShowQuizSetup(true);
       setActiveContainer("tasks-container");
       logStudentActivity("quiz started", topicContent);
     } else {
@@ -1667,6 +1751,7 @@ const StudentDashboard = () => {
     }
   };
 
+  // Updated quiz completion handler to reset task progress
   const handleQuizComplete = async (score) => {
     const user = auth.currentUser;
     if (!user || !userData) return;
@@ -1679,11 +1764,11 @@ const StudentDashboard = () => {
       const userRef = doc(db, "students", user.uid);
       await updateDoc(userRef, { progress: newProgress });
 
-      // --- Save completion to student-specific path (ALWAYS allowed) ---
+      // Save completion to student-specific path
       const completedTask = tasks.find((t) => t.content === currentTopic);
       if (completedTask) {
-        await saveTaskCompletion(completedTask); // <-- UNCOMMENT THIS LINE
-        // Also update local taskProgress state for immediate UI feedback
+        await saveTaskCompletion(completedTask);
+        // Update local taskProgress state for immediate UI feedback
         setTaskProgress((prev) => ({
           ...prev,
           [completedTask.id]: {
@@ -1699,8 +1784,8 @@ const StudentDashboard = () => {
         ...prev,
         {
           id: Date.now(),
-          type: "quiz",
-          message: `Quiz completed! Score: ${percentage}%`,
+          type: "quiz-complete",
+          message: `Quiz completed! Score: ${percentage}%. Great job!`,
         },
       ]);
       logStudentActivity("quiz completed", currentTopic);
@@ -2509,19 +2594,10 @@ const StudentDashboard = () => {
                             task={task}
                             role="student"
                             onCopy={copyTopicAndAskAI}
-                            onStartQuiz={() => {
-                              setPendingQuizTask(task);
-                              setNotifications((prev) => [
-                                ...prev,
-                                {
-                                  id: Date.now(),
-                                  type: "quiz",
-                                  message: `Start a quiz on "${task.content}"?`,
-                                  task,
-                                },
-                              ]);
-                            }}
+                            onStartQuiz={startQuizForTopic} // Updated to pass the new function
                             isCompleted={isCompleted}
+                            taskProgress={taskProgress} // Pass task progress
+                            onUpdateTaskProgress={updateTaskProgress} // Pass update function
                           />
                         );
                       })
@@ -3274,6 +3350,42 @@ const StudentDashboard = () => {
                     }
                   />
                 );
+              } else if (notif.type === "learn-notification") {
+                return (
+                  <Notification
+                    key={`${notif.id || "learn"}-${index}`}
+                    message={notif.message}
+                    onClose={() =>
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      )
+                    }
+                  />
+                );
+              } else if (notif.type === "start-quiz") {
+                return (
+                  <Notification
+                    key={`${notif.id || "start-quiz"}-${index}`}
+                    message={notif.message}
+                    onClose={() =>
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      )
+                    }
+                  />
+                );
+              } else if (notif.type === "quiz-complete") {
+                return (
+                  <Notification
+                    key={`${notif.id || "quiz-complete"}-${index}`}
+                    message={notif.message}
+                    onClose={() =>
+                      setNotifications((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      )
+                    }
+                  />
+                );
               } else if (notif.type === "quiz" && notif.task) {
                 return (
                   <Notification
@@ -3291,36 +3403,6 @@ const StudentDashboard = () => {
                         prev.filter((_, i) => i !== index)
                       )
                     }
-                    isClickable={true}
-                    buttonText="Start Quiz"
-                  />
-                );
-              } else if (notif.type === "quiz-start") {
-                return (
-                  <Notification
-                    key={`${notif.id || "quiz-start"}-${index}`}
-                    message={notif.message}
-                    onClick={() => {
-                      setShowQuizSetup(true);
-                      setActiveContainer("tasks-container");
-                      setNotifications((prev) =>
-                        prev.filter((_, i) => i !== index)
-                      );
-                    }}
-                    onClose={() => {
-                      setNotifications((prev) =>
-                        prev.filter((_, i) => i !== index)
-                      );
-                      setNotifications((prev) => [
-                        ...prev,
-                        {
-                          id: Date.now(),
-                          type: "info",
-                          message:
-                            "Quiz start cancelled. You can take the quiz by clicking 'Copy & Ask AI' button on the task in the task container.",
-                        },
-                      ]);
-                    }}
                     isClickable={true}
                     buttonText="Start Quiz"
                   />
