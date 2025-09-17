@@ -50,9 +50,8 @@ app.use("/api/generate-quiz", apiLimiter);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    version: "1.0.1", // Updated version to verify deployment
+    version: "1.0.0",
     timestamp: new Date().toISOString(),
-    model: "google/gemma-2-27b-it:free", // Show which model we're using
   });
 });
 
@@ -60,10 +59,6 @@ app.get("/api/health", (req, res) => {
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
-
-    console.log("=== CHAT REQUEST START ===");
-    console.log("Using model: google/gemma-2-27b-it:free");
-    console.log("Message received:", message);
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -76,7 +71,7 @@ app.post("/api/chat", async (req, res) => {
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "google/gemma-2-27b-it:free", // Use Gemma 2 instead of 3
+          model: "google/gemma-3-27b-it:free",
           messages: [
             {
               role: "user",
@@ -136,7 +131,6 @@ Student's question: ${message}`,
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("OpenRouter API Error:", response.status, errText);
       throw new Error(errText || `OpenRouter Error: ${response.status}`);
     }
 
@@ -197,8 +191,6 @@ Example:
 Now generate ${questionCount} questions about "${topic}":`;
 
   try {
-    console.log("Using quiz model: google/gemma-2-27b-it:free"); // Add this log
-
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -210,7 +202,7 @@ Now generate ${questionCount} questions about "${topic}":`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "google/gemma-2-27b-it:free", // Use Gemma 2 instead of 3
+          model: "google/gemma-3-27b-it:free",
           messages: [
             {
               role: "user",
