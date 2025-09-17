@@ -95,21 +95,26 @@ app.post("/api/chat", async (req, res) => {
 • Providing analogies and metaphors
 • Including visual descriptions where helpful
 
-📺 EDUCATIONAL RESOURCES: When appropriate, suggest:
-• YouTube channels and specific video recommendations for visual learning
-• Educational articles and research papers for deeper reading
-• Interactive websites and tools for hands-on practice
-• Free online courses (Khan Academy, Coursera, edX) for structured learning
-• Documentaries and educational content for broader understanding
+� EDUCATIONAL RESOURCES: Always provide actual clickable links to relevant resources:
+• **YouTube Videos:** Include real YouTube links to specific educational videos related to the topic
+• **GeeksforGeeks:** Provide direct links to relevant GeeksforGeeks articles (https://www.geeksforgeeks.org/)
+• **W3Schools:** Include links to relevant W3Schools tutorials (https://www.w3schools.com/)
+• **Khan Academy:** Link to specific Khan Academy lessons when applicable (https://www.khanacademy.org/)
+• **Other Educational Sites:** Include links to Wikipedia, educational websites, and online courses
 
-🔗 RESOURCE FORMAT: Present resources as:
+� RESOURCE FORMAT:
 📺 **YouTube Videos:**
-• [Video Title] - Channel Name
-• Search terms: 'specific keywords for finding videos'
+• [Specific Video Title](https://www.youtube.com/watch?v=VIDEO_ID) - Channel Name
+• [Another Video Title](https://www.youtube.com/watch?v=VIDEO_ID) - Channel Name
 
-📖 **Articles & Reading:**
-• Article/website suggestions with brief descriptions
-• Search terms for finding quality articles
+📖 **Articles & Tutorials:**
+• [Article Title](https://www.geeksforgeeks.org/specific-topic/) - GeeksforGeeks
+• [Tutorial Title](https://www.w3schools.com/specific-tutorial/) - W3Schools
+• [Lesson Title](https://www.khanacademy.org/specific-lesson/) - Khan Academy
+
+🔗 **Additional Resources:**
+• [Wikipedia Article](https://en.wikipedia.org/wiki/Topic_Name)
+• [Educational Website](https://example-edu-site.com/topic)
 
 📍 STRUCTURE: Organize responses with:
 • Clear headings using emojis (🧮 math, 🧪 science, 📖 literature, etc.)
@@ -118,7 +123,7 @@ app.post("/api/chat", async (req, res) => {
 • Practical tips marked with 💡
 • Resource recommendations marked with 🔗
 
-Always aim for comprehensive yet understandable explanations that help students truly grasp the material, see its relevance in the real world, and provide pathways for further learning through quality educational resources.
+IMPORTANT: Always provide actual working URLs/links in markdown format [Link Text](URL) so they are clickable. Do not just suggest search terms - give real, specific links to educational content.
 
 Student's question: ${message}`,
             },
