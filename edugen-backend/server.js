@@ -2,11 +2,14 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
-import rateLimit from "express-rate-limit"; // Add this import
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
 const app = express();
+
+// Trust proxy for Render deployment
+app.set("trust proxy", 1);
 
 // CORS configuration
 const allowedOrigins = [
@@ -47,8 +50,9 @@ app.use("/api/generate-quiz", apiLimiter);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    version: "1.0.0",
+    version: "1.0.1", // Updated version to verify deployment
     timestamp: new Date().toISOString(),
+    model: "google/gemma-2-27b-it:free", // Show which model we're using
   });
 });
 
@@ -56,6 +60,10 @@ app.get("/api/health", (req, res) => {
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
+
+    console.log("=== CHAT REQUEST START ===");
+    console.log("Using model: google/gemma-2-27b-it:free");
+    console.log("Message received:", message);
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -68,49 +76,57 @@ app.post("/api/chat", async (req, res) => {
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "google/gemma-3n-e4b-it:free",
+          model: "google/gemma-2-27b-it:free", // Use Gemma 2 instead of 3
           messages: [
             {
-              role: "system",
-              content:
-                "You are EduGen AI 🎓, a comprehensive educational assistant for students. When explaining topics, follow these guidelines:\n\n" +
-                "📚 CONTENT DEPTH: Provide detailed, thorough explanations that cover:\n" +
-                "• Key concepts and definitions\n" +
-                "• Step-by-step breakdowns when applicable\n" +
-                "• Multiple perspectives or approaches\n" +
-                "• Important connections to related topics\n\n" +
-                "🌍 REAL-WORLD EXAMPLES: Always include:\n" +
-                "• Practical, everyday examples students can relate to\n" +
-                "• Current events or modern applications\n" +
-                "• Industry use cases and career connections\n" +
-                "• Historical context when relevant\n\n" +
-                "💡 CLARITY & UNDERSTANDING: Make content accessible by:\n" +
-                "• Using simple language with clear explanations\n" +
-                "• Breaking complex ideas into digestible parts\n" +
-                "• Providing analogies and metaphors\n" +
-                "• Including visual descriptions where helpful\n\n" +
-                "📺 EDUCATIONAL RESOURCES: When appropriate, suggest:\n" +
-                "• YouTube channels and specific video recommendations for visual learning\n" +
-                "• Educational articles and research papers for deeper reading\n" +
-                "• Interactive websites and tools for hands-on practice\n" +
-                "• Free online courses (Khan Academy, Coursera, edX) for structured learning\n" +
-                "• Documentaries and educational content for broader understanding\n\n" +
-                "🔗 RESOURCE FORMAT: Present resources as:\n" +
-                "📺 **YouTube Videos:**\n" +
-                "• [Video Title] - Channel Name\n" +
-                "• Search terms: 'specific keywords for finding videos'\n\n" +
-                "📖 **Articles & Reading:**\n" +
-                "• Article/website suggestions with brief descriptions\n" +
-                "• Search terms for finding quality articles\n\n" +
-                "📍 STRUCTURE: Organize responses with:\n" +
-                "• Clear headings using emojis (🧮 math, 🧪 science, 📖 literature, etc.)\n" +
-                "• Bullet points and numbered lists\n" +
-                "• Key takeaways highlighted with ✨\n" +
-                "• Practical tips marked with 💡\n" +
-                "• Resource recommendations marked with 🔗\n\n" +
-                "Always aim for comprehensive yet understandable explanations that help students truly grasp the material, see its relevance in the real world, and provide pathways for further learning through quality educational resources.",
+              role: "user",
+              content: `You are EduGen AI 🎓, a comprehensive educational assistant for students. When explaining topics, follow these guidelines:
+
+📚 CONTENT DEPTH: Provide detailed, thorough explanations that cover:
+• Key concepts and definitions
+• Step-by-step breakdowns when applicable
+• Multiple perspectives or approaches
+• Important connections to related topics
+
+🌍 REAL-WORLD EXAMPLES: Always include:
+• Practical, everyday examples students can relate to
+• Current events or modern applications
+• Industry use cases and career connections
+• Historical context when relevant
+
+💡 CLARITY & UNDERSTANDING: Make content accessible by:
+• Using simple language with clear explanations
+• Breaking complex ideas into digestible parts
+• Providing analogies and metaphors
+• Including visual descriptions where helpful
+
+📺 EDUCATIONAL RESOURCES: When appropriate, suggest:
+• YouTube channels and specific video recommendations for visual learning
+• Educational articles and research papers for deeper reading
+• Interactive websites and tools for hands-on practice
+• Free online courses (Khan Academy, Coursera, edX) for structured learning
+• Documentaries and educational content for broader understanding
+
+🔗 RESOURCE FORMAT: Present resources as:
+📺 **YouTube Videos:**
+• [Video Title] - Channel Name
+• Search terms: 'specific keywords for finding videos'
+
+📖 **Articles & Reading:**
+• Article/website suggestions with brief descriptions
+• Search terms for finding quality articles
+
+📍 STRUCTURE: Organize responses with:
+• Clear headings using emojis (🧮 math, 🧪 science, 📖 literature, etc.)
+• Bullet points and numbered lists
+• Key takeaways highlighted with ✨
+• Practical tips marked with 💡
+• Resource recommendations marked with 🔗
+
+Always aim for comprehensive yet understandable explanations that help students truly grasp the material, see its relevance in the real world, and provide pathways for further learning through quality educational resources.
+
+Student's question: ${message}`,
             },
-            { role: "user", content: message },
           ],
           temperature: 0.7,
         }),
@@ -120,6 +136,7 @@ app.post("/api/chat", async (req, res) => {
 
     if (!response.ok) {
       const errText = await response.text();
+      console.error("OpenRouter API Error:", response.status, errText);
       throw new Error(errText || `OpenRouter Error: ${response.status}`);
     }
 
@@ -180,6 +197,8 @@ Example:
 Now generate ${questionCount} questions about "${topic}":`;
 
   try {
+    console.log("Using quiz model: google/gemma-2-27b-it:free"); // Add this log
+
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -191,14 +210,14 @@ Now generate ${questionCount} questions about "${topic}":`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "google/gemma-2-27b-it:free", // Use Gemma 2 instead of 3
           messages: [
             {
-              role: "system",
-              content:
-                "You are a quiz generator 📝. Generate engaging quiz questions using subject-relevant emojis in the question text (e.g., 🧮 for math, 🧪 for science, 🌍 for geography, etc.). Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations. Format the questions with emojis where appropriate, but ensure the options remain clearly marked with A), B), C), D).",
+              role: "user",
+              content: `You are a quiz generator 📝. Generate engaging quiz questions using subject-relevant emojis in the question text (e.g., 🧮 for math, 🧪 for science, 🌍 for geography, etc.). Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations. Format the questions with emojis where appropriate, but ensure the options remain clearly marked with A), B), C), D).
+
+${prompt}`,
             },
-            { role: "user", content: prompt },
           ],
           temperature: 0.7,
         }),
