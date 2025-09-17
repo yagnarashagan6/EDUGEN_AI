@@ -125,6 +125,12 @@ app.post("/api/chat", async (req, res) => {
 
 IMPORTANT: Always provide actual working URLs/links in markdown format [Link Text](URL) so they are clickable. Do not just suggest search terms - give real, specific links to educational content.
 
+CRITICAL: NEVER write "undefined" in any link. Use real URLs like:
+- [GeeksforGeeks](https://www.geeksforgeeks.org/)
+- [W3Schools](https://www.w3schools.com/) 
+- [Khan Academy](https://www.khanacademy.org/)
+- [YouTube](https://www.youtube.com/)
+
 Student's question: ${message}`,
             },
           ],
