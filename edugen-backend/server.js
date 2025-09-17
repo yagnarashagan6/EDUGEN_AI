@@ -4,8 +4,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pdfParse from "pdf-parse";
-import mammoth from "mammoth";
+// import pdfParse from "pdf-parse";
+// import mammoth from "mammoth";
 
 dotenv.config();
 
@@ -58,66 +58,18 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Prompts
-const STUDY_SYSTEM_PROMPT = `You are EduGen AI 🎓, a comprehensive educational assistant for students. When explaining topics, follow these guidelines:
+// --- PROMPTS ---
 
-📚 CONTENT DEPTH: Provide detailed, thorough explanations that cover:
-• Key concepts and definitions
-• Step-by-step breakdowns when applicable
-• Multiple perspectives or approaches
-• Important connections to related topics
+const STUDY_SYSTEM_PROMPT = `You are EduGen AI 🎓, an expert educational assistant. Your goal is to provide clear, concise, and structured answers for exam preparation. Keep all explanations brief and to the point.
 
-🌍 REAL-WORLD EXAMPLES: Always include:
-• Practical, everyday examples students can relate to
-• Current events or modern applications
-• Industry use cases and career connections
-• Historical context when relevant
+Follow this format strictly:
+1.  **📌 Overview:** A 1-2 sentence summary.
+2.  **🔑 Key Concepts:** Define 2-3 core concepts concisely.
+3.  **🌍 Real-World Example:** Provide one brief, clear example.
+4.  **🔗 Connections to Other Topics:** Briefly mention one related topic.
+5.  **✨ Key Takeaway for Exams:** Conclude with a single, powerful sentence starting with "For your exam, remember that...".`;
 
-💡 CLARITY & UNDERSTANDING: Make content accessible by:
-• Using simple language with clear explanations
-• Breaking complex ideas into digestible parts
-• Providing analogies and metaphors
-• Including visual descriptions where helpful
-
-🔗 EDUCATIONAL RESOURCES: Always provide actual clickable links to relevant resources:
-• **YouTube Videos:** Include real YouTube links to specific educational videos related to the topic
-• **GeeksforGeeks:** Provide direct links to relevant GeeksforGeeks articles[](https://www.geeksforgeeks.org/)
-• **W3Schools:** Include links to relevant W3Schools tutorials[](https://www.w3schools.com/)
-• **Khan Academy:** Link to specific Khan Academy lessons when applicable[](https://www.khanacademy.org/)
-• **Other Educational Sites:** Include links to Wikipedia, educational websites, and online courses
-
-🔗 RESOURCE FORMAT:
-📺 **YouTube Videos:**
-• [Specific Video Title](https://www.youtube.com/watch?v=VIDEO_ID) - Channel Name
-• [Another Video Title](https://www.youtube.com/watch?v=VIDEO_ID) - Channel Name
-
-📖 **Articles & Tutorials:**
-• [Article Title](https://www.geeksforgeeks.org/specific-topic/) - GeeksforGeeks
-• [Tutorial Title](https://www.w3schools.com/specific-tutorial/) - W3Schools
-• [Lesson Title](https://www.khanacademy.org/specific-lesson/) - Khan Academy
-
-🔗 **Additional Resources:**
-• [Wikipedia Article](https://en.wikipedia.org/wiki/Topic_Name)
-• [Educational Website](https://example-edu-site.com/topic)
-
-📍 STRUCTURE: Organize responses with:
-• Clear headings using emojis (🧮 math, 🧪 science, 📖 literature, etc.)
-• Bullet points and numbered lists
-• Key takeaways highlighted with ✨
-• Practical tips marked with 💡
-• Resource recommendations marked with 🔗
-
-IMPORTANT: Always provide actual working URLs/links in markdown format [Link Text](URL) so they are clickable. Do not just suggest search terms - give real, specific links to educational content.
-
-CRITICAL: NEVER write "undefined" in any link. Use real URLs like:
-- [GeeksforGeeks](https://www.geeksforgeeks.org/)
-- [W3Schools](https://www.w3schools.com/) 
-- [Khan Academy](https://www.khanacademy.org/)
-- [YouTube](https://www.youtube.com/)
-`;
-
-const TALK_MODE_PROMPT =
-  "You are a casual, friendly assistant. Respond like you're having a normal conversation with a friend. DO NOT use any educational formatting. DO NOT use bullet points. DO NOT use emojis. DO NOT use structured responses. DO NOT give detailed explanations unless specifically asked. Just give a simple, brief, conversational answer. Keep it short and natural.";
+const TALK_MODE_PROMPT = `You are a helpful assistant. Answer the user's question directly and concisely.`;
 
 const RESUME_ANALYSIS_PROMPT = `
 You are an expert HR hiring manager. Analyze the following resume.
@@ -137,7 +89,7 @@ Provide 2 actionable recommendations in a bulleted list.
 `;
 
 const GENERAL_DOC_PROMPT = `
-Use the provided document context to give a short and sweet answer to the user's question. Be direct and concise.
+You are a helpful assistant. Use the provided document context to give a short and sweet answer to the user's question. Be direct and concise.
 
 --- DOCUMENT CONTEXT ---
 {document_text}
@@ -157,16 +109,20 @@ Here are some trusted online resources you can include in your answer if relevan
 // Function to extract text from file
 async function extractTextFromFile(fileData, filename) {
   try {
-    const base64Data = fileData.split(",")[1];
-    const buffer = Buffer.from(base64Data, "base64");
-    if (filename.endsWith(".pdf")) {
-      const data = await pdfParse(buffer);
-      return data.text;
-    } else if (filename.endsWith(".docx")) {
-      const result = await mammoth.extractRawText({ buffer });
-      return result.value;
-    }
+    // Temporarily disabled file processing due to dependency issues
+    console.log(`File processing temporarily disabled: ${filename}`);
     return null;
+
+    // const base64Data = fileData.split(",")[1];
+    // const buffer = Buffer.from(base64Data, "base64");
+    // if (filename.endsWith(".pdf")) {
+    //   const data = await pdfParse(buffer);
+    //   return data.text;
+    // } else if (filename.endsWith(".docx")) {
+    //   const result = await mammoth.extractRawText({ buffer });
+    //   return result.value;
+    // }
+    // return null;
   } catch (e) {
     console.error("Error extracting text:", e);
     return null;
@@ -182,7 +138,7 @@ async function getAIResponse(fullPrompt) {
     "X-Title": "EduGen AI",
   };
   const body = {
-    model: "google/gemma-2-27b-it:free", // Adjusted to valid model; change if needed
+    model: "google/gemma-2-27b-it:free",
     messages: [
       {
         role: "user",
@@ -277,10 +233,10 @@ app.post("/api/chat", async (req, res) => {
         0,
         1000
       )}`;
-      const classFullPrompt = `${TALK_MODE_PROMPT}\n\n${classificationPrompt}`;
-      const isResumeResponse = await getAIResponse(classFullPrompt);
+      const isResumeResponse = await getAIResponse(classificationPrompt);
+
       if (isResumeResponse.toLowerCase().includes("yes")) {
-        fullPrompt = `${RESUME_ANALYSIS_PROMPT}\n\n--- RESUME CONTENT ---\n${extractedText}`;
+        fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\n${RESUME_ANALYSIS_PROMPT}\n\n--- RESUME CONTENT ---\n${extractedText}`;
       } else {
         const docContext = GENERAL_DOC_PROMPT.replace(
           "{document_text}",
@@ -289,16 +245,14 @@ app.post("/api/chat", async (req, res) => {
         if (mode === "study") {
           fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\n${docContext}\n\nPlease include relevant links from the following list if they help explain the topic:\n${RESOURCE_LINKS}`;
         } else {
-          // Talk mode for documents - simple response
-          fullPrompt = `${TALK_MODE_PROMPT}\n\n${docContext}\n\nIMPORTANT: Give only a brief, casual answer like you're texting a friend. No educational formatting, no structure, no detailed explanations.`;
+          fullPrompt = `${TALK_MODE_PROMPT}\n\n${docContext}`;
         }
       }
     } else {
       if (mode === "study") {
-        fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\nStudent's question: ${message}`;
+        fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\nHere is the user's question:\n${message}\n\nPlease include relevant links from the following list if they help explain the topic:\n${RESOURCE_LINKS}`;
       } else {
-        // Talk mode - simple conversational response
-        fullPrompt = `${TALK_MODE_PROMPT}\n\nQuestion: ${message}\n\nIMPORTANT: Give only a brief, casual response like you're texting a friend. No educational content, no detailed explanations, no structure, no emojis.`;
+        fullPrompt = `${TALK_MODE_PROMPT}\n\nUser's question: ${message}`;
       }
     }
 
@@ -368,7 +322,7 @@ Now generate ${questionCount} questions about "${topic}":`;
       "X-Title": "EduGen AI",
     };
     const body = {
-      model: "google/gemma-2-27b-it:free", // Adjusted to valid model
+      model: "google/gemma-2-27b-it:free",
       messages: [
         {
           role: "user",

@@ -28,6 +28,10 @@ const Chatbot = ({
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
+  // Mode selection states
+  const [currentMode, setCurrentMode] = useState("study");
+  const [showModeSelector, setShowModeSelector] = useState(false);
+
   // New states for chat history
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
@@ -320,7 +324,10 @@ const Chatbot = ({
           "Content-Type": "application/json",
         },
         signal: controller.signal,
-        body: JSON.stringify({ message: userMessage.text }),
+        body: JSON.stringify({
+          message: userMessage.text,
+          mode: currentMode,
+        }),
       });
 
       if (response.status === 429) {
@@ -843,7 +850,24 @@ const Chatbot = ({
     setIsFullScreen((prev) => !prev);
   };
 
-  // UPDATED: Click outside handler to close message options
+  // Mode selector functions
+  const handleModeToggle = () => {
+    setShowModeSelector(!showModeSelector);
+  };
+
+  const handleModeSelect = (mode) => {
+    setCurrentMode(mode);
+    setShowModeSelector(false);
+  };
+
+  // Auto-detect if content is from task and set to study mode
+  useEffect(() => {
+    if (copiedTopic && currentMode !== "study") {
+      setCurrentMode("study");
+    }
+  }, [copiedTopic]);
+
+  // UPDATED: Click outside handler to close message options and mode selector
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -853,11 +877,20 @@ const Chatbot = ({
       ) {
         setShowOptionsForMessage(null);
       }
+      if (
+        showModeSelector &&
+        !event.target.closest(".mode-selector-dropdown") &&
+        !event.target.closest(".mode-selector-dropdown-mobile") &&
+        !event.target.closest(".mode-toggle-btn-inside") &&
+        !event.target.closest(".mode-toggle-inside-mobile")
+      ) {
+        setShowModeSelector(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showOptionsForMessage]);
+  }, [showOptionsForMessage, showModeSelector]);
 
   if (!isVisible || isQuizActive) {
     return null;
@@ -1341,19 +1374,161 @@ const Chatbot = ({
             className={
               isMobile ? "input-wrapper-mobile" : "input-wrapper-desktop"
             }
+            style={{ position: "relative" }}
           >
+            <button
+              className={
+                isMobile
+                  ? "mode-toggle-inside-mobile"
+                  : "mode-toggle-btn-inside"
+              }
+              onClick={handleModeToggle}
+              title="Select Mode"
+              style={
+                isMobile
+                  ? {}
+                  : {
+                      position: "absolute",
+                      left: "10px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: currentMode === "study" ? "#4CAF50" : "#2196F3",
+                      cursor: "pointer",
+                      fontSize: "16px",
+                      zIndex: 10,
+                      padding: "0",
+                      width: "20px",
+                      height: "20px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }
+              }
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Type your message..."
+              placeholder={`Type your message... (${
+                currentMode === "study" ? "Study" : "Talk"
+              } Mode)`}
               className={
                 isMobile
                   ? "chat-input-field-mobile"
                   : "chat-input-field-desktop"
               }
+              style={{
+                paddingLeft: isMobile ? "40px" : "40px", // Add padding to make room for the + icon
+              }}
             />
+
+            {showModeSelector && (
+              <div
+                className={
+                  isMobile
+                    ? "mode-selector-dropdown-mobile"
+                    : "mode-selector-dropdown"
+                }
+                style={
+                  isMobile
+                    ? {}
+                    : {
+                        position: "absolute",
+                        bottom: "100%",
+                        left: "10px",
+                        backgroundColor: "white",
+                        border: "2px solid #ddd",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        zIndex: 1000,
+                        minWidth: "150px",
+                        marginBottom: "5px",
+                      }
+                }
+              >
+                <div
+                  className={`${
+                    isMobile ? "mode-option-mobile study-mode" : "mode-option"
+                  } ${currentMode === "study" ? "active" : ""}`}
+                  onClick={() => handleModeSelect("study")}
+                  style={
+                    isMobile
+                      ? {}
+                      : {
+                          padding: "12px 16px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #eee",
+                          backgroundColor:
+                            currentMode === "study" ? "#f0f8ff" : "transparent",
+                          color: currentMode === "study" ? "#4CAF50" : "#333",
+                          fontSize: "14px",
+                          fontWeight:
+                            currentMode === "study" ? "bold" : "normal",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }
+                  }
+                >
+                  <i
+                    className="fas fa-graduation-cap"
+                    style={{ color: "#4CAF50" }}
+                  ></i>
+                  Study Mode
+                  {currentMode === "study" && (
+                    <i
+                      className="fas fa-check"
+                      style={
+                        isMobile ? {} : { marginLeft: "auto", color: "#4CAF50" }
+                      }
+                    ></i>
+                  )}
+                </div>
+                <div
+                  className={`${
+                    isMobile ? "mode-option-mobile talk-mode" : "mode-option"
+                  } ${currentMode === "talk" ? "active" : ""}`}
+                  onClick={() => handleModeSelect("talk")}
+                  style={
+                    isMobile
+                      ? {}
+                      : {
+                          padding: "12px 16px",
+                          cursor: "pointer",
+                          backgroundColor:
+                            currentMode === "talk" ? "#f0f8ff" : "transparent",
+                          color: currentMode === "talk" ? "#2196F3" : "#333",
+                          fontSize: "14px",
+                          fontWeight:
+                            currentMode === "talk" ? "bold" : "normal",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }
+                  }
+                >
+                  <i
+                    className="fas fa-comments"
+                    style={{ color: "#2196F3" }}
+                  ></i>
+                  Talk Mode
+                  {currentMode === "talk" && (
+                    <i
+                      className="fas fa-check"
+                      style={
+                        isMobile ? {} : { marginLeft: "auto", color: "#2196F3" }
+                      }
+                    ></i>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <button
             className={`${isMobile ? "mic-btn-mobile" : "mic-btn-desktop"} ${

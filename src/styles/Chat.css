@@ -803,6 +803,22 @@
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
 }
 
+/* Mode selector styles */
+.mode-selector-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mode-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.mode-selector-dropdown .mode-option:hover {
+  background-color: #f5f5f5 !important;
+}
+
 .input-wrapper-desktop {
   flex: 1;
   display: flex;
@@ -1424,6 +1440,44 @@
     width: 100%;
     box-sizing: border-box;
     flex-shrink: 0;
+  }
+
+  /* Mobile mode selector styles */
+  .mode-toggle-mobile {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 14px !important;
+    margin-right: 6px !important;
+  }
+
+  .input-wrapper-mobile {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border-radius: 20px;
+    padding: 6px 16px;
+    border: 1px solid #e0e0e0;
+  }
+
+  .chat-input-field-mobile {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: #333;
+    padding: 0;
+  }
+
+  .chat-input-field-desktop {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 16px;
+    color: #333;
+    padding: 0;
   }
 
   /* Header styles */
