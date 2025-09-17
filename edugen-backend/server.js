@@ -8,9 +8,6 @@ dotenv.config();
 
 const app = express();
 
-// Trust proxy for rate limiting behind reverse proxy (like Render)
-app.set("trust proxy", 1);
-
 // CORS configuration
 const allowedOrigins = [
   "https://edugen-ai-zeta.vercel.app",
