@@ -16,7 +16,7 @@ const Chatbot = ({
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hi! I'm EduGen AI. Ask me anything from your syllabus for a quick, clear answer.",
+      text: "Hi! I'm EduGen AI. Use Study Mode for detailed answers or Talk Mode for quick chats.",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +31,10 @@ const Chatbot = ({
   // Mode selection states
   const [currentMode, setCurrentMode] = useState("study");
   const [showModeSelector, setShowModeSelector] = useState(false);
+
+  // NEW: State for handling file uploads
+  const [file, setFile] = useState(null); // { name: string, data: base64 string }
+  const fileInputRef = useRef(null);
 
   // New states for chat history
   const [showHistory, setShowHistory] = useState(false);
@@ -236,6 +240,38 @@ const Chatbot = ({
     };
   }, []);
 
+  // NEW: Function to handle file selection
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      // Check for allowed file types
+      if (
+        !selectedFile.name.endsWith(".pdf") &&
+        !selectedFile.name.endsWith(".docx")
+      ) {
+        alert("Please upload a PDF or DOCX file only.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFile({
+          name: selectedFile.name,
+          data: event.target.result, // This will be the base64 string
+        });
+        // Automatically switch to talk mode when a file is uploaded
+        setCurrentMode("talk");
+        alert(
+          `File "${selectedFile.name}" is attached. I've switched to Talk Mode to discuss it with you.`
+        );
+      };
+      reader.onerror = (err) => {
+        console.error("File reading error:", err);
+        alert("Sorry, there was an error reading your file.");
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
 
@@ -273,7 +309,7 @@ const Chatbot = ({
   const isRequestingRef = useRef(false);
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && !file) return;
 
     if (isRequestingRef.current) {
       setMessages((prev) => [
@@ -286,7 +322,10 @@ const Chatbot = ({
       return;
     }
 
-    const userMessage = { sender: "user", text: input };
+    const userMessageText = input.trim();
+    const userMessage = { sender: "user", text: userMessageText };
+
+    // Display the user's message immediately
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -301,7 +340,7 @@ const Chatbot = ({
     }
 
     const quickResponse = getQuickResponse(userMessage.text);
-    if (quickResponse) {
+    if (quickResponse && !file) {
       setMessages((prev) => [...prev, { sender: "bot", text: quickResponse }]);
       setIsLoading(false);
       return;
@@ -312,22 +351,50 @@ const Chatbot = ({
       isRequestingRef.current = false;
     }, 10000);
 
+    // --- ARCHITECTURE SPLIT LOGIC ---
+    const studyApiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat"; // Your deployed Node.js URL
+    const talkApiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat"; // Use same backend for talk mode
+
+    let apiUrl;
+    let requestBody;
+
+    // Both Study and Talk modes use the same backend now
+    if (file) {
+      // File handling - you can implement this in your backend later
+      apiUrl = talkApiUrl;
+      requestBody = {
+        message: userMessageText,
+        mode: "talk",
+        fileData: file.data,
+        filename: file.name,
+      };
+      setFile(null); // Clear the file after sending
+    } else if (currentMode === "study") {
+      apiUrl = studyApiUrl;
+      requestBody = {
+        message: userMessageText,
+        mode: "study",
+      };
+    } else {
+      // talk mode without a file
+      apiUrl = talkApiUrl;
+      requestBody = {
+        message: userMessageText,
+        mode: "talk",
+      };
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     try {
-      const apiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat";
-
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         signal: controller.signal,
-        body: JSON.stringify({
-          message: userMessage.text,
-          mode: currentMode,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.status === 429) {
@@ -345,8 +412,8 @@ const Chatbot = ({
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || `Server error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -504,7 +571,7 @@ const Chatbot = ({
     setMessages([
       {
         sender: "bot",
-        text: "Hi! I'm EduGen AI. Ask me anything from your syllabus for a quick, clear answer.",
+        text: "Hi! I'm EduGen AI. Use Study Mode for detailed answers or Talk Mode for quick chats.",
       },
     ]);
     setCurrentSessionId(null); // Reset current session ID for new chat
@@ -512,6 +579,7 @@ const Chatbot = ({
     setShowHistory(false);
     setSelectedSessions([]);
     setSearchQuery("");
+    setFile(null); // Clear any attached file
   };
 
   // Filter chat history based on search query
@@ -1410,21 +1478,59 @@ const Chatbot = ({
               <i className="fas fa-plus"></i>
             </button>
 
+            {/* NEW: File Attachment Button */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+              accept=".pdf,.docx"
+            />
+            <button
+              className={isMobile ? "attach-btn-mobile" : "attach-btn-desktop"}
+              onClick={() => fileInputRef.current.click()}
+              title="Attach PDF or DOCX"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                position: "absolute",
+                left: isMobile ? "45px" : "45px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "16px",
+                color: file ? "#2196F3" : "#555",
+                zIndex: 10,
+                padding: "0",
+                width: "20px",
+                height: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <i className="fas fa-paperclip"></i>
+            </button>
+
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={`Type your message... (${
-                currentMode === "study" ? "Study" : "Talk"
-              } Mode)`}
+              placeholder={
+                file
+                  ? `Ask about ${file.name}`
+                  : `Type your message... (${
+                      currentMode === "study" ? "Study" : "Talk"
+                    } Mode)`
+              }
               className={
                 isMobile
                   ? "chat-input-field-mobile"
                   : "chat-input-field-desktop"
               }
               style={{
-                paddingLeft: isMobile ? "40px" : "40px", // Add padding to make room for the + icon
+                paddingLeft: isMobile ? "75px" : "75px", // Increased padding for both icons
               }}
             />
 

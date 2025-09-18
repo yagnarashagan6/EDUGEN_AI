@@ -3,9 +3,6 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-// import pdfParse from "pdf-parse";
-// import mammoth from "mammoth";
 
 dotenv.config();
 
@@ -39,7 +36,7 @@ app.use(express.json());
 // Rate limiting configuration
 const apiLimiter = rateLimit({
   windowMs: 15 * 1000, // 15 seconds window
-  max: 2, // limit each IP to 2 requests per windowMs
+  max: 10, // Increased from 2 to allow more requests
   message: { error: "Too many requests, please wait and try again." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -53,221 +50,100 @@ app.use("/api/generate-quiz", apiLimiter);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    version: "1.0.0",
+    version: "1.0.1", // Updated version to verify deployment
     timestamp: new Date().toISOString(),
+    model: "google/gemma-2-27b-it:free", // Show which model we're using
   });
 });
 
-// --- PROMPTS ---
+// Route 1: Chat (Study Mode and Talk Mode using OpenRouter)
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, mode = "study" } = req.body;
 
-const STUDY_SYSTEM_PROMPT = `You are EduGen AI 🎓, an expert educational assistant. Your goal is to provide clear, concise, and structured answers for exam preparation. Keep all explanations brief and to the point.
+    console.log("=== CHAT REQUEST START ===");
+    console.log("Using model: google/gemma-2-27b-it:free");
+    console.log("Message received:", message);
+    console.log("Mode:", mode);
+
+    if (!message || typeof message !== "string" || !message.trim()) {
+      console.log("Invalid message provided:", message);
+      return res.status(400).json({ error: "Valid message is required." });
+    }
+
+    // Different prompts based on mode
+    let promptContent;
+    if (mode === "study") {
+      promptContent = `You are EduGen AI 🎓, an expert educational assistant. Your goal is to provide clear, concise, and structured answers for exam preparation. Keep all explanations brief and to the point.
 
 Follow this format strictly:
 1.  **📌 Overview:** A 1-2 sentence summary.
 2.  **🔑 Key Concepts:** Define 2-3 core concepts concisely.
 3.  **🌍 Real-World Example:** Provide one brief, clear example.
 4.  **🔗 Connections to Other Topics:** Briefly mention one related topic.
-5.  **✨ Key Takeaway for Exams:** Conclude with a single, powerful sentence starting with "For your exam, remember that...".`;
+5.  **✨ Key Takeaway for Exams:** Conclude with a single, powerful sentence starting with "For your exam, remember that...".
 
-const TALK_MODE_PROMPT = `You are a helpful assistant. Answer the user's question directly and concisely.`;
-
-const RESUME_ANALYSIS_PROMPT = `
-You are an expert HR hiring manager. Analyze the following resume.
-Provide a very "short and sweet" analysis. Be direct and use concise language.
-
-**📄 ATS Score & Feedback:**
-Give a score out of 100 and a brief, one-sentence explanation.
-
-**👍 Strengths:**
-List 2 key strengths in a bulleted list.
-
-**👎 Weaknesses:**
-List 2 major weaknesses in a bulleted list.
-
-**💡 Recommendations:**
-Provide 2 actionable recommendations in a bulleted list.
-`;
-
-const GENERAL_DOC_PROMPT = `
-You are a helpful assistant. Use the provided document context to give a short and sweet answer to the user's question. Be direct and concise.
-
---- DOCUMENT CONTEXT ---
-{document_text}
---- END CONTEXT ---
-
-User's Question: {user_question}
-`;
-
-const RESOURCE_LINKS = `
 Here are some trusted online resources you can include in your answer if relevant:
 - GeeksforGeeks: https://www.geeksforgeeks.org/
 - GeeksforGeeks Practice: https://www.geeksforgeeks.org/explore
 - W3Schools: https://www.w3schools.com/
 - YouTube: https://www.youtube.com/
-`;
 
-// Function to extract text from file
-async function extractTextFromFile(fileData, filename) {
-  try {
-    // Temporarily disabled file processing due to dependency issues
-    console.log(`File processing temporarily disabled: ${filename}`);
-    return null;
+Student's question: ${message}`;
+    } else {
+      // Talk mode - more casual and conversational
+      promptContent = `You are EduGen AI, a helpful and friendly assistant. Answer the user's question directly and keep your answer concise and conversational. Be helpful but not overly formal.
 
-    // const base64Data = fileData.split(",")[1];
-    // const buffer = Buffer.from(base64Data, "base64");
-    // if (filename.endsWith(".pdf")) {
-    //   const data = await pdfParse(buffer);
-    //   return data.text;
-    // } else if (filename.endsWith(".docx")) {
-    //   const result = await mammoth.extractRawText({ buffer });
-    //   return result.value;
-    // }
-    // return null;
-  } catch (e) {
-    console.error("Error extracting text:", e);
-    return null;
-  }
-}
+User's question: ${message}`;
+    }
 
-// Function to get AI response with fallback
-async function getAIResponse(fullPrompt) {
-  const headers = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-    "HTTP-Referer": "https://edugen-ai-zeta.vercel.app",
-    "X-Title": "EduGen AI",
-  };
-  const body = {
-    model: "google/gemma-2-27b-it:free",
-    messages: [
-      {
-        role: "user",
-        content: fullPrompt,
-      },
-    ],
-    temperature: 0.7,
-  };
-
-  try {
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         method: "POST",
-        headers,
-        body: JSON.stringify(body),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://edugen-ai-zeta.vercel.app",
+          "X-Title": "EduGen AI",
+        },
+        body: JSON.stringify({
+          model: "google/gemma-2-27b-it:free",
+          messages: [
+            {
+              role: "user",
+              content: promptContent,
+            },
+          ],
+          temperature: mode === "study" ? 0.7 : 0.8, // Slightly more creative for talk mode
+        }),
         timeout: 120000,
       }
     );
 
     if (!response.ok) {
       const errText = await response.text();
-      if (
-        response.status === 429 ||
-        errText.includes("quota") ||
-        errText.includes("rate limit")
-      ) {
-        console.log("OpenRouter quota exceeded, falling back to Gemini.");
-        return await getGeminiResponse(fullPrompt);
-      }
+      console.error("OpenRouter API Error:", response.status, errText);
       throw new Error(errText || `OpenRouter Error: ${response.status}`);
     }
 
     const data = await response.json();
-    return (
-      data.choices?.[0]?.message?.content || "I couldn't generate a response."
-    );
-  } catch (error) {
-    throw error;
-  }
-}
+    const reply =
+      data.choices?.[0]?.message?.content || "I couldn't generate a response.";
 
-// Gemini fallback function
-async function getGeminiResponse(fullPrompt) {
-  const genai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  const model = genai.getGenerativeModel({ model: "gemini-1.5-flash" });
-  const result = await model.generateContent(fullPrompt);
-  return result.response.text();
-}
-
-// Route 1: Chat
-app.post("/api/chat", async (req, res) => {
-  try {
-    const { message, mode = "study", fileData, filename } = req.body;
-
-    if (!message) {
-      return res.status(400).json({ error: "No message provided." });
-    }
-
-    if (
-      message.toLowerCase().includes("time") ||
-      message.toLowerCase().includes("date")
-    ) {
-      const now = new Date();
-      const formatted = now.toLocaleString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-      });
-      return res.json({
-        response: `The current date and time is ${formatted}.`,
-      });
-    }
-
-    let extractedText = null;
-    if (fileData && filename) {
-      extractedText = await extractTextFromFile(fileData, filename);
-      if (!extractedText) {
-        return res.json({
-          response: "Sorry, I could not read the content of the document.",
-        });
-      }
-    }
-
-    let fullPrompt = "";
-    if (extractedText) {
-      const classificationPrompt = `Is the following text a resume or CV? Answer with only 'yes' or 'no'.\n\n${extractedText.substring(
-        0,
-        1000
-      )}`;
-      const isResumeResponse = await getAIResponse(classificationPrompt);
-
-      if (isResumeResponse.toLowerCase().includes("yes")) {
-        fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\n${RESUME_ANALYSIS_PROMPT}\n\n--- RESUME CONTENT ---\n${extractedText}`;
-      } else {
-        const docContext = GENERAL_DOC_PROMPT.replace(
-          "{document_text}",
-          extractedText
-        ).replace("{user_question}", message);
-        if (mode === "study") {
-          fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\n${docContext}\n\nPlease include relevant links from the following list if they help explain the topic:\n${RESOURCE_LINKS}`;
-        } else {
-          fullPrompt = `${TALK_MODE_PROMPT}\n\n${docContext}`;
-        }
-      }
-    } else {
-      if (mode === "study") {
-        fullPrompt = `${STUDY_SYSTEM_PROMPT}\n\nHere is the user's question:\n${message}\n\nPlease include relevant links from the following list if they help explain the topic:\n${RESOURCE_LINKS}`;
-      } else {
-        fullPrompt = `${TALK_MODE_PROMPT}\n\nUser's question: ${message}`;
-      }
-    }
-
-    const reply = await getAIResponse(fullPrompt);
+    console.log("Response received, length:", reply?.length);
     res.status(200).json({ response: reply });
   } catch (error) {
-    console.error("Chat API Error:", error.message);
+    console.error("=== CHAT ERROR ===");
+    console.error("Error message:", error.message);
+    console.error("Error details:", error);
+
     res.status(500).json({
-      error: "Failed to get response from AI",
+      error: "Failed to get response from AI. Please try again.",
       message: error.message,
     });
   }
-});
-
-// Route 2: Quiz Generation
+}); // Route 2: Quiz Generation
 app.post("/api/generate-quiz", async (req, res) => {
   console.log("Quiz generation request received:", req.body);
 
@@ -310,58 +186,43 @@ Example:
 
 Now generate ${questionCount} questions about "${topic}":`;
 
-  const quizSystemPrompt = `You are a quiz generator 📝. Generate engaging quiz questions using subject-relevant emojis in the question text (e.g., 🧮 for math, 🧪 for science, 🌍 for geography, etc.). Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations. Format the questions with emojis where appropriate, but ensure the options remain clearly marked with A), B), C), D).`;
-
-  const fullQuizPrompt = `${quizSystemPrompt}\n\n${prompt}`;
-
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": "https://edugen-ai-zeta.vercel.app",
-      "X-Title": "EduGen AI",
-    };
-    const body = {
-      model: "google/gemma-2-27b-it:free",
-      messages: [
-        {
-          role: "user",
-          content: fullQuizPrompt,
-        },
-      ],
-      temperature: 0.7,
-    };
+    console.log("Using quiz model: google/gemma-2-27b-it:free");
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         method: "POST",
-        headers,
-        body: JSON.stringify(body),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://edugen-ai-zeta.vercel.app",
+          "X-Title": "EduGen AI",
+        },
+        body: JSON.stringify({
+          model: "google/gemma-2-27b-it:free",
+          messages: [
+            {
+              role: "user",
+              content: `You are a quiz generator 📝. Generate engaging quiz questions using subject-relevant emojis in the question text (e.g., 🧮 for math, 🧪 for science, 🌍 for geography, etc.). Return only valid JSON arrays with quiz questions in the exact specified format. Do not include any additional text or explanations. Format the questions with emojis where appropriate, but ensure the options remain clearly marked with A), B), C), D).
+
+${prompt}`,
+            },
+          ],
+          temperature: 0.7,
+        }),
         timeout: 120000,
       }
     );
 
-    let content;
     if (!response.ok) {
       const errText = await response.text();
-      if (
-        response.status === 429 ||
-        errText.includes("quota") ||
-        errText.includes("rate limit")
-      ) {
-        console.log(
-          "OpenRouter quota exceeded for quiz, falling back to Gemini."
-        );
-        content = await getGeminiResponse(fullQuizPrompt);
-      } else {
-        console.error("OpenRouter API Error:", response.status, errText);
-        throw new Error(`API Error: ${response.status} - ${errText}`);
-      }
-    } else {
-      const data = await response.json();
-      content = data.choices?.[0]?.message?.content?.trim();
+      console.error("OpenRouter API Error:", response.status, errText);
+      throw new Error(`API Error: ${response.status} - ${errText}`);
     }
+
+    const data = await response.json();
+    let content = data.choices?.[0]?.message?.content?.trim();
 
     if (!content) throw new Error("Empty response from AI");
 
