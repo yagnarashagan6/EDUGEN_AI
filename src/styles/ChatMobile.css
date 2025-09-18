@@ -320,15 +320,49 @@
   font-style: italic;
 }
 
-.bot-message-mobile a {
-  color: #1a73e8;
+.bot-message-mobile a,
+.message-content a {
+  color: #007bff;
   text-decoration: none;
   font-weight: 500;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+  border-radius: 3px;
+  padding: 1px 2px;
+  /* Ensure the link is clickable on mobile */
+  touch-action: manipulation;
   word-break: break-all;
+  /* Prevent text selection interference - IMPORTANT */
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  /* Mobile tap highlight */
+  -webkit-tap-highlight-color: rgba(0, 123, 255, 0.2);
+  /* Prevent dragging */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
 }
 
-.bot-message-mobile a:hover {
+.bot-message-mobile a:hover,
+.message-content a:hover {
   text-decoration: underline;
+  color: #0056b3;
+  background-color: rgba(0, 123, 255, 0.1);
+  cursor: pointer !important;
+}
+
+/* Ensure links are clickable on mobile devices */
+.bot-message-mobile a:active,
+.message-content a:active {
+  color: #004085;
+  background-color: rgba(0, 123, 255, 0.2);
+  cursor: pointer !important;
 }
 
 /* Fix spacing for nested elements */

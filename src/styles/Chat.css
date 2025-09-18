@@ -1580,6 +1580,8 @@
   min-width: 200px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
+  pointer-events: auto;
+  position: relative;
 }
 
 /* Improve bot message content formatting */
@@ -1651,14 +1653,49 @@
   font-style: italic;
 }
 
-.bot-message-desktop a {
-  color: #1a73e8;
+.bot-message-desktop a,
+.message-content a {
+  color: #007bff;
   text-decoration: none;
   font-weight: 500;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+  pointer-events: auto !important;
+  display: inline;
+  position: relative;
+  z-index: 10;
+  border-radius: 3px;
+  padding: 1px 2px;
+  /* Ensure the link is clickable */
+  touch-action: manipulation;
+  /* Prevent text selection interference - IMPORTANT */
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  /* Ensure proper click behavior */
+  -webkit-tap-highlight-color: rgba(0, 123, 255, 0.2);
+  /* Prevent dragging */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
 }
 
-.bot-message-desktop a:hover {
+.bot-message-desktop a:hover,
+.message-content a:hover {
   text-decoration: underline;
+  color: #0056b3;
+  background-color: rgba(0, 123, 255, 0.1);
+  cursor: pointer !important;
+}
+
+/* Ensure links are clickable on all devices */
+.bot-message-desktop a:active,
+.message-content a:active {
+  color: #004085;
+  background-color: rgba(0, 123, 255, 0.2);
+  cursor: pointer !important;
 }
 
 /* Desktop loading indicator */

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { marked } from "marked";
 import "../styles/Chat.css";
 import "../styles/ChatMobile.css";
 import html2pdf from "html2pdf.js";
@@ -325,6 +324,34 @@ const Chatbot = ({
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
 
+    // Check for time/date related queries
+    if (
+      lowerInput.includes("time") ||
+      lowerInput.includes("date") ||
+      lowerInput.includes("today") ||
+      lowerInput.includes("now") ||
+      lowerInput.includes("current time") ||
+      lowerInput.includes("current date") ||
+      lowerInput.includes("what time is it") ||
+      lowerInput.includes("what's the time") ||
+      lowerInput.includes("what date is it") ||
+      lowerInput.includes("what's the date")
+    ) {
+      const now = new Date();
+      const formatted = now.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true,
+        timeZoneName: "short",
+      });
+      return `📅 **Current Date and Time**\n\n🕐 ${formatted}`;
+    }
+
     if (
       lowerInput.includes("coxco") ||
       lowerInput.includes("agni student portal")
@@ -336,6 +363,25 @@ const Chatbot = ({
     }
     if (lowerInput.includes("pdf")) {
       return "Use this PDF tool: https://www.ilovepdf.com/";
+    }
+
+    // GeeksforGeeks support
+    if (
+      lowerInput.includes("geeks for geeks") ||
+      lowerInput.includes("geeksforgeeks") ||
+      lowerInput.includes("gfg") ||
+      (lowerInput.includes("geeks") && lowerInput.includes("programming"))
+    ) {
+      return "🚀 **GeeksforGeeks** - Your go-to programming resource!\n\n📚 **Main Website**: [GeeksforGeeks](https://www.geeksforgeeks.org/)\n\n💻 **What you'll find:**\n• Programming tutorials & articles\n• Data Structures & Algorithms\n• Interview preparation\n• Coding practice problems\n• Programming language guides\n• Computer Science fundamentals\n\n🎯 **Popular Sections:**\n• [DSA Tutorial](https://www.geeksforgeeks.org/data-structures/)\n• [Interview Questions](https://www.geeksforgeeks.org/company-interview-corner/)\n• [Practice Portal](https://practice.geeksforgeeks.org/)";
+    }
+
+    // Instagram support
+    if (
+      lowerInput.includes("instagram") ||
+      lowerInput.includes("insta") ||
+      (lowerInput.includes("social") && lowerInput.includes("media"))
+    ) {
+      return "📸 **Instagram** - Share your moments!\n\n🌍 **Main Website**: [Instagram](https://www.instagram.com/)\n\n📱 **What you can do:**\n• Share photos and videos\n• Connect with friends and family\n• Follow your favorite accounts\n• Explore trending content\n• Create and watch Stories\n• Shop from your favorite brands\n\n📲 **Get the App:**\n• [iOS App Store](https://apps.apple.com/app/instagram/id389801252)\n• [Google Play Store](https://play.google.com/store/apps/details?id=com.instagram.android)";
     }
 
     if (
@@ -527,6 +573,11 @@ const Chatbot = ({
   };
 
   const handleMessageClick = (e, index, message) => {
+    // Don't handle click if user clicked on a link
+    if (e.target.tagName === "A" || e.target.closest("a")) {
+      return;
+    }
+
     if (message.sender === "bot") {
       if (showOptionsForMessage === index) {
         setShowOptionsForMessage(null);
@@ -902,103 +953,53 @@ const Chatbot = ({
 
     const filename = extractTopicForFilename(lastUserMessage);
 
+    // NOTE: Uses a custom markdown parser here instead of the 'marked' library
+    // to ensure consistency with the chat view.
+    const renderContentForPdf = (text) => {
+      // This is a simplified version of the main renderMessageContent logic
+      let html = text;
+
+      // Basic markdown conversions
+      html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>"); // Bold
+      html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>"); // Italic
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>'); // Markdown links
+      html = html.replace(
+        /([A-Za-z0-9 \-._,&:]{1,200}?)\s*\((https?:\/\/[^\s)]+)\)/g,
+        (match, textPart, url) => {
+          if (/^\[.*\]\(|<a\s+/i.test(match)) return match;
+          return `<a href="${url}">${textPart.trim()}</a>`;
+        }
+      ); // Text (URL) links
+      html = html.replace(
+        /(?<!href="|">)(https?:\/\/[^\s<>"]+)(?!<\/a>)/g,
+        '<a href="$1">$1</a>'
+      ); // Standalone URLs
+      html = html.replace(/\n/g, "<br>"); // Line breaks
+
+      return html;
+    };
+
     const element = document.createElement("div");
     element.innerHTML = `
       <style>
-        .pdf-download-container {
-          font-family: Arial, sans-serif;
-          padding: 20px;
-          line-height: 1.6;
-          color: #333;
-        }
-        .pdf-message {
-          margin-bottom: 15px;
-          padding: 12px;
-          border-radius: 8px;
-          word-wrap: break-word;
-          page-break-inside: avoid;
-        }
-        .pdf-user-message {
-          background-color: #e6f7ff;
-          text-align: right;
-          color: #000;
-          border-left: 4px solid #1890ff;
-        }
-        .pdf-chatbot-message {
-          background-color: #f9f9f9;
-          text-align: left;
-          color: #000;
-          border-left: 4px solid #52c41a;
-        }
-        .pdf-message-sender {
-          font-weight: bold;
-          margin-bottom: 8px;
-          font-size: 14px;
-        }
-        .pdf-message-content {
-          font-size: 13px;
-          line-height: 1.5;
-          user-select: text;
-          -webkit-user-select: text;
-          -moz-user-select: text;
-          -ms-user-select: text;
-        }
-        .pdf-message-content p {
-          margin: 8px 0;
-          padding: 0;
-        }
-        .pdf-message-content h1, .pdf-message-content h2, .pdf-message-content h3 {
-          margin: 12px 0 8px 0;
-          color: #333;
-        }
-        .pdf-message-content ul, .pdf-message-content ol {
-          margin: 8px 0;
-          padding-left: 20px;
-        }
-        .pdf-message-content li {
-          margin: 4px 0;
-        }
-        .pdf-message-content code {
-          background-color: #f5f5f5;
-          padding: 2px 4px;
-          border-radius: 3px;
-          font-family: 'Courier New', monospace;
-        }
-        .pdf-message-content pre {
-          background-color: #f5f5f5;
-          padding: 10px;
-          border-radius: 5px;
-          overflow-x: auto;
-          margin: 8px 0;
-        }
-        .pdf-message-content blockquote {
-          margin: 8px 0;
-          padding: 8px 16px;
-          background-color: #f0f0f0;
-          border-left: 4px solid #ddd;
-        }
-        .pdf-header {
-          text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 2px solid #1890ff;
-          padding-bottom: 20px;
-        }
-        .pdf-header h1 {
-          color: #1890ff;
-          margin: 0;
-          font-size: 24px;
-        }
-        .pdf-header p {
-          color: #666;
-          margin: 5px 0 0 0;
-          font-size: 14px;
-        }
-        * {
-          user-select: text !important;
-          -webkit-user-select: text !important;
-          -moz-user-select: text !important;
-          -ms-user-select: text !important;
-        }
+        .pdf-download-container { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #333; }
+        .pdf-message { margin-bottom: 15px; padding: 12px; border-radius: 8px; word-wrap: break-word; page-break-inside: avoid; }
+        .pdf-user-message { background-color: #e6f7ff; text-align: right; color: #000; border-left: 4px solid #1890ff; }
+        .pdf-chatbot-message { background-color: #f9f9f9; text-align: left; color: #000; border-left: 4px solid #52c41a; }
+        .pdf-message-sender { font-weight: bold; margin-bottom: 8px; font-size: 14px; }
+        .pdf-message-content { font-size: 13px; line-height: 1.5; user-select: text; -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; }
+        .pdf-message-content p { margin: 8px 0; padding: 0; }
+        .pdf-message-content h1, .pdf-message-content h2, .pdf-message-content h3 { margin: 12px 0 8px 0; color: #333; }
+        .pdf-message-content ul, .pdf-message-content ol { margin: 8px 0; padding-left: 20px; }
+        .pdf-message-content li { margin: 4px 0; }
+        .pdf-message-content code { background-color: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: 'Courier New', monospace; }
+        .pdf-message-content pre { background-color: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; margin: 8px 0; }
+        .pdf-message-content blockquote { margin: 8px 0; padding: 8px 16px; background-color: #f0f0f0; border-left: 4px solid #ddd; }
+        .pdf-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1890ff; padding-bottom: 20px; }
+        .pdf-header h1 { color: #1890ff; margin: 0; font-size: 24px; }
+        .pdf-header p { color: #666; margin: 5px 0 0 0; font-size: 14px; }
+        * { user-select: text !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; }
+        a { color: #1890ff; text-decoration: underline; }
       </style>
       <div class="pdf-download-container">
         <div class="pdf-header">
@@ -1014,7 +1015,9 @@ const Chatbot = ({
             <div class="pdf-message-sender">${
               msg.sender === "user" ? "You" : "EduGen AI"
             }:</div>
-            <div class="pdf-message-content">${marked.parse(msg.text)}</div>
+            <div class="pdf-message-content">${renderContentForPdf(
+              msg.text
+            )}</div>
           </div>
         `
           )
@@ -1047,50 +1050,123 @@ const Chatbot = ({
     setShowOptionsForMessage(null);
   };
 
+  // --- IMPROVED FUNCTION ---
   const renderMessageContent = (text) => {
-    // Configure marked for better rendering
-    const renderer = new marked.Renderer();
+    // Simple and reliable markdown-to-HTML converter
+    const processMarkdown = (str) => {
+      // First, protect existing HTML links from being double-processed
+      const protectedLinks = [];
+      str = str.replace(/<a[^>]*>.*?<\/a>/g, (match, offset) => {
+        protectedLinks.push(match);
+        return `__PROTECTED_LINK_${protectedLinks.length - 1}__`;
+      });
 
-    // Improve link rendering
-    renderer.link = (href, title, text) => {
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${
-        title || text
-      }">${text}</a>`;
+      // Convert markdown links [text](url) to HTML links
+      str = str.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      );
+
+      // Convert patterns like: Name (https://example.com) => <a href="https://example.com">Name</a>
+      // This makes plain-text mentions with parenthesized URLs clickable using the preceding text as link text.
+      str = str.replace(
+        /([A-Za-z0-9 \-._,&:()'"\s]{1,200}?)\s*\((https?:\/\/[^\s)]+)\)/g,
+        (match, textPart, url) => {
+          // Avoid converting if it's already a markdown-style link or HTML anchor
+          if (/^\[.*\]\(|<a\s+/i.test(match)) return match;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${textPart.trim()}</a>`;
+        }
+      );
+
+      // Convert standalone URLs to clickable links (avoid double linking)
+      str = str.replace(
+        /(?<!href="|">)(https?:\/\/[^\s<>"]+)(?!<\/a>)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      );
+
+      // Convert **bold** text
+      str = str.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+      // Convert *italic* text (but not ** which we already handled)
+      str = str.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+
+      // Convert line breaks to <br> but preserve paragraph structure
+      str = str.replace(/\n\n+/g, "</p><p>");
+      str = str.replace(/\n/g, "<br>");
+
+      // Wrap in paragraph tags if not already wrapped
+      if (!str.startsWith("<p>")) {
+        str = "<p>" + str + "</p>";
+      }
+
+      // Convert bullet points (• or -)
+      str = str.replace(/^[•-]\s*(.+)$/gm, "<li>$1</li>");
+
+      // Wrap consecutive list items in <ul> and remove from paragraphs
+      str = str.replace(/<p>(<li>.*?<\/li>)<\/p>/gs, "<ul>$1</ul>");
+      str = str.replace(/(<li>.*<\/li>)(?=\s*<li>)/gs, (match) => {
+        return match.replace(/<\/li>\s*<li>/g, "</li><li>");
+      });
+
+      // Clean up any remaining isolated list items
+      str = str.replace(/(<li>.*?<\/li>)(?!\s*<li>|<\/ul>)/gs, "<ul>$1</ul>");
+
+      // Restore protected links
+      protectedLinks.forEach((link, index) => {
+        str = str.replace(`__PROTECTED_LINK_${index}__`, link);
+      });
+
+      return str;
     };
 
-    // Improve code block rendering
-    renderer.code = (code, language) => {
-      return `<pre><code class="language-${
-        language || "text"
-      }">${code}</code></pre>`;
-    };
+    const htmlContent = processMarkdown(text);
 
-    // Configure marked options
-    marked.setOptions({
-      renderer: renderer,
-      breaks: true,
-      gfm: true,
-      sanitize: false,
-      smartLists: true,
-      smartypants: true,
-    });
-
-    const parsedContent = marked.parse(text);
+    // Ensure anchor tags open in a new tab and are safe
+    const patchedHtml = htmlContent.replace(
+      /<a\s+([^>]*?)>/gi,
+      (match, attrs) => {
+        if (/target=/i.test(attrs) || /rel=/i.test(attrs)) return match;
+        return `<a ${attrs} target="_blank" rel="noopener noreferrer">`;
+      }
+    );
 
     return (
       <div
         className="message-content"
-        dangerouslySetInnerHTML={{ __html: parsedContent }}
+        dangerouslySetInnerHTML={{ __html: patchedHtml }}
+        onClick={(e) => {
+          // If an anchor (or child of one) was clicked, let it handle the navigation naturally
+          let node = e.target;
+          while (node && node.nodeType === 1 && node.tagName !== "A") {
+            node = node.parentElement;
+          }
+          if (node && node.tagName === "A" && node.href) {
+            // Let the link handle navigation naturally - don't prevent default
+            e.stopPropagation(); // Only stop propagation to prevent message click handler
+            return; // Let the browser handle the link click naturally
+          }
+        }}
         style={{
           fontSize: "inherit",
           lineHeight: "inherit",
           wordWrap: "break-word",
           wordBreak: "break-word",
           overflowWrap: "break-word",
-          userSelect: "text", // Enable text selection
+          userSelect: "text",
           WebkitUserSelect: "text",
           MozUserSelect: "text",
           msUserSelect: "text",
+          pointerEvents: "auto",
+        }}
+        onMouseDown={(e) => {
+          // Prevent text selection on links to avoid cursor blinking
+          let node = e.target;
+          while (node && node.nodeType === 1 && node.tagName !== "A") {
+            node = node.parentElement;
+          }
+          if (node && node.tagName === "A") {
+            e.preventDefault();
+          }
         }}
       />
     );
@@ -1487,6 +1563,39 @@ const Chatbot = ({
           @keyframes slideOut {
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
+          }
+          
+          /* Ensure links in chat messages are properly styled and clickable */
+          .message-content a {
+            color: #1890ff !important;
+            text-decoration: underline !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            z-index: 999 !important;
+            position: relative !important;
+          }
+          
+          .message-content a:hover {
+            color: #40a9ff !important;
+            text-decoration: underline !important;
+          }
+          
+          .message-content a:visited {
+            color: #722ed1 !important;
+          }
+          
+          /* Ensure message content allows pointer events */
+          .message-content {
+            pointer-events: auto !important;
+          }
+          
+          /* Ensure messages don't block link clicks */
+          .message {
+            pointer-events: auto !important;
+          }
+          
+          .bot-message-mobile, .bot-message-desktop {
+            pointer-events: auto !important;
           }
         `}
       </style>
