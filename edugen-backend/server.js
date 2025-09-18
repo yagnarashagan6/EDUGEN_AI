@@ -50,9 +50,9 @@ app.use("/api/generate-quiz", apiLimiter);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    version: "1.0.1", // Updated version to verify deployment
+    version: "1.0.2", // Updated version to verify deployment
     timestamp: new Date().toISOString(),
-    model: "microsoft/phi-3-mini-128k-instruct:free", // Show which model we're using
+    model: "google/gemma-3-27b-it:free", // Show which model we're using
   });
 });
 
@@ -71,7 +71,7 @@ app.post("/api/chat", async (req, res) => {
     const { message } = req.body;
 
     console.log("=== STUDY MODE REQUEST ===");
-    console.log("Using model: microsoft/phi-3-mini-128k-instruct:free");
+    console.log("Using model: google/gemma-3-27b-it:free");
     console.log("Message received:", message);
 
     if (!message || typeof message !== "string" || !message.trim()) {
@@ -108,7 +108,7 @@ Student's question: ${message}`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "microsoft/phi-3-mini-128k-instruct:free",
+          model: "google/gemma-3-27b-it:free",
           messages: [
             {
               role: "user",
@@ -187,7 +187,7 @@ Example:
 Now generate ${questionCount} questions about "${topic}":`;
 
   try {
-    console.log("Using quiz model: microsoft/phi-3-mini-128k-instruct:free");
+    console.log("Using quiz model: google/gemma-3-27b-it:free");
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -200,7 +200,7 @@ Now generate ${questionCount} questions about "${topic}":`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "microsoft/phi-3-mini-128k-instruct:free",
+          model: "google/gemma-3-27b-it:free",
           messages: [
             {
               role: "user",
