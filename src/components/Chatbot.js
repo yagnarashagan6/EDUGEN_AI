@@ -352,35 +352,34 @@ const Chatbot = ({
     }, 10000);
 
     // --- ARCHITECTURE SPLIT LOGIC ---
-    const studyApiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat"; // Your deployed Node.js URL
-    const talkApiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat"; // Use same backend for talk mode
+    const studyApiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat"; // Node.js server for Study Mode
+    const talkApiUrl = "https://edugen-python-backend.onrender.com/chat"; // Python server for Talk Mode (you'll deploy this)
 
     let apiUrl;
     let requestBody;
 
-    // Both Study and Talk modes use the same backend now
+    // Use different backends based on mode
     if (file) {
-      // File handling - you can implement this in your backend later
+      // File handling - always use Python backend
       apiUrl = talkApiUrl;
       requestBody = {
         message: userMessageText,
-        mode: "talk",
         fileData: file.data,
         filename: file.name,
       };
       setFile(null); // Clear the file after sending
     } else if (currentMode === "study") {
+      // Study mode uses Node.js backend
       apiUrl = studyApiUrl;
       requestBody = {
         message: userMessageText,
         mode: "study",
       };
     } else {
-      // talk mode without a file
+      // Talk mode uses Python backend
       apiUrl = talkApiUrl;
       requestBody = {
         message: userMessageText,
-        mode: "talk",
       };
     }
 

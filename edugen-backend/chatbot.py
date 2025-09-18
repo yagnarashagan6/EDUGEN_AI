@@ -8,15 +8,13 @@ import random
 import google.generativeai as genai
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
 import PyPDF2
 from docx import Document
 
-load_dotenv()
 app = Flask(__name__)
-CORS(app) # Allow requests from your frontend
+CORS(app, origins=["https://edugen-ai-zeta.vercel.app", "http://localhost:3000"])
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', 'AIzaSyDJQsaP2sY1KxQWP1x3Q1z3Q1z3Q1z3Q1z')
 if not GOOGLE_API_KEY:
     print("Error: GOOGLE_API_KEY environment variable not set.")
     sys.exit(1)
@@ -25,10 +23,14 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 try:
     # Using a fast and capable model suitable for conversation and analysis
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
 except Exception as e:
     print(f"Error initializing Gemini model: {e}")
     sys.exit(1)
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "service": "EduGen Python Backend (Talk Mode)"})
 
 # --- PROMPTS (Specialized for Talk and Document Analysis) ---
 
@@ -100,44 +102,55 @@ def get_gemini_response(full_prompt):
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    data = request.json
-    user_message = data.get("message", "")
-    file_data = data.get("fileData")
-    filename = data.get("filename")
+    try:
+        data = request.json
+        user_message = data.get("message", "")
+        file_data = data.get("fileData")
+        filename = data.get("filename")
 
-    if not user_message and not (file_data and filename):
-        return jsonify({"error": "No message or file provided."}), 400
+        print("=== TALK MODE REQUEST ===")
+        print(f"Message: {user_message}")
+        print(f"File data provided: {bool(file_data)}")
+        print(f"Filename: {filename}")
 
-    if file_data and filename:
-        extracted_text = extract_text_from_file(file_data, filename)
-        if not extracted_text:
-            return jsonify({"response": "Sorry, I could not read the content of the document."})
-        
-        # Classify if it's a resume to use the specialized prompt
-        classification_prompt = f"Is the following text a resume or CV? Answer with only 'yes' or 'no'.\n\n{extracted_text[:1000]}"
-        is_resume_response = get_gemini_response(classification_prompt).strip().lower()
+        if not user_message and not (file_data and filename):
+            return jsonify({"error": "No message or file provided."}), 400
 
-        if 'yes' in is_resume_response:
-            # If user asks a question with resume, use general doc prompt, otherwise analyze it
-            if user_message:
-                 final_prompt = GENERAL_DOC_PROMPT.format(document_text=extracted_text, user_question=user_message)
-            else:
-                 final_prompt = f"{RESUME_ANALYSIS_PROMPT}\n\n--- RESUME CONTENT ---\n{extracted_text}"
-        else:
-            final_prompt = GENERAL_DOC_PROMPT.format(document_text=extracted_text, user_question=user_message)
-        
-        response_text = get_gemini_response(final_prompt)
-    else:
-        # This is the simple talk mode path
-        if "time" in user_message.lower() or "date" in user_message.lower():
-            now = datetime.datetime.now()
-            return jsonify({"response": f"The current date and time is {now.strftime('%A, %B %d, %Y, %I:%M %p')}."})
+        if file_data and filename:
+            extracted_text = extract_text_from_file(file_data, filename)
+            if not extracted_text:
+                return jsonify({"response": "Sorry, I could not read the content of the document."})
             
-        final_prompt = f"{TALK_MODE_PROMPT}\n\nUser's question: {user_message}"
-        response_text = get_gemini_response(final_prompt)
-        
-    return jsonify({"response": response_text})
+            # Classify if it's a resume to use the specialized prompt
+            classification_prompt = f"Is the following text a resume or CV? Answer with only 'yes' or 'no'.\n\n{extracted_text[:1000]}"
+            is_resume_response = get_gemini_response(classification_prompt).strip().lower()
+
+            if 'yes' in is_resume_response:
+                # If user asks a question with resume, use general doc prompt, otherwise analyze it
+                if user_message:
+                     final_prompt = GENERAL_DOC_PROMPT.format(document_text=extracted_text, user_question=user_message)
+                else:
+                     final_prompt = f"{RESUME_ANALYSIS_PROMPT}\n\n--- RESUME CONTENT ---\n{extracted_text}"
+            else:
+                final_prompt = GENERAL_DOC_PROMPT.format(document_text=extracted_text, user_question=user_message)
+            
+            response_text = get_gemini_response(final_prompt)
+        else:
+            # This is the simple talk mode path
+            if "time" in user_message.lower() or "date" in user_message.lower():
+                now = datetime.datetime.now()
+                return jsonify({"response": f"The current date and time is {now.strftime('%A, %B %d, %Y, %I:%M %p')}."})
+                
+            final_prompt = f"{TALK_MODE_PROMPT}\n\nUser's question: {user_message}"
+            response_text = get_gemini_response(final_prompt)
+            
+        return jsonify({"response": response_text})
+    
+    except Exception as e:
+        print(f"Error in chat endpoint: {str(e)}")
+        return jsonify({"error": "Failed to process request"}), 500
 
 if __name__ == '__main__':
     # Make sure to run on a port, e.g., 5000, that your frontend will call
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

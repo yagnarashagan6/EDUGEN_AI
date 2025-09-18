@@ -52,29 +52,35 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     version: "1.0.1", // Updated version to verify deployment
     timestamp: new Date().toISOString(),
-    model: "google/gemma-2-27b-it:free", // Show which model we're using
+    model: "meta-llama/llama-3.1-8b-instruct:free", // Show which model we're using
   });
 });
 
-// Route 1: Chat (Study Mode and Talk Mode using OpenRouter)
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    service: "EduGen Node.js Backend (Study Mode)",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Route 1: Chat (Study Mode ONLY using OpenRouter)
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message, mode = "study" } = req.body;
+    const { message } = req.body;
 
-    console.log("=== CHAT REQUEST START ===");
-    console.log("Using model: google/gemma-2-27b-it:free");
+    console.log("=== STUDY MODE REQUEST ===");
+    console.log("Using model: meta-llama/llama-3.1-8b-instruct:free");
     console.log("Message received:", message);
-    console.log("Mode:", mode);
 
     if (!message || typeof message !== "string" || !message.trim()) {
       console.log("Invalid message provided:", message);
       return res.status(400).json({ error: "Valid message is required." });
     }
 
-    // Different prompts based on mode
-    let promptContent;
-    if (mode === "study") {
-      promptContent = `You are EduGen AI 🎓, an expert educational assistant. Your goal is to provide clear, concise, and structured answers for exam preparation. Keep all explanations brief and to the point.
+    // Study mode prompt only
+    const promptContent = `You are EduGen AI 🎓, an expert educational assistant. Your goal is to provide clear, concise, and structured answers for exam preparation. Keep all explanations brief and to the point.
 
 Follow this format strictly:
 1.  **📌 Overview:** A 1-2 sentence summary.
@@ -90,12 +96,6 @@ Here are some trusted online resources you can include in your answer if relevan
 - YouTube: https://www.youtube.com/
 
 Student's question: ${message}`;
-    } else {
-      // Talk mode - more casual and conversational
-      promptContent = `You are EduGen AI, a helpful and friendly assistant. Answer the user's question directly and keep your answer concise and conversational. Be helpful but not overly formal.
-
-User's question: ${message}`;
-    }
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -108,14 +108,14 @@ User's question: ${message}`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "google/gemma-2-27b-it:free",
+          model: "meta-llama/llama-3.1-8b-instruct:free",
           messages: [
             {
               role: "user",
               content: promptContent,
             },
           ],
-          temperature: mode === "study" ? 0.7 : 0.8, // Slightly more creative for talk mode
+          temperature: 0.7,
         }),
         timeout: 120000,
       }
@@ -134,7 +134,7 @@ User's question: ${message}`;
     console.log("Response received, length:", reply?.length);
     res.status(200).json({ response: reply });
   } catch (error) {
-    console.error("=== CHAT ERROR ===");
+    console.error("=== STUDY MODE ERROR ===");
     console.error("Error message:", error.message);
     console.error("Error details:", error);
 
@@ -187,7 +187,7 @@ Example:
 Now generate ${questionCount} questions about "${topic}":`;
 
   try {
-    console.log("Using quiz model: google/gemma-2-27b-it:free");
+    console.log("Using quiz model: meta-llama/llama-3.1-8b-instruct:free");
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -200,7 +200,7 @@ Now generate ${questionCount} questions about "${topic}":`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "google/gemma-2-27b-it:free",
+          model: "meta-llama/llama-3.1-8b-instruct:free",
           messages: [
             {
               role: "user",
