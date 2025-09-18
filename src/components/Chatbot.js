@@ -4,6 +4,18 @@ import "../styles/Chat.css";
 import "../styles/ChatMobile.css";
 import html2pdf from "html2pdf.js";
 
+// =============== BACKEND CONFIGURATION ===============
+// Backend URLs for different modes
+const BACKEND_URLS = {
+  STUDY_MODE: "https://edugen-backend-zbjr.onrender.com/api/chat", // Node.js backend for Study Mode
+  TALK_MODE: "https://edugen-ai-backend.onrender.com/api/chat", // Python backend for Talk Mode
+
+  // Talk Mode Additional Endpoints
+  SPEECH_TO_TEXT: "https://edugen-ai-backend.onrender.com/api/speech-to-text",
+  TEXT_TO_SPEECH: "https://edugen-ai-backend.onrender.com/api/text-to-speech",
+};
+// =====================================================
+
 const Chatbot = ({
   isVisible,
   copiedTopic,
@@ -31,6 +43,10 @@ const Chatbot = ({
   // Mode selection states
   const [currentMode, setCurrentMode] = useState("study");
   const [showModeSelector, setShowModeSelector] = useState(false);
+  const [backendStatus, setBackendStatus] = useState({
+    study: "unknown",
+    talk: "unknown",
+  });
 
   // NEW: State for handling file uploads
   const [file, setFile] = useState(null); // { name: string, data: base64 string }
@@ -55,6 +71,32 @@ const Chatbot = ({
   const longPressTimeout = useRef(null);
   const synth = useRef(window.speechSynthesis);
   const recognition = useRef(null);
+
+  // Function to check backend health
+  const checkBackendHealth = async () => {
+    const checkHealth = async (url, mode) => {
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          timeout: 5000,
+        });
+        return response.ok ? "online" : "offline";
+      } catch (error) {
+        return "offline";
+      }
+    };
+
+    const studyHealth = await checkHealth(
+      "https://edugen-backend-zbjr.onrender.com/api/health",
+      "study"
+    );
+    const talkHealth = await checkHealth(
+      "https://edugen-ai-backend.onrender.com/api/health",
+      "talk"
+    );
+
+    setBackendStatus({ study: studyHealth, talk: talkHealth });
+  };
 
   // Initialize speech recognition
   useEffect(() => {
@@ -93,6 +135,14 @@ const Chatbot = ({
         recognition.current.abort();
       }
     };
+  }, []);
+
+  // Check backend health on component mount
+  useEffect(() => {
+    checkBackendHealth();
+    // Recheck every 5 minutes
+    const interval = setInterval(checkBackendHealth, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Load chat history from localStorage on component mount
@@ -352,8 +402,8 @@ const Chatbot = ({
     }, 10000);
 
     // --- ARCHITECTURE SPLIT LOGIC ---
-    const studyApiUrl = "https://edugen-backend-zbjr.onrender.com/api/chat"; // Node.js server for Study Mode
-    const talkApiUrl = "https://edugen-python-backend.onrender.com/chat"; // Python server for Talk Mode (you'll deploy this)
+    const studyApiUrl = BACKEND_URLS.STUDY_MODE; // Node.js server for Study Mode
+    const talkApiUrl = BACKEND_URLS.TALK_MODE; // Python server for Talk Mode
 
     let apiUrl;
     let requestBody;
@@ -361,6 +411,19 @@ const Chatbot = ({
     // Use different backends based on mode
     if (file) {
       // File handling - always use Python backend
+      if (talkApiUrl.includes("YOUR_PYTHON_BACKEND_URL_HERE")) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: "File processing is not available yet. Please update the BACKEND_URLS.TALK_MODE in the code with your deployed Python backend URL.",
+          },
+        ]);
+        setIsLoading(false);
+        isRequestingRef.current = false;
+        clearTimeout(lockTimeout);
+        return;
+      }
       apiUrl = talkApiUrl;
       requestBody = {
         message: userMessageText,
@@ -377,6 +440,19 @@ const Chatbot = ({
       };
     } else {
       // Talk mode uses Python backend
+      if (talkApiUrl.includes("YOUR_PYTHON_BACKEND_URL_HERE")) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: "Talk Mode backend is not configured yet. Please update the BACKEND_URLS.TALK_MODE in the code with your deployed Python backend URL.",
+          },
+        ]);
+        setIsLoading(false);
+        isRequestingRef.current = false;
+        clearTimeout(lockTimeout);
+        return;
+      }
       apiUrl = talkApiUrl;
       requestBody = {
         message: userMessageText,
@@ -590,14 +666,51 @@ const Chatbot = ({
       )
   );
 
-  const handleReadAloud = (text) => {
+  const handleReadAloud = async (text) => {
     if (synth.current.speaking) {
       synth.current.cancel();
     }
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    synth.current.speak(utterance);
+
+    // Use Python backend for talk mode, browser synthesis for study mode
+    if (currentMode === "talk") {
+      try {
+        setIsSpeaking(true);
+        const response = await fetch(BACKEND_URLS.TEXT_TO_SPEECH, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const audio = new Audio(`data:audio/mp3;base64,${data.audio}`);
+          audio.onended = () => setIsSpeaking(false);
+          audio.onerror = () => {
+            setIsSpeaking(false);
+            console.error("Audio playback failed");
+          };
+          await audio.play();
+        } else {
+          throw new Error("TTS request failed");
+        }
+      } catch (error) {
+        console.error("Text-to-speech error:", error);
+        setIsSpeaking(false);
+        // Fallback to browser TTS
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        synth.current.speak(utterance);
+      }
+    } else {
+      // Use browser TTS for study mode
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      synth.current.speak(utterance);
+    }
     setShowOptionsForMessage(null);
   };
 
@@ -606,26 +719,97 @@ const Chatbot = ({
       synth.current.cancel();
       setIsSpeaking(false);
     }
+
+    // Also stop any HTML5 audio elements (from backend TTS)
+    const audioElements = document.querySelectorAll("audio");
+    audioElements.forEach((audio) => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+
+    setIsSpeaking(false);
     setShowOptionsForMessage(null);
   };
 
-  const handleSpeechToText = () => {
-    if (!recognition.current) {
-      alert(
-        "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari."
-      );
-      return;
-    }
+  const handleSpeechToText = async () => {
+    // For talk mode, use advanced speech recognition with backend
+    if (currentMode === "talk") {
+      if (isListening) {
+        setIsListening(false);
+        return;
+      }
 
-    if (isListening) {
-      recognition.current.stop();
-      setIsListening(false);
-    } else {
       try {
-        recognition.current.start();
+        setIsListening(true);
+
+        // Get audio from user's microphone
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        const mediaRecorder = new MediaRecorder(stream);
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          chunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(chunks, { type: "audio/webm" });
+          const formData = new FormData();
+          formData.append("audio", audioBlob, "audio.webm");
+
+          try {
+            const response = await fetch(BACKEND_URLS.SPEECH_TO_TEXT, {
+              method: "POST",
+              body: formData,
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              setInput(data.text);
+            } else {
+              throw new Error("Speech recognition failed");
+            }
+          } catch (error) {
+            console.error("Speech-to-text error:", error);
+            alert("Speech recognition failed. Please try again.");
+          } finally {
+            setIsListening(false);
+            stream.getTracks().forEach((track) => track.stop());
+          }
+        };
+
+        // Record for 5 seconds or until user clicks stop
+        mediaRecorder.start();
+        setTimeout(() => {
+          if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+          }
+        }, 5000);
       } catch (error) {
-        console.error("Error starting speech recognition:", error);
-        alert("Could not start speech recognition. Please try again.");
+        console.error("Microphone access error:", error);
+        setIsListening(false);
+        alert("Could not access microphone. Please check permissions.");
+      }
+    } else {
+      // Use browser speech recognition for study mode
+      if (!recognition.current) {
+        alert(
+          "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari."
+        );
+        return;
+      }
+
+      if (isListening) {
+        recognition.current.stop();
+        setIsListening(false);
+      } else {
+        try {
+          recognition.current.start();
+        } catch (error) {
+          console.error("Error starting speech recognition:", error);
+          alert("Could not start speech recognition. Please try again.");
+        }
       }
     }
   };
@@ -925,6 +1109,32 @@ const Chatbot = ({
   const handleModeSelect = (mode) => {
     setCurrentMode(mode);
     setShowModeSelector(false);
+
+    // Show a brief notification when switching to talk mode
+    if (mode === "talk" && backendStatus.talk === "online") {
+      const notification = document.createElement("div");
+      notification.innerHTML =
+        "🎤 Talk Mode activated! Advanced speech features enabled.";
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #2196F3;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        z-index: 10000;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease-out;
+      `;
+
+      document.body.appendChild(notification);
+      setTimeout(() => {
+        notification.style.animation = "slideOut 0.3s ease-in";
+        setTimeout(() => document.body.removeChild(notification), 300);
+      }, 3000);
+    }
   };
 
   // Auto-detect if content is from task and set to study mode
@@ -1268,6 +1478,18 @@ const Chatbot = ({
 
   return (
     <>
+      <style>
+        {`
+          @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+          @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+          }
+        `}
+      </style>
       <div
         className={`
           ${isMobile ? "chat-container-mobile" : "chat-container-desktop"}
@@ -1519,9 +1741,9 @@ const Chatbot = ({
               placeholder={
                 file
                   ? `Ask about ${file.name}`
-                  : `Type your message... (${
-                      currentMode === "study" ? "Study" : "Talk"
-                    } Mode)`
+                  : currentMode === "study"
+                  ? "Type your message... (Study Mode - Detailed answers)"
+                  : "Type your message... (Talk Mode - Quick chat with advanced speech)"
               }
               className={
                 isMobile
@@ -1585,7 +1807,32 @@ const Chatbot = ({
                     className="fas fa-graduation-cap"
                     style={{ color: "#4CAF50" }}
                   ></i>
-                  Study Mode
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      flex: 1,
+                    }}
+                  >
+                    <span>Study Mode</span>
+                    <small style={{ color: "#666", fontSize: "12px" }}>
+                      Detailed answers • Browser speech
+                      <span
+                        style={{
+                          color:
+                            backendStatus.study === "online"
+                              ? "#4CAF50"
+                              : "#ff5722",
+                          marginLeft: "4px",
+                        }}
+                      >
+                        ●{" "}
+                        {backendStatus.study === "online"
+                          ? "Online"
+                          : "Offline"}
+                      </span>
+                    </small>
+                  </div>
                   {currentMode === "study" && (
                     <i
                       className="fas fa-check"
@@ -1622,7 +1869,30 @@ const Chatbot = ({
                     className="fas fa-comments"
                     style={{ color: "#2196F3" }}
                   ></i>
-                  Talk Mode
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      flex: 1,
+                    }}
+                  >
+                    <span>Talk Mode</span>
+                    <small style={{ color: "#666", fontSize: "12px" }}>
+                      Quick responses • Advanced speech AI
+                      <span
+                        style={{
+                          color:
+                            backendStatus.talk === "online"
+                              ? "#4CAF50"
+                              : "#ff5722",
+                          marginLeft: "4px",
+                        }}
+                      >
+                        ●{" "}
+                        {backendStatus.talk === "online" ? "Online" : "Offline"}
+                      </span>
+                    </small>
+                  </div>
                   {currentMode === "talk" && (
                     <i
                       className="fas fa-check"
@@ -1638,10 +1908,20 @@ const Chatbot = ({
           <button
             className={`${isMobile ? "mic-btn-mobile" : "mic-btn-desktop"} ${
               isListening ? "listening" : ""
-            }`}
+            } ${currentMode === "talk" ? "talk-mode" : ""}`}
             onClick={handleSpeechToText}
-            title={isListening ? "Stop listening" : "Voice input"}
+            title={
+              isListening
+                ? "Stop listening"
+                : currentMode === "talk"
+                ? "Voice input (Advanced - Talk Mode)"
+                : "Voice input (Browser - Study Mode)"
+            }
             disabled={isLoading}
+            style={{
+              backgroundColor: currentMode === "talk" ? "#2196F3" : "",
+              color: currentMode === "talk" ? "white" : "",
+            }}
           >
             <i
               className={`fas ${isListening ? "fa-stop" : "fa-microphone"}`}
