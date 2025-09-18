@@ -52,7 +52,7 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     version: "1.0.1", // Updated version to verify deployment
     timestamp: new Date().toISOString(),
-    model: "meta-llama/llama-3.1-8b-instruct:free", // Show which model we're using
+    model: "microsoft/phi-3-mini-128k-instruct:free", // Show which model we're using
   });
 });
 
@@ -71,7 +71,7 @@ app.post("/api/chat", async (req, res) => {
     const { message } = req.body;
 
     console.log("=== STUDY MODE REQUEST ===");
-    console.log("Using model: meta-llama/llama-3.1-8b-instruct:free");
+    console.log("Using model: microsoft/phi-3-mini-128k-instruct:free");
     console.log("Message received:", message);
 
     if (!message || typeof message !== "string" || !message.trim()) {
@@ -108,7 +108,7 @@ Student's question: ${message}`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "microsoft/phi-3-mini-128k-instruct:free",
           messages: [
             {
               role: "user",
@@ -187,7 +187,7 @@ Example:
 Now generate ${questionCount} questions about "${topic}":`;
 
   try {
-    console.log("Using quiz model: meta-llama/llama-3.1-8b-instruct:free");
+    console.log("Using quiz model: microsoft/phi-3-mini-128k-instruct:free");
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -200,7 +200,7 @@ Now generate ${questionCount} questions about "${topic}":`;
           "X-Title": "EduGen AI",
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "microsoft/phi-3-mini-128k-instruct:free",
           messages: [
             {
               role: "user",
