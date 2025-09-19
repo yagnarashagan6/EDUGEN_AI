@@ -67,6 +67,7 @@ const Chatbot = ({
   const [selectedText, setSelectedText] = useState("");
 
   const chatBoxRef = useRef(null);
+  const textareaRef = useRef(null);
   const longPressTimeout = useRef(null);
   const synth = useRef(window.speechSynthesis);
   const recognition = useRef(null);
@@ -289,6 +290,27 @@ const Chatbot = ({
     };
   }, []);
 
+  // Auto-resize textarea when input changes
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Set initial height
+      if (input === "") {
+        textareaRef.current.style.height = "44px";
+        textareaRef.current.style.overflowY = "hidden";
+      } else {
+        autoResizeTextarea();
+      }
+    }
+  }, [input]);
+
+  // Set initial textarea height on component mount
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "44px";
+      textareaRef.current.style.overflowY = "hidden";
+    }
+  }, []);
+
   // NEW: Function to handle file selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -319,6 +341,52 @@ const Chatbot = ({
       };
       reader.readAsDataURL(selectedFile);
     }
+  };
+
+  // Function to auto-resize textarea based on content
+  const autoResizeTextarea = () => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      // Temporarily set height to auto to get accurate scrollHeight
+      textarea.style.height = "auto";
+
+      // Get the actual content height
+      const scrollHeight = textarea.scrollHeight;
+
+      // Set minimum height for one line and maximum height
+      const minHeight = 44;
+      const maxHeight = 160;
+
+      // If textarea is empty or has minimal content, use minimum height
+      if (textarea.value.trim() === "" || scrollHeight <= minHeight) {
+        textarea.style.height = minHeight + "px";
+        textarea.style.overflowY = "hidden";
+      } else {
+        // Calculate new height based on content
+        const newHeight = Math.min(scrollHeight, maxHeight);
+        textarea.style.height = newHeight + "px";
+
+        // Show scrollbar only when content exceeds max height
+        if (scrollHeight > maxHeight) {
+          textarea.style.overflowY = "auto";
+        } else {
+          textarea.style.overflowY = "hidden";
+        }
+      }
+    }
+  };
+
+  // Handle input change with auto-resize
+  const handleInputChange = (e) => {
+    const newValue = e.target.value;
+    setInput(newValue);
+
+    // Use requestAnimationFrame for smoother resizing
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        autoResizeTextarea();
+      }
+    });
   };
 
   const getQuickResponse = (question) => {
@@ -424,6 +492,13 @@ const Chatbot = ({
     // Display the user's message immediately
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+
+    // Reset textarea height after clearing input
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "44px";
+      textareaRef.current.style.overflowY = "hidden";
+    }
+
     setIsLoading(true);
 
     // Mark as no longer a new session once user sends first message
@@ -1767,6 +1842,59 @@ const Chatbot = ({
           )}
         </div>
 
+        {/* File Upload Indicator */}
+        {file && (
+          <div
+            style={{
+              padding: "8px 16px",
+              background: "linear-gradient(135deg, #e3f2fd, #f3e5f5)",
+              borderLeft: "4px solid #2196F3",
+              margin: "0 16px 8px 16px",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              color: "#1976d2",
+              boxShadow: "0 2px 8px rgba(33, 150, 243, 0.2)",
+            }}
+          >
+            <i
+              className="fas fa-file-pdf"
+              style={{
+                color: "#d32f2f",
+                fontSize: "16px",
+              }}
+            ></i>
+            <span style={{ fontWeight: "500" }}>📎 {file.name} attached</span>
+            <button
+              onClick={() => setFile(null)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#757575",
+                cursor: "pointer",
+                marginLeft: "auto",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#ffebee";
+                e.target.style.color = "#d32f2f";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "none";
+                e.target.style.color = "#757575";
+              }}
+              title="Remove attachment"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+        )}
+
         <div className={isMobile ? "chat-input-mobile" : "chat-input-desktop"}>
           <div
             className={
@@ -1788,7 +1916,7 @@ const Chatbot = ({
                   : {
                       position: "absolute",
                       left: "10px",
-                      top: "50%",
+                      top: "30%",
                       transform: "translateY(-50%)",
                       background: "none",
                       border: "none",
@@ -1817,7 +1945,9 @@ const Chatbot = ({
               accept=".pdf,.docx"
             />
             <button
-              className={isMobile ? "attach-btn-mobile" : "attach-btn-desktop"}
+              className={`${
+                isMobile ? "attach-btn-mobile" : "attach-btn-desktop"
+              }${file ? " file-attached" : ""}`}
               onClick={() => fileInputRef.current.click()}
               title="Attach PDF or DOCX"
               style={{
@@ -1826,10 +1956,10 @@ const Chatbot = ({
                 cursor: "pointer",
                 position: "absolute",
                 left: isMobile ? "45px" : "45px",
-                top: "50%",
+                top: "30%",
                 transform: "translateY(-50%)",
                 fontSize: "16px",
-                color: file ? "#2196F3" : "#555",
+                color: file ? "#2196F3" : "#000000", // Black when no file, blue when file attached
                 zIndex: 10,
                 padding: "0",
                 width: "20px",
@@ -1842,11 +1972,34 @@ const Chatbot = ({
               <i className="fas fa-paperclip"></i>
             </button>
 
-            <input
-              type="text"
+            <textarea
+              ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              onChange={handleInputChange}
+              onInput={() => {
+                // Handle real-time input changes for better responsiveness
+                requestAnimationFrame(() => {
+                  if (textareaRef.current) {
+                    autoResizeTextarea();
+                  }
+                });
+              }}
+              onKeyDown={(e) => {
+                // Handle backspace and delete for immediate resize
+                if (e.key === "Backspace" || e.key === "Delete") {
+                  setTimeout(() => {
+                    if (textareaRef.current) {
+                      autoResizeTextarea();
+                    }
+                  }, 0);
+                }
+              }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
               placeholder={
                 file
                   ? `Ask about ${file.name}`
@@ -1861,159 +2014,147 @@ const Chatbot = ({
               }
               style={{
                 paddingLeft: isMobile ? "75px" : "75px", // Increased padding for both icons
+                resize: "none", // Disable manual resize
+                overflow: "hidden", // Hide scrollbar during auto-resize
               }}
+              rows={1}
             />
-
-            {showModeSelector && (
-              <div
-                className={
-                  isMobile
-                    ? "mode-selector-dropdown-mobile"
-                    : "mode-selector-dropdown"
-                }
-                style={
-                  isMobile
-                    ? {}
-                    : {
-                        position: "absolute",
-                        bottom: "100%",
-                        left: "10px",
-                        backgroundColor: "white",
-                        border: "2px solid #ddd",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        zIndex: 1000,
-                        minWidth: "150px",
-                        marginBottom: "5px",
-                      }
-                }
-              >
-                <div
-                  className={`${
-                    isMobile ? "mode-option-mobile study-mode" : "mode-option"
-                  } ${currentMode === "study" ? "active" : ""}`}
-                  onClick={() => handleModeSelect("study")}
-                  style={
-                    isMobile
-                      ? {}
-                      : {
-                          padding: "12px 16px",
-                          cursor: "pointer",
-                          borderBottom: "1px solid #eee",
-                          backgroundColor:
-                            currentMode === "study" ? "#f0f8ff" : "transparent",
-                          color: currentMode === "study" ? "#4CAF50" : "#333",
-                          fontSize: "14px",
-                          fontWeight:
-                            currentMode === "study" ? "bold" : "normal",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }
-                  }
-                >
-                  <i
-                    className="fas fa-graduation-cap"
-                    style={{ color: "#4CAF50" }}
-                  ></i>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      flex: 1,
-                    }}
-                  >
-                    <span>Study Mode</span>
-                    <small style={{ color: "#666", fontSize: "12px" }}>
-                      Detailed answers • Browser speech
-                      <span
-                        style={{
-                          color:
-                            backendStatus.study === "online"
-                              ? "#4CAF50"
-                              : "#ff5722",
-                          marginLeft: "4px",
-                        }}
-                      >
-                        ●{" "}
-                        {backendStatus.study === "online"
-                          ? "Online"
-                          : "Offline"}
-                      </span>
-                    </small>
-                  </div>
-                  {currentMode === "study" && (
-                    <i
-                      className="fas fa-check"
-                      style={
-                        isMobile ? {} : { marginLeft: "auto", color: "#4CAF50" }
-                      }
-                    ></i>
-                  )}
-                </div>
-                <div
-                  className={`${
-                    isMobile ? "mode-option-mobile talk-mode" : "mode-option"
-                  } ${currentMode === "talk" ? "active" : ""}`}
-                  onClick={() => handleModeSelect("talk")}
-                  style={
-                    isMobile
-                      ? {}
-                      : {
-                          padding: "12px 16px",
-                          cursor: "pointer",
-                          backgroundColor:
-                            currentMode === "talk" ? "#f0f8ff" : "transparent",
-                          color: currentMode === "talk" ? "#2196F3" : "#333",
-                          fontSize: "14px",
-                          fontWeight:
-                            currentMode === "talk" ? "bold" : "normal",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }
-                  }
-                >
-                  <i
-                    className="fas fa-comments"
-                    style={{ color: "#2196F3" }}
-                  ></i>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      flex: 1,
-                    }}
-                  >
-                    <span>Talk Mode</span>
-                    <small style={{ color: "#666", fontSize: "12px" }}>
-                      Quick responses • Advanced speech AI
-                      <span
-                        style={{
-                          color:
-                            backendStatus.talk === "online"
-                              ? "#4CAF50"
-                              : "#ff5722",
-                          marginLeft: "4px",
-                        }}
-                      >
-                        ●{" "}
-                        {backendStatus.talk === "online" ? "Online" : "Offline"}
-                      </span>
-                    </small>
-                  </div>
-                  {currentMode === "talk" && (
-                    <i
-                      className="fas fa-check"
-                      style={
-                        isMobile ? {} : { marginLeft: "auto", color: "#2196F3" }
-                      }
-                    ></i>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Mode Selector Dropdown - Outside input wrapper */}
+          {showModeSelector && (
+            <div
+              className={
+                isMobile
+                  ? "mode-selector-dropdown-mobile"
+                  : "mode-selector-dropdown"
+              }
+              style={{
+                position: "absolute",
+                bottom: "100%",
+                left: isMobile ? "16px" : "10px",
+                backgroundColor: "white",
+                border: "2px solid #667eea",
+                borderRadius: "12px",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
+                zIndex: 3000,
+                minWidth: isMobile ? "200px" : "180px",
+                marginBottom: "8px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                className={`${
+                  isMobile ? "mode-option-mobile study-mode" : "mode-option"
+                } ${currentMode === "study" ? "active" : ""}`}
+                onClick={() => handleModeSelect("study")}
+                style={{
+                  padding: "14px 16px",
+                  cursor: "pointer",
+                  borderBottom: "1px solid #eee",
+                  backgroundColor:
+                    currentMode === "study" ? "#f0f8ff" : "transparent",
+                  color: currentMode === "study" ? "#4CAF50" : "#333",
+                  fontSize: "14px",
+                  fontWeight: currentMode === "study" ? "bold" : "normal",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <i
+                  className="fas fa-graduation-cap"
+                  style={{ color: "#4CAF50", fontSize: "16px" }}
+                ></i>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                  }}
+                >
+                  <span style={{ fontWeight: "600" }}>Study Mode</span>
+                  <small style={{ color: "#666", fontSize: "12px" }}>
+                    Detailed answers • Browser speech
+                    <span
+                      style={{
+                        color:
+                          backendStatus.study === "online"
+                            ? "#4CAF50"
+                            : "#ff5722",
+                        marginLeft: "4px",
+                      }}
+                    >
+                      ●{" "}
+                      {backendStatus.study === "online" ? "Online" : "Offline"}
+                    </span>
+                  </small>
+                </div>
+                {currentMode === "study" && (
+                  <i
+                    className="fas fa-check"
+                    style={{ marginLeft: "auto", color: "#4CAF50" }}
+                  ></i>
+                )}
+              </div>
+
+              <div
+                className={`${
+                  isMobile ? "mode-option-mobile talk-mode" : "mode-option"
+                } ${currentMode === "talk" ? "active" : ""}`}
+                onClick={() => handleModeSelect("talk")}
+                style={{
+                  padding: "14px 16px",
+                  cursor: "pointer",
+                  backgroundColor:
+                    currentMode === "talk" ? "#f0f8ff" : "transparent",
+                  color: currentMode === "talk" ? "#2196F3" : "#333",
+                  fontSize: "14px",
+                  fontWeight: currentMode === "talk" ? "bold" : "normal",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <i
+                  className="fas fa-comments"
+                  style={{ color: "#2196F3", fontSize: "16px" }}
+                ></i>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                  }}
+                >
+                  <span style={{ fontWeight: "600" }}>Talk Mode</span>
+                  <small style={{ color: "#666", fontSize: "12px" }}>
+                    Quick responses • Advanced speech AI
+                    <span
+                      style={{
+                        color:
+                          backendStatus.talk === "online"
+                            ? "#4CAF50"
+                            : "#ff5722",
+                        marginLeft: "4px",
+                      }}
+                    >
+                      ● {backendStatus.talk === "online" ? "Online" : "Offline"}
+                    </span>
+                  </small>
+                </div>
+                {currentMode === "talk" && (
+                  <i
+                    className="fas fa-check"
+                    style={{ marginLeft: "auto", color: "#2196F3" }}
+                  ></i>
+                )}
+              </div>
+            </div>
+          )}
+
           <button
             className={`${isMobile ? "mic-btn-mobile" : "mic-btn-desktop"} ${
               isListening ? "listening" : ""

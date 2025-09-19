@@ -789,7 +789,7 @@
 
 /* Desktop/Laptop Input Styles */
 .chat-input-desktop {
-  padding: 20px;
+  padding: 15px 5px 10px 10px;
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.95),
@@ -797,8 +797,8 @@
   );
   border-top: 1px solid rgba(102, 126, 234, 0.2);
   display: flex;
-  gap: 16px;
-  align-items: center;
+  gap: 10px;
+  align-items: flex-end;
   backdrop-filter: blur(10px);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
 }
@@ -807,7 +807,9 @@
 .mode-selector-container {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  align-self: flex-end;
+  margin-bottom: 8px;
 }
 
 .mode-toggle-btn:hover {
@@ -822,13 +824,22 @@
 .input-wrapper-desktop {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   background: white;
   border-radius: 30px;
   padding: 8px 20px;
   border: 2px solid transparent;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease, height 0.1s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-height: 44px;
+  max-height: 200px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Input wrapper scrollbar */
+.input-wrapper-desktop::-webkit-scrollbar {
+  display: none;
 }
 
 .input-wrapper-desktop:focus-within {
@@ -846,6 +857,34 @@
   background: transparent;
   color: #2c3e50;
   font-weight: 500;
+  height: 44px;
+  min-height: 44px;
+  max-height: 160px;
+  overflow-y: hidden;
+  resize: none;
+  line-height: 1.4;
+  word-wrap: break-word;
+  font-family: inherit;
+  vertical-align: top;
+  transition: height 0.2s ease;
+}
+
+/* Scrollbar styling for desktop input */
+.chat-input-field-desktop::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-input-field-desktop::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-input-field-desktop::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.3);
+  border-radius: 2px;
+}
+
+.chat-input-field-desktop::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.5);
 }
 
 .chat-input-field-desktop::placeholder {
@@ -858,14 +897,17 @@
   color: white;
   border: none;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 35px;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-bottom: 15px;
 }
 
 .send-btn-desktop:hover {
@@ -887,14 +929,51 @@
   color: white;
   border: none;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 35px;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-bottom: 15px;
+}
+
+/* Attach button styles for desktop */
+.attach-btn-desktop {
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  position: absolute !important;
+  left: 45px !important;
+  top: 35% !important;
+  transform: translateY(-50%) !important;
+  font-size: 16px !important;
+  color: #000000 !important; /* Default black color */
+  z-index: 10 !important;
+  padding: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  transition: color 0.3s ease !important;
+}
+
+.attach-btn-desktop:hover {
+  color: #333333 !important;
+}
+
+.attach-btn-desktop.file-attached {
+  color: #2196f3 !important;
+}
+
+.attach-btn-desktop i {
+  font-size: 14px !important;
 }
 
 .mic-btn-desktop:hover {
