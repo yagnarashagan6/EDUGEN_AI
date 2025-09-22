@@ -4,16 +4,97 @@ import "../styles/ChatMobile.css";
 import html2pdf from "html2pdf.js";
 
 // =============== BACKEND CONFIGURATION ===============
-// Backend URLs for different modes
+// Backend URLs for different modes with fallback support
 const BACKEND_URLS = {
-  STUDY_MODE: "https://edugen-backend-zbjr.onrender.com/api/chat", // Node.js backend for Study Mode
-  TALK_MODE: "https://edugen-ai-backend.onrender.com/api/chat", // Python backend for Talk Mode
+  // Primary backend (Node.js) - fallback to Python backend if quota reached
+  STUDY_MODE_PRIMARY: "https://edugen-backend-zbjr.onrender.com/api/chat",
+  STUDY_MODE_FALLBACK: "https://edugen-ai-backend.onrender.com/api/chat",
+
+  // Quiz generation with fallback support
+  QUIZ_PRIMARY: "https://edugen-backend-zbjr.onrender.com/api/generate-quiz",
+  QUIZ_FALLBACK: "https://edugen-ai-backend.onrender.com/api/generate-quiz",
+
+  // Talk Mode uses Python backend
+  TALK_MODE: "https://edugen-ai-backend.onrender.com/api/chat",
 
   // Talk Mode Additional Endpoints
   SPEECH_TO_TEXT: "https://edugen-ai-backend.onrender.com/api/speech-to-text",
   TEXT_TO_SPEECH: "https://edugen-ai-backend.onrender.com/api/text-to-speech",
 };
 // =====================================================
+
+// Helper function to handle API calls with fallback logic
+const makeAPICallWithFallback = async (
+  primaryUrl,
+  fallbackUrl,
+  requestBody,
+  controller
+) => {
+  let lastError = null;
+
+  // Try primary backend first (Node.js)
+  try {
+    console.log(`Attempting primary backend: ${primaryUrl}`);
+    const response = await fetch(primaryUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify(requestBody),
+    });
+
+    // If quota reached (429) or server error (5xx), try fallback
+    if (response.status === 429 || response.status >= 500) {
+      console.log(
+        `Primary backend failed with status ${response.status}, trying fallback...`
+      );
+      throw new Error(`Primary backend failed: ${response.status}`);
+    }
+
+    // If other client errors (4xx), don't try fallback
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
+
+    return response;
+  } catch (error) {
+    lastError = error;
+    console.log(`Primary backend failed: ${error.message}`);
+
+    // Don't try fallback for AbortError or client errors (except 429)
+    if (error.name === "AbortError") {
+      throw error;
+    }
+  }
+
+  // Try fallback backend (Python)
+  try {
+    console.log(`Attempting fallback backend: ${fallbackUrl}`);
+    const response = await fetch(fallbackUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || `Fallback server error: ${response.status}`
+      );
+    }
+
+    return response;
+  } catch (error) {
+    console.log(`Fallback backend also failed: ${error.message}`);
+    // If fallback also fails, throw the last error
+    throw lastError || error;
+  }
+};
 
 const Chatbot = ({
   isVisible,
@@ -433,39 +514,7 @@ const Chatbot = ({
       return "Use this PDF tool: https://www.ilovepdf.com/";
     }
 
-    // GeeksforGeeks support
-    if (
-      lowerInput.includes("geeks for geeks") ||
-      lowerInput.includes("geeksforgeeks") ||
-      lowerInput.includes("gfg") ||
-      (lowerInput.includes("geeks") && lowerInput.includes("programming"))
-    ) {
-      return "🚀 **GeeksforGeeks** - Your go-to programming resource!\n\n📚 **Main Website**: [GeeksforGeeks](https://www.geeksforgeeks.org/)\n\n💻 **What you'll find:**\n• Programming tutorials & articles\n• Data Structures & Algorithms\n• Interview preparation\n• Coding practice problems\n• Programming language guides\n• Computer Science fundamentals\n\n🎯 **Popular Sections:**\n• [DSA Tutorial](https://www.geeksforgeeks.org/data-structures/)\n• [Interview Questions](https://www.geeksforgeeks.org/company-interview-corner/)\n• [Practice Portal](https://practice.geeksforgeeks.org/)";
-    }
-
-    // Instagram support
-    if (
-      lowerInput.includes("instagram") ||
-      lowerInput.includes("insta") ||
-      (lowerInput.includes("social") && lowerInput.includes("media"))
-    ) {
-      return "📸 **Instagram** - Share your moments!\n\n🌍 **Main Website**: [Instagram](https://www.instagram.com/)\n\n📱 **What you can do:**\n• Share photos and videos\n• Connect with friends and family\n• Follow your favorite accounts\n• Explore trending content\n• Create and watch Stories\n• Shop from your favorite brands\n\n📲 **Get the App:**\n• [iOS App Store](https://apps.apple.com/app/instagram/id389801252)\n• [Google Play Store](https://play.google.com/store/apps/details?id=com.instagram.android)";
-    }
-
-    if (
-      lowerInput.includes("khan academy") ||
-      lowerInput.includes("free courses")
-    ) {
-      return "🎓 **Free Learning Resources:**\n\n📺 **Khan Academy**: https://www.khanacademy.org/\n📚 **Coursera**: https://www.coursera.org/\n🎯 **edX**: https://www.edx.org/\n🧮 **MIT OpenCourseWare**: https://ocw.mit.edu/";
-    }
-
-    if (lowerInput.includes("youtube") && lowerInput.includes("education")) {
-      return "📺 **Educational YouTube Channels:**\n\n🧪 **Science**: 3Blue1Brown, Veritasium, MinutePhysics\n🧮 **Math**: Khan Academy, Professor Leonard, PatrickJMT\n📖 **Literature**: CrashCourse Literature, The Great Courses\n🌍 **History**: CrashCourse World History, TED-Ed\n💻 **Programming**: freeCodeCamp, CS50, The Coding Train";
-    }
-
-    if (lowerInput.includes("research") || lowerInput.includes("articles")) {
-      return "📖 **Research & Articles:**\n\n📚 **Academic**: Google Scholar, JSTOR, PubMed\n📰 **General**: Wikipedia, Britannica, Smithsonian Magazine\n🔬 **Science**: Scientific American, Nature, New Scientist\n💡 **Technology**: MIT Technology Review, Wired, IEEE Spectrum";
-    }
+    // Keep only essential, non-link based quick responses
 
     return null;
   };
@@ -522,11 +571,10 @@ const Chatbot = ({
       isRequestingRef.current = false;
     }, 10000);
 
-    // --- ARCHITECTURE SPLIT LOGIC ---
-    const studyApiUrl = BACKEND_URLS.STUDY_MODE; // Node.js server for Study Mode
+    // --- ARCHITECTURE SPLIT LOGIC WITH FALLBACK ---
     const talkApiUrl = BACKEND_URLS.TALK_MODE; // Python server for Talk Mode
 
-    let apiUrl;
+    let primaryUrl, fallbackUrl;
     let requestBody;
 
     // Use different backends based on mode
@@ -545,7 +593,9 @@ const Chatbot = ({
         clearTimeout(lockTimeout);
         return;
       }
-      apiUrl = talkApiUrl;
+      // For file handling, only use Python backend (no fallback needed)
+      primaryUrl = talkApiUrl;
+      fallbackUrl = null;
       requestBody = {
         message: userMessageText,
         fileData: file.data,
@@ -553,8 +603,9 @@ const Chatbot = ({
       };
       setFile(null); // Clear the file after sending
     } else if (currentMode === "study") {
-      // Study mode uses Node.js backend
-      apiUrl = studyApiUrl;
+      // Study mode uses Node.js backend with Python fallback
+      primaryUrl = BACKEND_URLS.STUDY_MODE_PRIMARY;
+      fallbackUrl = BACKEND_URLS.STUDY_MODE_FALLBACK;
       requestBody = {
         message: userMessageText,
         mode: "study",
@@ -574,7 +625,9 @@ const Chatbot = ({
         clearTimeout(lockTimeout);
         return;
       }
-      apiUrl = talkApiUrl;
+      // For talk mode, only use Python backend (no fallback needed)
+      primaryUrl = talkApiUrl;
+      fallbackUrl = null;
       requestBody = {
         message: userMessageText,
       };
@@ -584,33 +637,49 @@ const Chatbot = ({
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     try {
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify(requestBody),
-      });
+      let response;
 
-      if (response.status === 429) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: "bot",
-            text: "Too many users are using this feature right now. Please wait a few seconds and try again.",
+      // Use fallback logic for study mode, direct call for others
+      if (fallbackUrl) {
+        response = await makeAPICallWithFallback(
+          primaryUrl,
+          fallbackUrl,
+          requestBody,
+          controller
+        );
+      } else {
+        response = await fetch(primaryUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        ]);
-        setIsLoading(false);
-        return;
+          signal: controller.signal,
+          body: JSON.stringify(requestBody),
+        });
+
+        if (response.status === 429) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: "bot",
+              text: "Too many users are using this feature right now. Please wait a few seconds and try again.",
+            },
+          ]);
+          setIsLoading(false);
+          isRequestingRef.current = false;
+          clearTimeout(lockTimeout);
+          return;
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error || `Server error: ${response.status}`
+          );
+        }
       }
 
       clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
 
       const data = await response.json();
 

@@ -721,6 +721,71 @@ const loadingIcons = [
   "fas fa-microscope",
 ];
 
+// Helper function for quiz generation with fallback logic
+const generateQuizWithFallback = async (requestBody) => {
+  const primaryUrl =
+    "https://edugen-backend-zbjr.onrender.com/api/generate-quiz";
+  const fallbackUrl =
+    "https://edugen-ai-backend.onrender.com/api/generate-quiz";
+
+  let lastError = null;
+
+  // Try primary backend first (Node.js)
+  try {
+    console.log(`Attempting primary quiz backend: ${primaryUrl}`);
+    const response = await fetch(primaryUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    // If quota reached (429) or server error (5xx), try fallback
+    if (response.status === 429 || response.status >= 500) {
+      console.log(
+        `Primary quiz backend failed with status ${response.status}, trying fallback...`
+      );
+      throw new Error(`Primary backend failed: ${response.status}`);
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Server error: ${response.status}`);
+    }
+
+    return response;
+  } catch (error) {
+    lastError = error;
+    console.log(`Primary quiz backend failed: ${error.message}`);
+  }
+
+  // Try fallback backend (Python)
+  try {
+    console.log(`Attempting fallback quiz backend: ${fallbackUrl}`);
+    const response = await fetch(fallbackUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `Fallback server error: ${response.status}`
+      );
+    }
+
+    return response;
+  } catch (error) {
+    console.log(`Fallback quiz backend also failed: ${error.message}`);
+    // If fallback also fails, throw the last error
+    throw lastError || error;
+  }
+};
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
@@ -1685,16 +1750,8 @@ const StudentDashboard = () => {
         count: quizNumQuestions, // Use the selected number of questions
       };
 
-      const response = await fetch(
-        "https://edugen-backend-zbjr.onrender.com/api/generate-quiz",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      const response = await generateQuizWithFallback(requestBody);
+
       if (response.status === 429) {
         setNotifications((prev) => [
           ...prev,
