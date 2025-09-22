@@ -2149,3 +2149,223 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
+
+/* File Attachment Styles for Any File Type */
+.file-attachment {
+  margin-bottom: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fafafa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.file-attachment:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.file-header {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-name {
+  color: #2c3e50;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 220px;
+  font-size: 14px;
+}
+
+.file-type {
+  color: #6c757d;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.file-preview {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  min-height: 120px;
+}
+
+.file-icon-large {
+  margin-bottom: 12px;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.file-attachment:hover .file-icon-large {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.file-details {
+  text-align: center;
+  color: #6c757d;
+}
+
+.file-details p {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #28a745;
+}
+
+.file-details small {
+  font-size: 12px;
+  color: #868e96;
+}
+
+/* Mobile responsiveness for file attachments */
+@media (max-width: 768px) {
+  .file-attachment {
+    margin-bottom: 8px;
+  }
+
+  .file-preview {
+    padding: 16px;
+    min-height: 100px;
+  }
+
+  .file-icon-large i {
+    font-size: 48px !important;
+  }
+
+  .file-name {
+    max-width: 180px;
+    font-size: 13px;
+  }
+
+  .file-type {
+    font-size: 11px;
+  }
+
+  .file-header {
+    padding: 10px 12px;
+  }
+}
+
+/* File attachment in user messages */
+.user-message-desktop .file-attachment,
+.user-message-mobile .file-attachment {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.user-message-desktop .file-attachment:hover,
+.user-message-mobile .file-attachment:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+/* File attachment in bot messages */
+.bot-message-desktop .file-attachment,
+.bot-message-mobile .file-attachment {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.bot-message-desktop .file-attachment:hover,
+.bot-message-mobile .file-attachment:hover {
+  border-color: rgba(40, 167, 69, 0.4);
+}
+
+/* Specific file type enhancements */
+.file-attachment[data-type="pdf"] .file-header {
+  background: linear-gradient(135deg, #ffe6e6, #ffcccc);
+}
+
+.file-attachment[data-type="word"] .file-header {
+  background: linear-gradient(135deg, #e6f0ff, #cce0ff);
+}
+
+.file-attachment[data-type="excel"] .file-header {
+  background: linear-gradient(135deg, #e6ffe6, #ccffcc);
+}
+
+.file-attachment[data-type="image"] .file-header {
+  background: linear-gradient(135deg, #f0e6ff, #e0ccff);
+}
+
+.file-attachment[data-type="video"] .file-header {
+  background: linear-gradient(135deg, #ffe6f0, #ffcce0);
+}
+
+.file-attachment[data-type="audio"] .file-header {
+  background: linear-gradient(135deg, #fff0e6, #ffe0cc);
+}
+
+/* Legacy PDF styles for backward compatibility */
+.pdf-attachment {
+  margin-bottom: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-header {
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.pdf-filename {
+  color: #444;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 250px;
+}
+
+.pdf-preview {
+  position: relative;
+  min-height: 200px;
+}
+
+.pdf-preview iframe {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  border: none;
+  background: white;
+}
+
+/* PDF attachment in user messages */
+.user-message-desktop .pdf-attachment,
+.user-message-mobile .pdf-attachment {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* PDF attachment in bot messages */
+.bot-message-desktop .pdf-attachment,
+.bot-message-mobile .pdf-attachment {
+  background: rgba(255, 255, 255, 0.98);
+}

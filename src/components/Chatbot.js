@@ -392,28 +392,70 @@ const Chatbot = ({
     }
   }, []);
 
-  // NEW: Function to handle file selection
+  // Function to handle file selection for multiple file types
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // Check for allowed file types
-      if (
-        !selectedFile.name.endsWith(".pdf") &&
-        !selectedFile.name.endsWith(".docx")
-      ) {
-        alert("Please upload a PDF or DOCX file only.");
+      // Get file extension
+      const fileExtension = selectedFile.name.toLowerCase().split(".").pop();
+
+      // Define allowed file types
+      const allowedTypes = [
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "ppt",
+        "pptx",
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "bmp",
+        "webp",
+        "mp4",
+        "avi",
+        "mov",
+        "wmv",
+        "flv",
+        "mp3",
+        "wav",
+        "flac",
+        "aac",
+        "txt",
+        "zip",
+        "rar",
+        "7z",
+        "js",
+        "html",
+        "css",
+        "py",
+        "java",
+        "cpp",
+        "c",
+      ];
+
+      if (!allowedTypes.includes(fileExtension)) {
+        alert(
+          `File type ".${fileExtension}" is not supported. Please upload one of these file types: ${allowedTypes.join(
+            ", "
+          )}.`
+        );
         return;
       }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         setFile({
           name: selectedFile.name,
           data: event.target.result, // This will be the base64 string
+          type: fileExtension,
         });
         // Automatically switch to talk mode when a file is uploaded
         setCurrentMode("talk");
         alert(
-          `File "${selectedFile.name}" is attached. I've switched to Talk Mode to discuss it with you.`
+          `� File "${selectedFile.name}" attached successfully! You can now ask questions about it or request an analysis.`
         );
       };
       reader.onerror = (err) => {
@@ -536,7 +578,17 @@ const Chatbot = ({
     }
 
     const userMessageText = input.trim();
-    const userMessage = { sender: "user", text: userMessageText };
+    const userMessage = {
+      sender: "user",
+      text: userMessageText,
+      file: file
+        ? {
+            name: file.name,
+            data: file.data,
+            type: file.name.endsWith(".pdf") ? "pdf" : "docx",
+          }
+        : null,
+    };
 
     // Display the user's message immediately
     setMessages((prev) => [...prev, userMessage]);
@@ -571,29 +623,15 @@ const Chatbot = ({
       isRequestingRef.current = false;
     }, 10000);
 
-    // --- ARCHITECTURE SPLIT LOGIC WITH FALLBACK ---
+    // --- ARCHITECTURE SPLIT LOGIC WITH FALLBACK + PDF SUPPORT ---
     const talkApiUrl = BACKEND_URLS.TALK_MODE; // Python server for Talk Mode
 
     let primaryUrl, fallbackUrl;
     let requestBody;
 
-    // Use different backends based on mode
+    // Use different backends based on mode and file presence
     if (file) {
-      // File handling - always use Python backend
-      if (talkApiUrl.includes("YOUR_PYTHON_BACKEND_URL_HERE")) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: "bot",
-            text: "File processing is not available yet. Please update the BACKEND_URLS.TALK_MODE in the code with your deployed Python backend URL.",
-          },
-        ]);
-        setIsLoading(false);
-        isRequestingRef.current = false;
-        clearTimeout(lockTimeout);
-        return;
-      }
-      // For file handling, only use Python backend (no fallback needed)
+      // NEW: PDF/File handling - always use Python backend
       primaryUrl = talkApiUrl;
       fallbackUrl = null;
       requestBody = {
@@ -601,9 +639,10 @@ const Chatbot = ({
         fileData: file.data,
         filename: file.name,
       };
-      setFile(null); // Clear the file after sending
+      // Clear the file after attaching to message and preparing the request
+      setFile(null);
     } else if (currentMode === "study") {
-      // Study mode uses Node.js backend with Python fallback
+      // Study mode uses Node.js backend with Python fallback (UNCHANGED)
       primaryUrl = BACKEND_URLS.STUDY_MODE_PRIMARY;
       fallbackUrl = BACKEND_URLS.STUDY_MODE_FALLBACK;
       requestBody = {
@@ -611,21 +650,7 @@ const Chatbot = ({
         mode: "study",
       };
     } else {
-      // Talk mode uses Python backend
-      if (talkApiUrl.includes("YOUR_PYTHON_BACKEND_URL_HERE")) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: "bot",
-            text: "Talk Mode backend is not configured yet. Please update the BACKEND_URLS.TALK_MODE in the code with your deployed Python backend URL.",
-          },
-        ]);
-        setIsLoading(false);
-        isRequestingRef.current = false;
-        clearTimeout(lockTimeout);
-        return;
-      }
-      // For talk mode, only use Python backend (no fallback needed)
+      // Talk mode uses Python backend (UNCHANGED)
       primaryUrl = talkApiUrl;
       fallbackUrl = null;
       requestBody = {
@@ -1316,6 +1341,137 @@ const Chatbot = ({
     );
   };
 
+  // File display component for any file format
+  const renderFileDisplay = (fileData) => {
+    if (!fileData) return null;
+
+    // Function to get file icon and color based on file type
+    const getFileTypeInfo = (filename, type) => {
+      const extension = filename.toLowerCase().split(".").pop();
+
+      switch (extension) {
+        case "pdf":
+          return {
+            icon: "fas fa-file-pdf",
+            color: "#d63031",
+            name: "PDF Document",
+          };
+        case "doc":
+        case "docx":
+          return {
+            icon: "fas fa-file-word",
+            color: "#2b5797",
+            name: "Word Document",
+          };
+        case "xls":
+        case "xlsx":
+          return {
+            icon: "fas fa-file-excel",
+            color: "#217346",
+            name: "Excel Spreadsheet",
+          };
+        case "ppt":
+        case "pptx":
+          return {
+            icon: "fas fa-file-powerpoint",
+            color: "#d24726",
+            name: "PowerPoint Presentation",
+          };
+        case "jpg":
+        case "jpeg":
+        case "png":
+        case "gif":
+        case "bmp":
+        case "webp":
+          return {
+            icon: "fas fa-file-image",
+            color: "#6c5ce7",
+            name: "Image File",
+          };
+        case "mp4":
+        case "avi":
+        case "mov":
+        case "wmv":
+        case "flv":
+          return {
+            icon: "fas fa-file-video",
+            color: "#e84393",
+            name: "Video File",
+          };
+        case "mp3":
+        case "wav":
+        case "flac":
+        case "aac":
+          return {
+            icon: "fas fa-file-audio",
+            color: "#fd79a8",
+            name: "Audio File",
+          };
+        case "txt":
+          return {
+            icon: "fas fa-file-alt",
+            color: "#636e72",
+            name: "Text File",
+          };
+        case "zip":
+        case "rar":
+        case "7z":
+          return {
+            icon: "fas fa-file-archive",
+            color: "#a29bfe",
+            name: "Archive File",
+          };
+        case "js":
+        case "html":
+        case "css":
+        case "py":
+        case "java":
+        case "cpp":
+        case "c":
+          return {
+            icon: "fas fa-file-code",
+            color: "#00b894",
+            name: "Code File",
+          };
+        default:
+          return { icon: "fas fa-file", color: "#74b9ff", name: "File" };
+      }
+    };
+
+    const fileInfo = getFileTypeInfo(fileData.name, fileData.type);
+
+    return (
+      <div className="file-attachment">
+        <div className="file-header">
+          <i
+            className={fileInfo.icon}
+            style={{
+              color: fileInfo.color,
+              marginRight: "12px",
+              fontSize: "24px",
+            }}
+          ></i>
+          <div className="file-info">
+            <div className="file-name">{fileData.name}</div>
+            <div className="file-type">{fileInfo.name}</div>
+          </div>
+        </div>
+        <div className="file-preview">
+          <div className="file-icon-large">
+            <i
+              className={fileInfo.icon}
+              style={{ color: fileInfo.color, fontSize: "64px" }}
+            ></i>
+          </div>
+          <div className="file-details">
+            <p>📎 File attached successfully</p>
+            <small>File ready for analysis</small>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Function to toggle full screen mode for mobile
   const toggleFullScreen = () => {
     setIsFullScreen((prev) => !prev);
@@ -1678,6 +1834,7 @@ const Chatbot = ({
                 {msg.sender === "user" ? "You" : "EduGen AI"}:
               </div>
               <div className="pdf-message-content">
+                {msg.file && renderFileDisplay(msg.file)}
                 {renderMessageContent(msg.text)}
               </div>
             </div>
@@ -1875,6 +2032,7 @@ const Chatbot = ({
                 msUserSelect: "text",
               }}
             >
+              {message.file && renderFileDisplay(message.file)}
               {renderMessageContent(message.text)}
             </div>
           ))}
