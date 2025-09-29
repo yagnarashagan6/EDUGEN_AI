@@ -23,9 +23,28 @@ const Quiz = ({
   const [showCorrect, setShowCorrect] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const timerRef = useRef(null);
+  const isProcessingRef = useRef(false);
 
   // Add a ref to ensure fireworks only trigger once
   const fireworksShownRef = useRef(false);
+
+  // Store current values in refs to avoid dependency issues
+  const currentValuesRef = useRef({
+    currentQuestion: 0,
+    selectedOption: null,
+    isAnswerSubmitted: false,
+    questions: [],
+  });
+
+  // Update refs when values change
+  useEffect(() => {
+    currentValuesRef.current = {
+      currentQuestion,
+      selectedOption,
+      isAnswerSubmitted,
+      questions,
+    };
+  }, [currentQuestion, selectedOption, isAnswerSubmitted, questions]);
 
   // Fireworks animation config
   const showFireworks = () => {
@@ -65,34 +84,74 @@ const Quiz = ({
 
   const handleNext = useCallback(
     (isTimeout = false) => {
+      // Prevent double processing
+      if (isProcessingRef.current) {
+        return;
+      }
+      isProcessingRef.current = true;
+
+      // Get current values from ref
+      const {
+        currentQuestion: currentQ,
+        selectedOption: currentSelected,
+        isAnswerSubmitted: currentSubmitted,
+        questions: currentQuestions,
+      } = currentValuesRef.current;
+
+      // Clear the timer immediately to prevent it from firing again
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
       // Record the answer
       setUserAnswers((prev) => {
         const updated = [...prev];
-        updated[currentQuestion] = selectedOption;
+        updated[currentQ] = currentSelected;
         return updated;
       });
 
       // Check if answer is correct and update score
+      // Fixed: Compare with the correct answer properly
       if (
-        !isAnswerSubmitted &&
-        !isTimeout &&
-        selectedOption === questions[currentQuestion]?.correctAnswer
+        !currentSubmitted &&
+        currentSelected &&
+        currentSelected === currentQuestions[currentQ]?.correctAnswer
       ) {
         setScore((s) => s + 1);
+        console.log(
+          `Correct answer! Question ${
+            currentQ + 1
+          }: "${currentSelected}" === "${
+            currentQuestions[currentQ]?.correctAnswer
+          }"`
+        );
+      } else {
+        console.log(
+          `Incorrect answer. Question ${
+            currentQ + 1
+          }: Selected "${currentSelected}", Correct "${
+            currentQuestions[currentQ]?.correctAnswer
+          }"`
+        );
       }
 
-      // Move to next question or complete quiz immediately
-      if (currentQuestion + 1 === questions.length) {
+      // Move to next question or complete quiz
+      if (currentQ + 1 >= currentQuestions.length) {
         setQuizCompleted(true);
-        clearInterval(timerRef.current);
       } else {
-        setCurrentQuestion((i) => i + 1);
+        setCurrentQuestion((prev) => prev + 1);
         setSelectedOption(null);
         setIsAnswerSubmitted(false);
         setShowCorrect(false);
       }
+
+      // Allow processing again after state updates
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 100);
     },
-    [selectedOption, questions, currentQuestion, isAnswerSubmitted]
+    [] // Empty dependency array since we use refs
   );
 
   useEffect(() => {
@@ -105,25 +164,55 @@ const Quiz = ({
       setQuizCompleted(false);
       setShowCorrect(false);
       setIsAnswerSubmitted(false);
+      // Reset fireworks ref
+      fireworksShownRef.current = false;
+      // Reset processing ref
+      isProcessingRef.current = false;
     }
   }, [initialQuestions]);
 
+  // Timer effect - REMOVED handleNext from dependencies to prevent timer reset
   useEffect(() => {
     if (quizStarted && !quizCompleted && questions.length > 0) {
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      // Reset timer to 30 seconds for each question
       setTimer(30);
+
+      // Start new timer
       timerRef.current = setInterval(() => {
-        setTimer((prev) => {
-          if (prev <= 0) {
+        setTimer((prevTimer) => {
+          if (prevTimer <= 1) {
+            // Timer expired - call handleNext
             clearInterval(timerRef.current);
-            handleNext(true);
+            timerRef.current = null;
+
+            // Use setTimeout to ensure this runs after current render cycle
+            setTimeout(() => {
+              if (!isProcessingRef.current) {
+                handleNext(true);
+              }
+            }, 0);
+
             return 0;
           }
-          return prev - 1;
+          return prevTimer - 1;
         });
       }, 1000);
-      return () => clearInterval(timerRef.current);
+
+      // Cleanup function
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      };
     }
-  }, [currentQuestion, quizStarted, quizCompleted, questions, handleNext]);
+  }, [currentQuestion, quizStarted, quizCompleted, questions.length]); // Removed handleNext
 
   useEffect(() => {
     const handlePrintScreen = (e) => {
@@ -144,7 +233,11 @@ const Quiz = ({
   }, []);
 
   const handleCancelQuiz = () => {
-    clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    isProcessingRef.current = false;
     handleQuizCancel();
   };
 
