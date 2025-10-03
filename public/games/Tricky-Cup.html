@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Tricky Cup Game - Levels</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Arial", sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        overflow: auto;
+        user-select: none;
+        min-height: 100vh;
+      }
+
+      /* Iframe compatibility */
+      @media (max-height: 600px) {
+        body {
+          min-height: 600px;
+          overflow-y: auto;
+        }
+      }
+
+      /* When inside iframe */
+      body.iframe-mode {
+        min-height: 100%;
+        height: 100%;
+        overflow: auto;
+        padding: 10px;
+      }
+
+      body.iframe-mode canvas {
+        max-width: 100%;
+        max-height: calc(100vh - 20px);
+      }
+
+      canvas {
+        display: block;
+        cursor: pointer;
+      }
+
+      #ui {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 100;
+      }
+
+      #gameInfo {
+        position: absolute;
+        top: 20px;
+        width: 100%;
+        text-align: center;
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+        padding: 0 10px;
+      }
+
+      #hud {
+        position: absolute;
+        top: 70px;
+        width: 100%;
+        text-align: center;
+        color: #ffd700;
+        font-size: 18px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding: 0 10px;
+      }
+
+      #hud span {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 5px 15px;
+        border-radius: 10px;
+      }
+
+      #startButton {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 40px;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 15px;
+        border: none;
+        background: linear-gradient(45deg, #4caf50, #45a049);
+        color: white;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        pointer-events: auto;
+      }
+
+      #startButton:hover {
+        transform: translate(-50%, -50%) scale(1.05);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+      }
+
+      #startButton:active {
+        transform: translate(-50%, -50%) scale(0.95);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .success {
+        color: #4caf50 !important;
+      }
+
+      .failure {
+        color: #f44336 !important;
+      }
+
+      /* Start Screen Styles */
+      .screen {
+        display: none;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        padding: 20px;
+        animation: fadeIn 0.5s ease-out;
+        z-index: 50;
+      }
+
+      .screen.active {
+        display: flex;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      #start-screen .title {
+        font-size: clamp(3rem, 10vw, 5rem);
+        letter-spacing: 2px;
+        text-shadow: 0 0 15px rgba(255, 210, 127, 0.4);
+        margin-bottom: 40px;
+        color: #ffd700;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .menu-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 100%;
+        max-width: 400px;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #unlock-btn,
+      #previous-levels-btn {
+        margin-top: 20px;
+      }
+
+      /* Ensure proper display for both level containers */
+      #basic-levels {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        align-items: center;
+      }
+
+      #basic-levels.hidden {
+        display: none;
+      }
+
+      #advanced-levels {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        align-items: center;
+      }
+
+      #advanced-levels.hidden {
+        display: none;
+      }
+
+      .level-btn {
+        padding: 15px 25px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 15px;
+        border: none;
+        background: linear-gradient(45deg, #4caf50, #45a049);
+        color: white;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        pointer-events: auto;
+        width: 100%;
+        max-width: 320px;
+        text-align: center;
+        margin: 8px auto;
+        display: block;
+      }
+
+      .level-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+      }
+
+      .level-btn:active {
+        transform: translateY(0);
+      }
+
+      /* Result Modal Styles */
+      #result-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(5px);
+        z-index: 200;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.3s;
+      }
+
+      .modal-content {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+
+      #result-message {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(255, 210, 127, 0.5);
+      }
+
+      #result-detail {
+        font-size: 1.2rem;
+        margin-bottom: 30px;
+        opacity: 0.9;
+      }
+
+      .modal-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+
+      .modal-btn {
+        padding: 12px 20px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 10px;
+        border: none;
+        background: linear-gradient(45deg, #4caf50, #45a049);
+        color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        min-width: 100px;
+      }
+
+      .modal-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .modal-btn.secondary {
+        background: linear-gradient(45deg, #6c757d, #5a6268);
+      }
+
+      .modal-btn.primary {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+      }
+
+      /* ===== Mobile Responsive Code START ===== */
+
+      /* For Tablets and Large Phones */
+      @media (max-width: 768px) {
+        #gameInfo {
+          font-size: 24px;
+        }
+        #hud {
+          top: 60px;
+          gap: 15px;
+        }
+        #hud span {
+          font-size: 16px;
+        }
+        #start-screen .title {
+          font-size: clamp(3rem, 12vw, 4rem);
+        }
+      }
+
+      /* For Smaller Mobile Phones */
+      @media (max-width: 600px) {
+        #gameInfo {
+          font-size: 20px;
+          top: 15px;
+        }
+
+        #hud {
+          top: 50px;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        #hud span {
+          font-size: 14px;
+          padding: 4px 10px;
+        }
+
+        #startButton {
+          padding: 15px 30px;
+          font-size: 20px;
+        }
+
+        .modal-content {
+          padding: 30px 20px;
+          max-width: 350px;
+        }
+
+        #result-message {
+          font-size: 2rem;
+        }
+
+        #result-detail {
+          font-size: 1rem;
+        }
+
+        .modal-buttons {
+          flex-direction: column;
+          width: 100%;
+        }
+
+        .modal-btn {
+          width: 100%;
+          padding: 12px 15px;
+        }
+
+        #start-screen .title {
+          font-size: clamp(2.5rem, 8vw, 3.5rem);
+          margin-bottom: 30px;
+        }
+
+        .menu-buttons {
+          max-width: 320px;
+        }
+
+        .level-btn {
+          padding: 14px 20px;
+          font-size: 0.95rem;
+          max-width: 300px;
+          margin: 6px auto;
+        }
+      }
+      /* ===== Mobile Responsive Code END ===== */
+    </style>
+  </head>
+  <body>
+    <div id="start-screen" class="screen active">
+      <h1 class="title">3D Tricky Cup Game</h1>
+      <div class="menu-buttons">
+        <div id="basic-levels">
+          <button class="level-btn" data-level="1">
+            Level 1 - Easy (3 Cups)
+          </button>
+          <button class="level-btn" data-level="2">
+            Level 2 - Medium (4 Cups)
+          </button>
+          <button class="level-btn" data-level="3">
+            Level 3 - Hard (5 Cups)
+          </button>
+          <button class="level-btn" data-level="4">
+            Level 4 - Expert (6 Cups)
+          </button>
+          <button class="level-btn" data-level="5">
+            Level 5 - Master (7 Cups)
+          </button>
+          <button class="level-btn" data-level="6">
+            Level 6 - Legendary (8 Cups)
+          </button>
+
+          <button
+            id="unlock-btn"
+            class="level-btn"
+            style="
+              background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+              margin-top: 20px;
+            "
+          >
+            🔓 Unlock Advanced Levels
+          </button>
+        </div>
+
+        <div id="advanced-levels" class="hidden">
+          <button class="level-btn" data-level="7">
+            Level 7 - Ultimate (9 Cups)
+          </button>
+          <button class="level-btn" data-level="8">
+            Level 8 - Supreme (10 Cups)
+          </button>
+          <button class="level-btn" data-level="9">
+            Level 9 - Godlike (11 Cups)
+          </button>
+          <button class="level-btn" data-level="10">
+            Level 10 - Impossible (12 Cups)
+          </button>
+          <button class="level-btn" data-level="11">
+            Level 11 - Nightmare (13 Cups)
+          </button>
+          <button class="level-btn" data-level="12">
+            Level 12 - Cosmic (14 Cups)
+          </button>
+
+          <button
+            id="previous-levels-btn"
+            class="level-btn"
+            style="
+              background: linear-gradient(45deg, #6c757d, #5a6268);
+              margin-top: 20px;
+            "
+          >
+            ← Previous Levels (1-6)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+      <div id="ui">
+        <div id="gameInfo">3D Tricky Cup Game</div>
+        <div id="hud">
+          <span id="level-ui">Level: 1</span>
+          <span id="score-ui">Score: 0</span>
+          <span id="highscore-ui">High Score: 0</span>
+        </div>
+        <button id="startButton" class="hidden">Start Game</button>
+      </div>
+    </div>
+
+    <div id="result-modal">
+      <div class="modal-content">
+        <h2 id="result-message">Level Complete!</h2>
+        <p id="result-detail">Congratulations! You found the coin!</p>
+        <div class="modal-buttons">
+          <button id="replay-btn" class="modal-btn secondary">Replay</button>
+          <button id="next-level-btn" class="modal-btn primary">
+            Next Level
+          </button>
+          <button id="main-menu-btn" class="modal-btn secondary">
+            Main Menu
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/MotionPathPlugin.min.js"></script>
+
+    <script>
+      // Detect if running in iframe and adjust styling
+      if (window.self !== window.top) {
+        document.body.classList.add("iframe-mode");
+      }
+    </script>
+    <script>
+      gsap.registerPlugin(MotionPathPlugin);
+
+      // Game states
+      const GAME_STATES = {
+        IDLE: "IDLE",
+        SHOWING_COIN: "SHOWING_COIN",
+        HIDING_COIN: "HIDING_COIN",
+        SHUFFLING: "SHUFFLING",
+        AWAITING_GUESS: "AWAITING_GUESS",
+        REVEALING: "REVEALING",
+        END: "END",
+      };
+
+      // Level configurations
+      const levelConfigs = [
+        { level: 1, cupCount: 3, coinCount: 1, name: "Easy" },
+        { level: 2, cupCount: 4, coinCount: 1, name: "Medium" },
+        { level: 3, cupCount: 5, coinCount: 2, name: "Hard" },
+        { level: 4, cupCount: 6, coinCount: 2, name: "Expert" },
+        { level: 5, cupCount: 7, coinCount: 3, name: "Master" },
+        { level: 6, cupCount: 8, coinCount: 3, name: "Legendary" },
+        { level: 7, cupCount: 9, coinCount: 3, name: "Ultimate" },
+        { level: 8, cupCount: 10, coinCount: 3, name: "Supreme" },
+        { level: 9, cupCount: 11, coinCount: 4, name: "Godlike" },
+        { level: 10, cupCount: 12, coinCount: 4, name: "Impossible" },
+        { level: 11, cupCount: 13, coinCount: 5, name: "Nightmare" },
+        { level: 12, cupCount: 14, coinCount: 5, name: "Cosmic" },
+      ];
+
+      // Game state object
+      let gameState = {
+        scene: null,
+        camera: null,
+        renderer: null,
+        cups: [],
+        coins: [],
+        table: null,
+        coinPositions: [], // Indices of cups with coins
+        foundCoins: [], // Indices of coins already found
+        currentState: GAME_STATES.IDLE,
+        level: 1,
+        currentLevelConfig: null,
+        score: 0,
+        highScore: 0,
+        raycaster: new THREE.Raycaster(),
+        mouse: new THREE.Vector2(),
+        completedLevels: [], // Track completed levels
+      };
+
+      // Functions for level progression
+      function checkLevelCompletion() {
+        const completedLevels = JSON.parse(
+          localStorage.getItem("trickyCupCompletedLevels") || "[]"
+        );
+        return completedLevels;
+      }
+
+      function markLevelCompleted(level) {
+        let completedLevels = JSON.parse(
+          localStorage.getItem("trickyCupCompletedLevels") || "[]"
+        );
+        if (!completedLevels.includes(level)) {
+          completedLevels.push(level);
+          localStorage.setItem(
+            "trickyCupCompletedLevels",
+            JSON.stringify(completedLevels)
+          );
+        }
+        gameState.completedLevels = completedLevels;
+        // Level completion tracking only, button display handled by toggle functions
+      }
+
+      function showUnlockButton() {
+        document.getElementById("unlock-btn").classList.remove("hidden");
+      }
+
+      function showAdvancedLevels() {
+        // Hide basic levels, show advanced levels
+        document.getElementById("basic-levels").classList.add("hidden");
+        document.getElementById("advanced-levels").classList.remove("hidden");
+      }
+
+      function showBasicLevels() {
+        // Show basic levels, hide advanced levels
+        document.getElementById("basic-levels").classList.remove("hidden");
+        document.getElementById("advanced-levels").classList.add("hidden");
+      }
+
+      function updateLevelDisplay() {
+        const completedLevels = checkLevelCompletion();
+        gameState.completedLevels = completedLevels;
+        // Level display is now handled by showBasicLevels/showAdvancedLevels functions
+      }
+
+      // Audio context for sound effects
+      let audioContext;
+
+      function initAudio() {
+        if (audioContext) return;
+        try {
+          audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+        } catch (e) {
+          console.log("Audio not supported");
+        }
+      }
+
+      function playSound(frequency, duration, type = "sine") {
+        if (!audioContext) return;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.setValueAtTime(
+          frequency,
+          audioContext.currentTime
+        );
+        oscillator.type = type;
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(
+          0.01,
+          audioContext.currentTime + duration
+        );
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+      }
+
+      // --- Parenting Helpers ---
+      function attachCoinsToCups() {
+        gameState.coinPositions.forEach((cupIndex) => {
+          const cup = gameState.cups.find((c) => c.userData.index === cupIndex);
+          const coin = gameState.coins.find(
+            (c) => c.userData.cupIndex === cupIndex
+          );
+          if (cup && coin) {
+            const worldPos = coin.position.clone();
+            cup.add(coin);
+            const localPos = new THREE.Vector3();
+            localPos.copy(worldPos);
+            cup.worldToLocal(localPos);
+            coin.position.copy(localPos);
+          }
+        });
+      }
+
+      function detachAllCoins() {
+        gameState.coins.forEach((coin) => {
+          if (coin.parent) {
+            const worldPos = new THREE.Vector3();
+            coin.getWorldPosition(worldPos);
+            coin.parent.remove(coin);
+            gameState.scene.add(coin);
+            coin.position.copy(worldPos);
+          }
+        });
+      }
+
+      function getCupFromIntersect(intersectObject) {
+        let obj = intersectObject;
+        while (obj.parent && obj.parent !== gameState.scene) {
+          obj = obj.parent;
+        }
+        return obj;
+      }
+
+      // --- Scene Setup ---
+      function setupScene() {
+        gameState.scene = new THREE.Scene();
+        gameState.scene.fog = new THREE.Fog(0x2a5298, 10, 50);
+
+        gameState.camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        gameState.camera.position.set(0, 10, 14);
+        gameState.camera.lookAt(0, 0, 0);
+
+        gameState.renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true,
+        });
+        gameState.renderer.setSize(window.innerWidth, window.innerHeight);
+        gameState.renderer.setClearColor(0x2a5298, 0);
+        gameState.renderer.shadowMap.enabled = true;
+        gameState.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(gameState.renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        gameState.scene.add(ambientLight);
+
+        const spotlight = new THREE.SpotLight(0xffffff, 1.5);
+        spotlight.position.set(0, 15, 8);
+        spotlight.target.position.set(0, 0, 0);
+        spotlight.angle = Math.PI / 4;
+        spotlight.penumbra = 0.3;
+        spotlight.decay = 2;
+        spotlight.distance = 40;
+        spotlight.castShadow = true;
+        spotlight.shadow.mapSize.width = 2048;
+        spotlight.shadow.mapSize.height = 2048;
+        gameState.scene.add(spotlight);
+        gameState.scene.add(spotlight.target);
+      }
+
+      function createTable() {
+        const tableGeometry = new THREE.CylinderGeometry(8, 8, 0.5, 64);
+        const tableMaterial = new THREE.MeshStandardMaterial({
+          color: 0x8b4513,
+          roughness: 0.8,
+          metalness: 0.1,
+        });
+        gameState.table = new THREE.Mesh(tableGeometry, tableMaterial);
+        gameState.table.position.y = -1.5;
+        gameState.table.receiveShadow = true;
+        gameState.scene.add(gameState.table);
+      }
+
+      function getCupPositions(cupCount) {
+        const positions = [];
+        const tableRadius = 7.0;
+
+        if (cupCount <= 3) {
+          const spacing = 4;
+          const totalWidth = (cupCount - 1) * spacing;
+          const startX = -totalWidth / 2;
+          for (let i = 0; i < cupCount; i++) {
+            positions.push(new THREE.Vector3(startX + i * spacing, 0, 0));
+          }
+          return positions;
+        }
+
+        switch (cupCount) {
+          case 4: // Diamond layout
+            positions.push(new THREE.Vector3(0, 0, 3.5));
+            positions.push(new THREE.Vector3(-3.5, 0, 0));
+            positions.push(new THREE.Vector3(3.5, 0, 0));
+            positions.push(new THREE.Vector3(0, 0, -3.5));
+            break;
+          case 5: // Pentagon layout
+            for (let i = 0; i < 5; i++) {
+              const angle = (i / 5) * Math.PI * 2 + Math.PI / 2;
+              const radius = 4.5;
+              positions.push(
+                new THREE.Vector3(
+                  Math.cos(angle) * radius,
+                  0,
+                  Math.sin(angle) * radius
+                )
+              );
+            }
+            break;
+          case 6: // 3-2-1 Pyramid layout
+            positions.push(new THREE.Vector3(-4.5, 0, 3));
+            positions.push(new THREE.Vector3(0, 0, 3));
+            positions.push(new THREE.Vector3(4.5, 0, 3));
+            positions.push(new THREE.Vector3(-2.5, 0, -0.5));
+            positions.push(new THREE.Vector3(2.5, 0, -0.5));
+            positions.push(new THREE.Vector3(0, 0, -4));
+            break;
+          default: // Default to a circle for 7+ cups
+            for (let i = 0; i < cupCount; i++) {
+              const angle = (i / cupCount) * Math.PI * 2;
+              const radius = Math.min(tableRadius - 1.5, cupCount * 0.9);
+              positions.push(
+                new THREE.Vector3(
+                  Math.cos(angle) * radius,
+                  0,
+                  Math.sin(angle) * radius
+                )
+              );
+            }
+            break;
+        }
+        return positions;
+      }
+
+      function createCups(cupCount) {
+        const cupPositions = getCupPositions(cupCount);
+        const cupHeight = 2.5;
+        const groundedY = cupHeight / 2 - 1.25;
+
+        cupPositions.forEach((position, i) => {
+          const cupGeometry = new THREE.CylinderGeometry(
+            0.9,
+            1.4,
+            cupHeight,
+            64
+          );
+          const cupMaterial = new THREE.MeshStandardMaterial({
+            color: 0xf5f5dc,
+            roughness: 0.7,
+            metalness: 0.0,
+          });
+          const cup = new THREE.Mesh(cupGeometry, cupMaterial);
+          cup.position.copy(position);
+          cup.position.y = groundedY + 3; // Start floating higher
+          cup.castShadow = true;
+          cup.receiveShadow = true;
+          cup.userData = {
+            index: i,
+            originalPosition: position.clone(),
+            groundedY: groundedY,
+          };
+          gameState.cups.push(cup);
+          gameState.scene.add(cup);
+        });
+      }
+
+      function createCoins(coinCount) {
+        for (let i = 0; i < coinCount; i++) {
+          const coinGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 64);
+          const coinMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd700,
+            roughness: 0.2,
+            metalness: 1.0,
+            emissive: 0xffd700,
+            emissiveIntensity: 0.3,
+          });
+          const coin = new THREE.Mesh(coinGeometry, coinMaterial);
+          coin.position.y = -1.2;
+          coin.castShadow = true;
+          coin.receiveShadow = true;
+          coin.visible = false;
+          coin.userData = { id: i, cupIndex: -1 };
+          gameState.coins.push(coin);
+          gameState.scene.add(coin);
+        }
+      }
+
+      // --- UI Management ---
+      function updateGameInfo(text, className = "") {
+        document.getElementById("gameInfo").textContent = text;
+        document.getElementById("gameInfo").className = className;
+      }
+
+      function updateHUD() {
+        document.getElementById(
+          "level-ui"
+        ).textContent = `Level: ${gameState.level}`;
+        document.getElementById(
+          "score-ui"
+        ).textContent = `Score: ${gameState.score}`;
+        document.getElementById(
+          "highscore-ui"
+        ).textContent = `High Score: ${gameState.highScore}`;
+      }
+
+      function setState(newState) {
+        gameState.currentState = newState;
+      }
+
+      function canPlayerInteract() {
+        return gameState.currentState === GAME_STATES.AWAITING_GUESS;
+      }
+
+      // Screen management
+      function showScreen(screenId) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document.getElementById(screenId).classList.add("active");
+      }
+
+      function showResultModal(success = true) {
+        const modal = document.getElementById("result-modal");
+        const message = document.getElementById("result-message");
+        const detail = document.getElementById("result-detail");
+        const nextBtn = document.getElementById("next-level-btn");
+
+        if (success) {
+          message.textContent = "Level Complete!";
+          detail.textContent = `Congratulations! You completed Level ${gameState.level}!`;
+
+          // Show next level button only if not on last level
+          if (gameState.level < levelConfigs.length) {
+            nextBtn.style.display = "inline-block";
+          } else {
+            nextBtn.style.display = "none";
+            message.textContent = "Game Complete!";
+            detail.textContent = "Amazing! You've completed all levels!";
+          }
+        } else {
+          message.textContent = "Try Again!";
+          detail.textContent = "Better luck next time!";
+          nextBtn.style.display = "none";
+        }
+
+        modal.style.display = "flex";
+      }
+
+      function hideResultModal() {
+        document.getElementById("result-modal").style.display = "none";
+      }
+
+      // --- Game Flow & Logic ---
+      function initGame() {
+        gameState.highScore = parseInt(
+          localStorage.getItem("trickyCupHighScore") || "0"
+        );
+        updateHUD();
+
+        // Ensure proper initial state: basic levels visible
+        document.getElementById("basic-levels").classList.remove("hidden");
+        document.getElementById("advanced-levels").classList.add("hidden");
+      }
+
+      function setupLevel() {
+        const config = levelConfigs[gameState.level - 1];
+        gameState.currentLevelConfig = config;
+
+        const cupCount = config.cupCount;
+        const coinCount = config.coinCount;
+
+        createCups(cupCount);
+        createCoins(coinCount);
+
+        const availableCupIndices = Array.from(
+          { length: cupCount },
+          (_, i) => i
+        );
+        gameState.coinPositions = [];
+        gameState.foundCoins = []; // Reset found coins for new level
+        for (let i = 0; i < coinCount; i++) {
+          const randomIndex = Math.floor(
+            Math.random() * availableCupIndices.length
+          );
+          const cupIndex = availableCupIndices.splice(randomIndex, 1)[0];
+          gameState.coinPositions.push(cupIndex);
+          gameState.coins[i].userData.cupIndex = cupIndex;
+        }
+      }
+
+      function startGame(levelNumber = null) {
+        if (gameState.currentState !== GAME_STATES.IDLE) return;
+
+        if (levelNumber) {
+          gameState.level = levelNumber;
+        }
+
+        initAudio();
+        setupLevel();
+        updateHUD();
+        setState(GAME_STATES.SHOWING_COIN);
+        showScreen("game-screen");
+        document.getElementById("startButton").classList.add("hidden");
+
+        gameState.coins.forEach((coin) => {
+          const cup = gameState.cups[coin.userData.cupIndex];
+          coin.position.x = cup.position.x;
+          coin.position.z = cup.position.z;
+          coin.visible = true;
+        });
+
+        updateGameInfo("Watch the golden coins carefully...", "pulse");
+        playSound(440, 0.3);
+
+        setTimeout(() => {
+          updateGameInfo("Remember where the coins are placed!");
+          showCoinAnimation();
+        }, 1500);
+      }
+
+      function showCoinAnimation() {
+        const tl = gsap.timeline({
+          onComplete: () => {
+            setState(GAME_STATES.HIDING_COIN);
+            updateGameInfo("Covering the coins...");
+            const hideTl = gsap.timeline({ onComplete: hideCupsAnimation });
+            gameState.coins.forEach((coin) => {
+              const cup = gameState.cups[coin.userData.cupIndex];
+              hideTl.to(
+                coin.position,
+                {
+                  duration: 0.8,
+                  y: -1.2,
+                  z: cup.position.z,
+                  ease: "power2.inOut",
+                },
+                0
+              );
+            });
+          },
+        });
+
+        gameState.coins.forEach((coin) => {
+          const cup = gameState.cups[coin.userData.cupIndex];
+          coin.position.y = 0.5;
+          coin.position.z = cup.position.z + 2.0;
+
+          tl.to(
+            coin.rotation,
+            { duration: 3, y: `+=${Math.PI * 6}`, ease: "power2.out" },
+            0
+          );
+          tl.to(
+            coin.material,
+            {
+              duration: 0.8,
+              emissiveIntensity: 0.8,
+              yoyo: true,
+              repeat: 4,
+              ease: "power2.inOut",
+            },
+            0
+          );
+          tl.to(
+            coin.position,
+            {
+              duration: 0.5,
+              y: 0.7,
+              yoyo: true,
+              repeat: 3,
+              ease: "power2.inOut",
+            },
+            0
+          );
+        });
+      }
+
+      function hideCupsAnimation() {
+        playSound(330, 0.5);
+        const timeline = gsap.timeline({
+          onComplete: () => {
+            attachCoinsToCups();
+            gameState.coins.forEach((c) => (c.visible = false));
+            setState(GAME_STATES.SHUFFLING);
+            updateGameInfo("Shuffling cups...", "pulse");
+            startShuffling();
+          },
+        });
+
+        gameState.cups.forEach((cup, index) => {
+          timeline.to(
+            cup.position,
+            { duration: 1.0, y: cup.userData.groundedY, ease: "bounce.out" },
+            index * 0.1
+          );
+        });
+      }
+
+      function startShuffling() {
+        playSound(220, 0.2);
+        const cupCount = gameState.cups.length;
+        const shuffleCount = Math.max(8, 6 + gameState.level * 2);
+        let shuffleIndex = 0;
+
+        function performShuffle() {
+          if (shuffleIndex >= shuffleCount) {
+            endShuffle();
+            return;
+          }
+
+          const cup1Index = Math.floor(Math.random() * cupCount);
+          let cup2Index = Math.floor(Math.random() * cupCount);
+          while (cup2Index === cup1Index) {
+            cup2Index = Math.floor(Math.random() * cupCount);
+          }
+
+          swapCups(cup1Index, cup2Index, () => {
+            shuffleIndex++;
+            setTimeout(performShuffle, 200);
+          });
+        }
+
+        performShuffle();
+      }
+
+      // Simulates a realistic, grounded, human-style cup swap with coin tracking
+      function swapCups(index1, index2, callback) {
+        const cup1 = gameState.cups[index1];
+        const cup2 = gameState.cups[index2];
+
+        const pos1 = cup1.position.clone();
+        const pos2 = cup2.position.clone();
+
+        // Update coin tracking - swap the cup indices in coinPositions
+        const cupIndex1 = cup1.userData.index;
+        const cupIndex2 = cup2.userData.index;
+
+        // Swap the userData indices
+        cup1.userData.index = cupIndex2;
+        cup2.userData.index = cupIndex1;
+
+        // Update coin references and coinPositions array
+        gameState.coins.forEach((coin) => {
+          if (coin.userData.cupIndex === cupIndex1) {
+            coin.userData.cupIndex = cupIndex2;
+          } else if (coin.userData.cupIndex === cupIndex2) {
+            coin.userData.cupIndex = cupIndex1;
+          }
+        });
+
+        // Update coinPositions array to track the swap
+        gameState.coinPositions = gameState.coinPositions.map((pos) => {
+          if (pos === cupIndex1) return cupIndex2;
+          if (pos === cupIndex2) return cupIndex1;
+          return pos;
+        });
+
+        playSound(280, 0.1);
+
+        const duration = 0.5;
+        const tl = gsap.timeline({ onComplete: callback });
+        const arcHeight = 2.0;
+        const midX = (pos1.x + pos2.x) / 2;
+        const midZ = (pos1.z + pos2.z) / 2;
+
+        // Define the path for the first cup (arcing toward the player)
+        const path1 = [
+          { x: midX, z: midZ + arcHeight },
+          { x: pos2.x, z: pos2.z },
+        ];
+
+        // Define the path for the second cup (arcing away from the player)
+        const path2 = [
+          { x: midX, z: midZ - arcHeight },
+          { x: pos1.x, z: pos1.z },
+        ];
+
+        // Animate the first cup along its sliding path
+        tl.to(
+          cup1.position,
+          {
+            motionPath: {
+              path: path1,
+              type: "quadratic",
+            },
+            duration: duration,
+            ease: "power2.inOut",
+          },
+          0
+        );
+
+        // Animate the second cup along its sliding path
+        tl.to(
+          cup2.position,
+          {
+            motionPath: {
+              path: path2,
+              type: "quadratic",
+            },
+            duration: duration,
+            ease: "power2.inOut",
+          },
+          0
+        );
+
+        // Keep the realistic wobble effect during the slide
+        tl.to(
+          [cup1.rotation, cup2.rotation],
+          {
+            y: () => (Math.random() - 0.5) * 0.3,
+            z: () => (Math.random() - 0.5) * 0.15,
+            duration: duration / 2,
+            ease: "sine.inOut",
+            yoyo: true,
+            repeat: 1,
+          },
+          0
+        );
+      }
+
+      function endShuffle() {
+        setState(GAME_STATES.AWAITING_GUESS);
+        const coinsToFind = gameState.coinPositions.length;
+        if (coinsToFind === 1) {
+          updateGameInfo(`🎯 Choose a cup to find the golden coin!`);
+        } else {
+          updateGameInfo(
+            `🎯 Find all ${coinsToFind} golden coins! (${gameState.foundCoins.length}/${coinsToFind} found)`
+          );
+        }
+      }
+
+      // --- Reveal Logic ---
+      function revealCup(cupIndexInArray) {
+        if (!canPlayerInteract()) return;
+
+        setState(GAME_STATES.REVEALING);
+        const selectedCup = gameState.cups[cupIndexInArray];
+
+        // Check if this cup has a coin by looking at the current coin positions
+        // Use the cup's userData.index which tracks its logical position after shuffling
+        const isCorrect = gameState.coinPositions.includes(
+          selectedCup.userData.index
+        );
+
+        // Check if this coin was already found
+        const alreadyFound = gameState.foundCoins.includes(
+          selectedCup.userData.index
+        );
+
+        playSound(350, 0.4);
+
+        // Lift the selected cup with improved animation
+        gsap.to(selectedCup.position, {
+          duration: 1.0,
+          y: selectedCup.userData.groundedY + 3.5,
+          ease: "back.out(1.7)",
+        });
+
+        // Add slight rotation for more realistic lifting
+        gsap.to(selectedCup.rotation, {
+          duration: 1.0,
+          y: Math.PI * 0.15,
+          ease: "back.out(1.7)",
+        });
+
+        setTimeout(() => {
+          detachAllCoins();
+          if (isCorrect && !alreadyFound) {
+            handleCoinFound(selectedCup);
+          } else if (alreadyFound) {
+            handleAlreadyFound(selectedCup);
+          } else {
+            handleWrongCup(selectedCup);
+          }
+          updateHUD();
+        }, 1000);
+      }
+
+      function handleCoinFound(selectedCup) {
+        // Add the found coin to the list
+        gameState.foundCoins.push(selectedCup.userData.index);
+
+        gameState.score += 10 * gameState.level;
+        if (gameState.score > gameState.highScore) {
+          gameState.highScore = gameState.score;
+          localStorage.setItem("trickyCupHighScore", gameState.highScore);
+        }
+
+        const totalCoins = gameState.coinPositions.length;
+        const coinsFound = gameState.foundCoins.length;
+
+        if (coinsFound === totalCoins) {
+          updateGameInfo(
+            "🎉 Excellent! You found all the coins! 🎉",
+            "success"
+          );
+        } else {
+          updateGameInfo(
+            `🎉 Great! Coin found! (${coinsFound}/${totalCoins}) Keep looking! 🎉`,
+            "success"
+          );
+        }
+
+        playSound(523, 0.5);
+        setTimeout(() => playSound(659, 0.5), 200);
+        if (coinsFound === totalCoins) {
+          setTimeout(() => playSound(784, 0.8), 400);
+        }
+
+        // Show the coin that was just found
+        const coin = gameState.coins.find(
+          (c) => c.userData.cupIndex === selectedCup.userData.index
+        );
+        if (coin) {
+          coin.visible = true;
+          coin.position.x = selectedCup.position.x;
+          coin.position.z = selectedCup.position.z;
+
+          // Enhanced coin animation
+          gsap.to(coin.position, {
+            duration: 1.2,
+            y: 1.0,
+            z: selectedCup.position.z + 2.2,
+            ease: "back.out(2.5)",
+          });
+
+          gsap.to(coin.rotation, {
+            duration: 4,
+            y: `+=${Math.PI * 12}`,
+            ease: "power2.out",
+          });
+
+          // Enhanced material effects
+          gsap.to(coin.material, {
+            duration: 0.3,
+            emissiveIntensity: 1.0,
+            yoyo: true,
+            repeat: 12,
+            ease: "power2.inOut",
+          });
+
+          // Scale animation
+          gsap.to(coin.scale, {
+            duration: 0.8,
+            x: 1.3,
+            y: 1.3,
+            z: 1.3,
+            yoyo: true,
+            repeat: 1,
+            ease: "power2.inOut",
+          });
+        }
+
+        setTimeout(() => {
+          if (coinsFound === totalCoins) {
+            // All coins found, mark level as completed
+            markLevelCompleted(gameState.level);
+            setState(GAME_STATES.END);
+            setTimeout(() => showResultModal(true), 1000);
+          } else {
+            // Continue looking for more coins
+            setState(GAME_STATES.AWAITING_GUESS);
+            updateGameInfo(
+              `🎯 Find the remaining coins! (${coinsFound}/${totalCoins} found)`
+            );
+          }
+        }, 3000);
+      }
+
+      function handleAlreadyFound(selectedCup) {
+        updateGameInfo(
+          "💡 You already found this coin! Look for the others!",
+          "pulse"
+        );
+        playSound(440, 0.3);
+
+        // Show the coin briefly to remind the player
+        const coin = gameState.coins.find(
+          (c) => c.userData.cupIndex === selectedCup.userData.index
+        );
+        if (coin) {
+          coin.visible = true;
+          coin.position.x = selectedCup.position.x;
+          coin.position.z = selectedCup.position.z;
+          coin.position.y = 0.5;
+
+          gsap.to(coin.material, {
+            duration: 0.2,
+            emissiveIntensity: 0.8,
+            yoyo: true,
+            repeat: 3,
+            ease: "power2.inOut",
+          });
+        }
+
+        setTimeout(() => {
+          setState(GAME_STATES.AWAITING_GUESS);
+          const coinsFound = gameState.foundCoins.length;
+          const totalCoins = gameState.coinPositions.length;
+          updateGameInfo(
+            `🎯 Find the remaining coins! (${coinsFound}/${totalCoins} found)`
+          );
+        }, 2000);
+      }
+
+      function handleWrongCup(selectedCup) {
+        gameState.score = Math.max(0, gameState.score - 5);
+        const coinsFound = gameState.foundCoins.length;
+        const totalCoins = gameState.coinPositions.length;
+
+        if (totalCoins === 1) {
+          updateGameInfo("❌ Oops! Wrong cup! The coin was here:", "failure");
+        } else {
+          updateGameInfo(
+            `❌ No coin here! Keep looking! (${coinsFound}/${totalCoins} found)`,
+            "failure"
+          );
+        }
+
+        playSound(200, 0.8);
+
+        setTimeout(() => {
+          setState(GAME_STATES.AWAITING_GUESS);
+          if (totalCoins === 1) {
+            // For single coin, show where it was and end the game
+            gameState.coinPositions.forEach((posIndex) => {
+              const correctCup = gameState.cups.find(
+                (c) => c.userData.index === posIndex
+              );
+              if (correctCup) {
+                gsap.to(correctCup.position, {
+                  duration: 1.0,
+                  y: correctCup.userData.groundedY + 3.5,
+                  ease: "back.out(1.7)",
+                });
+
+                gsap.to(correctCup.rotation, {
+                  duration: 1.0,
+                  y: Math.PI * 0.15,
+                  ease: "back.out(1.7)",
+                });
+
+                const coin = gameState.coins.find(
+                  (c) => c.userData.cupIndex === correctCup.userData.index
+                );
+                if (coin) {
+                  coin.visible = true;
+                  coin.position.x = correctCup.position.x;
+                  coin.position.z = correctCup.position.z;
+                  coin.position.y = -1.2;
+
+                  gsap.to(coin.position, {
+                    duration: 1.2,
+                    y: 0.8,
+                    z: correctCup.position.z + 2.0,
+                    ease: "back.out(1.5)",
+                  });
+
+                  gsap.to(coin.rotation, {
+                    duration: 3,
+                    y: `+=${Math.PI * 8}`,
+                    ease: "power2.out",
+                  });
+
+                  gsap.to(coin.material, {
+                    duration: 0.5,
+                    emissiveIntensity: 0.7,
+                    yoyo: true,
+                    repeat: 6,
+                    ease: "power2.inOut",
+                  });
+                }
+              }
+            });
+
+            setTimeout(() => {
+              setState(GAME_STATES.END);
+              setTimeout(() => showResultModal(false), 1000);
+            }, 3000);
+          } else {
+            // For multiple coins, just continue the game
+            updateGameInfo(
+              `🎯 Keep looking for coins! (${coinsFound}/${totalCoins} found)`
+            );
+          }
+        }, 1500);
+      }
+
+      function resetAndStartNextLevel() {
+        gameState.cups.forEach((cup) => gameState.scene.remove(cup));
+        gameState.coins.forEach((coin) => gameState.scene.remove(coin));
+        gameState.cups = [];
+        gameState.coins = [];
+        gameState.coinPositions = [];
+        gameState.foundCoins = [];
+
+        setState(GAME_STATES.IDLE);
+        startGame();
+      }
+
+      function cleanupLevel() {
+        gameState.cups.forEach((cup) => gameState.scene.remove(cup));
+        gameState.coins.forEach((coin) => gameState.scene.remove(coin));
+        gameState.cups = [];
+        gameState.coins = [];
+        gameState.coinPositions = [];
+        gameState.foundCoins = [];
+        setState(GAME_STATES.IDLE);
+      }
+
+      function onMouseClick(event) {
+        if (!canPlayerInteract()) return;
+        gameState.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        gameState.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        gameState.raycaster.setFromCamera(gameState.mouse, gameState.camera);
+        const intersects = gameState.raycaster.intersectObjects(
+          gameState.cups,
+          true
+        );
+
+        if (intersects.length > 0) {
+          const selectedCupObject = getCupFromIntersect(intersects[0].object);
+          const cupIndexInArray = gameState.cups.indexOf(selectedCupObject);
+          if (cupIndexInArray > -1) {
+            revealCup(cupIndexInArray);
+          }
+        }
+      }
+
+      function onWindowResize() {
+        gameState.camera.aspect = window.innerWidth / window.innerHeight;
+        gameState.camera.updateProjectionMatrix();
+        gameState.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const time = Date.now() * 0.0005;
+        gameState.camera.position.x = Math.sin(time) * 0.5;
+        gameState.renderer.render(gameState.scene, gameState.camera);
+      }
+
+      // --- Initialize and Run Game ---
+      setupScene();
+      createTable();
+      initGame();
+
+      // Level selection event listeners
+      document.querySelectorAll(".level-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const level = parseInt(e.target.dataset.level);
+          if (level) {
+            cleanupLevel();
+            startGame(level);
+          }
+        });
+      });
+
+      // Navigation button event listeners
+      document.getElementById("unlock-btn").addEventListener("click", () => {
+        showAdvancedLevels();
+      });
+
+      document
+        .getElementById("previous-levels-btn")
+        .addEventListener("click", () => {
+          showBasicLevels();
+        });
+
+      // Modal event listeners
+      document.getElementById("replay-btn").addEventListener("click", () => {
+        hideResultModal();
+        cleanupLevel();
+        startGame(gameState.level);
+      });
+
+      document
+        .getElementById("next-level-btn")
+        .addEventListener("click", () => {
+          hideResultModal();
+          cleanupLevel();
+          if (gameState.level < levelConfigs.length) {
+            startGame(gameState.level + 1);
+          }
+        });
+
+      document.getElementById("main-menu-btn").addEventListener("click", () => {
+        hideResultModal();
+        cleanupLevel();
+        showBasicLevels(); // Always return to basic levels with unlock button
+        showScreen("start-screen");
+      });
+
+      document.getElementById("startButton").addEventListener("click", () => {
+        if (gameState.currentState === GAME_STATES.IDLE) {
+          startGame();
+        } else if (gameState.currentState === GAME_STATES.END) {
+          resetAndStartNextLevel();
+        }
+      });
+      window.addEventListener("click", onMouseClick);
+      window.addEventListener("resize", onWindowResize);
+
+      animate();
+    </script>
+  </body>
+</html>

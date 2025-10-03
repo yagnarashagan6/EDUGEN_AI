@@ -46,9 +46,14 @@ const Sidebar = ({
     { id: "streak-container", icon: "fas fa-fire", label: "Streaks" },
     { id: "news-container", icon: "fas fa-newspaper", label: "News" },
     {
-      id: "youtube-container", // <-- Add this line
-      icon: "fab fa-youtube", // <-- Use YouTube icon
+      id: "youtube-container",
+      icon: "fab fa-youtube",
       label: "YouTube",
+    },
+    {
+      id: "study-timer-container", // Add Study Timer option
+      icon: "fas fa-stopwatch",
+      label: "Study Timer",
     },
     {
       id: "staff-interaction-container",
@@ -92,6 +97,11 @@ const Sidebar = ({
       id: "quick-stats-container",
       icon: "fas fa-chart-bar",
       label: "Quick Stats",
+    },
+    {
+      id: "study-timer-container", // Add Study Timer option for staff too
+      icon: "fas fa-stopwatch",
+      label: "Study Timer",
     },
     // Only show chatbot option on mobile
     ...(isMobile

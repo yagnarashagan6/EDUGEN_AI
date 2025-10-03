@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Timer - Focus & Play</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-primary: #f1f3f4;
+        --bg-secondary: #ffffff;
+        --text-primary: #333;
+        --text-secondary: #666;
+        --text-muted: #555;
+        --card-bg: #ffffff;
+        --header-bg: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        --timer-bg: #ffffff;
+        --quote-color: #555;
+        --border-color: #dee2e6;
+        --input-bg: #ffffff;
+        --shadow-color: rgba(0, 0, 0, 0.1);
+      }
+
+      body.dark-mode {
+        --bg-primary: #1a1a1a;
+        --bg-secondary: #2d2d2d;
+        --text-primary: #ffffff;
+        --text-secondary: #cccccc;
+        --text-muted: #aaaaaa;
+        --card-bg: #3a3a3a;
+        --header-bg: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
+        --timer-bg: #3a3a3a;
+        --quote-color: #cccccc;
+        --border-color: #555555;
+        --input-bg: #2d2d2d;
+        --shadow-color: rgba(255, 255, 255, 0.1);
+      }
+
+      body {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: "Open Sans", sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--bg-primary) 0%,
+          var(--bg-secondary) 100%
+        );
+        min-height: 100vh;
+        color: var(--text-primary);
+        transition: all 0.3s ease;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      /* Header */
+      .header {
+        background: var(--header-bg);
+        color: white;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0, 123, 255, 0.2);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: "Montserrat", sans-serif;
+        font-weight: 700;
+        font-size: 1.5rem;
+      }
+
+      .timer-icon {
+        width: 32px;
+        height: 32px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #007bff;
+        font-weight: bold;
+      }
+
+      .nav {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+      }
+
+      /* Hamburger menu styles (mobile only) */
+      .hamburger {
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        cursor: pointer;
+        z-index: 3001;
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        transition: 0.3s;
+      }
+      .hamburger span {
+        height: 4px;
+        width: 100%;
+        background: #222;
+        margin: 5px 0;
+        border-radius: 2px;
+        transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: block;
+      }
+      .hamburger.active span:nth-child(1) {
+        transform: translateY(9px) rotate(45deg);
+        background: #007bff;
+      }
+      .hamburger.active span:nth-child(2) {
+        opacity: 0;
+      }
+      .hamburger.active span:nth-child(3) {
+        transform: translateY(-9px) rotate(-45deg);
+        background: #007bff;
+      }
+      .mobile-nav {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 200px;
+        height: 100vh;
+        background: var(--card-bg);
+        box-shadow: 2px 0 16px var(--shadow-color);
+        z-index: 3000;
+        padding: 2.5rem 1.2rem 1.2rem 1.2rem;
+        gap: 1.2rem;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-top-right-radius: 18px;
+        border-bottom-right-radius: 18px;
+      }
+      .mobile-nav .sidebar-spacer {
+        height: 40px;
+        width: 100%;
+        display: block;
+      }
+      .mobile-nav.show {
+        transform: translateX(0);
+      }
+      .mobile-nav .nav-link,
+      .mobile-nav .dark-toggle {
+        color: var(--text-primary);
+        font-size: 1rem;
+        margin-bottom: 0.7rem;
+        width: 100%;
+        text-align: left;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        border-radius: 8px;
+        padding: 0.5rem 0.7rem;
+        background: none;
+        transition: background 0.2s, color 0.2s;
+        border: none;
+        cursor: pointer;
+      }
+      .mobile-nav .nav-link.active {
+        background: #d0e7ff;
+        color: #0056b3;
+      }
+      .mobile-nav .nav-link:hover,
+      .mobile-nav .dark-toggle:hover {
+        background: #e3f0ff;
+        color: #0056b3;
+      }
+      .mobile-nav .dark-toggle {
+        margin-bottom: 0;
+        color: #222;
+        background: #e3f0ff;
+      }
+      .mobile-nav .close-mobile-nav {
+        background: none;
+        border: none;
+        color: #007bff;
+        font-size: 2rem;
+        align-self: flex-end;
+        margin-bottom: 1.2rem;
+        cursor: pointer;
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        .nav {
+          display: none;
+        }
+        .hamburger {
+          display: flex;
+          position: absolute;
+          top: 18px;
+          left: 18px;
+        }
+        .header {
+          position: relative;
+        }
+      }
+
+      .nav-link {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        transition: opacity 0.3s;
+        cursor: pointer;
+      }
+
+      .nav-link:hover {
+        opacity: 0.8;
+      }
+
+      .dark-toggle {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .dark-toggle:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Main Container */
+      .main-container {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* Timer Dashboard */
+      .timer-dashboard {
+        padding: 4rem 3rem 0rem;
+        text-align: center;
+        transition: transform 0.3s;
+      }
+
+      .timer-dashboard:hover {
+        transform: translateY(-5px);
+      }
+
+      /* NEW: Motivational quote styling */
+      .quote {
+        font-style: italic;
+        opacity: 0.8;
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        color: var(--quote-color);
+        font-size: 1.1rem;
+        padding: 0 1rem;
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      .timer-circle {
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background: conic-gradient(
+          #007bff 0deg,
+          #007bff 270deg,
+          #e9ecef 270deg
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        position: relative;
+        transition: all 0.5s ease;
+      }
+
+      .timer-circle.break-mode {
+        background: conic-gradient(
+          #28a745 0deg,
+          #28a745 270deg,
+          #e9ecef 270deg
+        );
+      }
+
+      .timer-inner {
+        width: 200px;
+        height: 200px;
+        background: var(--timer-bg);
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 0 20px var(--shadow-color);
+      }
+
+      .timer-display {
+        font-family: "Montserrat", sans-serif;
+        font-size: 4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        text-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
+      }
+
+      @media (min-width: 1280px) {
+        .timer-display {
+          font-size: 4rem;
+        }
+
+        .timer-circle {
+          width: 300px;
+          height: 300px;
+          box-shadow: 0 0 30px rgba(0, 123, 255, 0.2);
+        }
+
+        .timer-inner {
+          width: 240px;
+          height: 240px;
+        }
+      }
+
+      .timer-label {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+      }
+
+      .mode-text {
+        font-family: "Montserrat", sans-serif;
+        font-size: 1.3rem;
+        color: #007bff;
+        margin-bottom: 2rem;
+        font-weight: 600;
+      }
+
+      .mode-text.break-mode {
+        color: #28a745;
+      }
+
+      .timer-controls {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .timer-controls-row1 {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 1rem;
+      }
+
+      .timer-controls-row2 {
+        display: flex;
+        justify-content: center;
+      }
+
+      .control-btn {
+        padding: 1.2rem 2.5rem;
+        border: none;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        min-width: 120px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .start-btn {
+        background: #28a745;
+        color: white;
+      }
+
+      .start-btn:hover {
+        background: #1e7e34;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+      }
+
+      .pause-btn {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .pause-btn:hover {
+        background: #d39e00;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255, 193, 7, 0.3);
+      }
+
+      .reset-btn {
+        background: #dc3545;
+        color: white;
+        /* Match .control-btn padding exactly */
+        padding: 1.2rem 2.5rem;
+        border: none;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        min-width: 120px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .reset-btn:hover {
+        background: #bd2130;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+      }
+
+      /* Stats display styling (below timer, not modal) */
+      .stats-display {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        display: none;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 2.5rem;
+        margin: 1.5rem auto 0 auto;
+        max-width: 700px;
+        width: calc(100% - 2rem);
+        min-height: 60px;
+        overflow: hidden;
+        margin-top: 1rem;
+      }
+      .stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 1.1rem;
+      }
+
+      @media (min-width: 1280px) {
+        .control-btn .reset-btn {
+          padding: 1.5rem 3rem;
+          font-size: 1.2rem;
+        }
+      }
+
+      /* Interval Selector */
+      .interval-selector {
+        grid-column: 1 / -1;
+        margin-top: 110px;
+      }
+
+      .selector-title {
+        font-family: "Montserrat", sans-serif;
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 2.2rem;
+        text-align: center;
+        letter-spacing: 1px;
+        text-shadow: 0 2px 8px var(--shadow-color);
+      }
+
+      .intervals-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .interval-card {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border: 2px solid transparent;
+        border-radius: 22px;
+        padding: 2.7rem 2.2rem 2.2rem 2.2rem;
+        min-height: 180px;
+        min-width: 260px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        font-size: 1.35rem;
+        box-shadow: 0 6px 24px rgba(0, 123, 255, 0.07);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .interval-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 25px rgba(0, 123, 255, 0.2);
+      }
+
+      .interval-card.active {
+        border-color: #007bff;
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+      }
+
+      .interval-card.active .card-title,
+      .interval-card.active .card-time {
+        color: white;
+      }
+
+      .card-icon {
+        font-size: 3.2rem;
+        margin-bottom: 1.1rem;
+      }
+
+      .card-title {
+        font-family: "Montserrat", sans-serif;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.7rem;
+        font-size: 1.5rem;
+      }
+
+      .card-time {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        font-weight: 500;
+      }
+
+      .custom-inputs {
+        display: flex;
+        gap: 1rem;
+        margin: 1rem 0;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .input-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .time-input {
+        width: 60px;
+        padding: 0.5rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 600;
+        transition: border-color 0.3s;
+        background: var(--input-bg);
+        color: var(--text-primary);
+      }
+
+      .time-input:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+
+      .custom-btn {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .custom-btn:hover {
+        background: #0056b3;
+      }
+
+      /* Games Gallery styling */
+      .games-gallery {
+        grid-column: 1 / -1;
+        margin-top: 110px;
+      }
+
+      .games-gallery .interval-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .games-gallery .interval-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 25px rgba(0, 123, 255, 0.2);
+      }
+
+      /* Game Notification Popup */
+      .game-notification {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.7);
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        max-width: 500px;
+        width: 90%;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s ease;
+      }
+
+      .game-notification.show {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+        pointer-events: all;
+      }
+
+      .notification-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .notification-overlay.show {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .notification-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+      }
+
+      .notification-title {
+        font-family: "Montserrat", sans-serif;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #28a745;
+      }
+
+      .notification-subtitle {
+        font-size: 1rem;
+        color: var(--text-secondary);
+      }
+
+      .notification-games {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .notification-game-item {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px solid #dee2e6;
+        border-radius: 15px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .notification-game-item:hover:not(.locked) {
+        transform: translateX(5px);
+        border-color: #007bff;
+        background: linear-gradient(135deg, #e7f3ff 0%, #cfe2ff 100%);
+      }
+
+      .notification-game-item.locked {
+        opacity: 0.6;
+        cursor: not-allowed;
+        position: relative;
+      }
+
+      .notification-game-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .notification-game-icon {
+        font-size: 2rem;
+      }
+
+      .notification-game-details h4 {
+        margin: 0 0 0.25rem 0;
+        font-family: "Montserrat", sans-serif;
+        color: #333;
+        font-size: 1.1rem;
+      }
+
+      .notification-game-details p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #666;
+      }
+
+      .notification-game-item.locked .notification-game-details h4,
+      .notification-game-item.locked .notification-game-details p {
+        color: #999;
+      }
+
+      .notification-lock-icon {
+        font-size: 1.5rem;
+      }
+
+      .notification-play-btn {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 0.6rem 1.2rem;
+        border-radius: 20px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+      }
+
+      .notification-play-btn:hover {
+        background: #0056b3;
+        transform: scale(1.05);
+      }
+
+      .notification-play-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: scale(1);
+      }
+
+      .notification-close {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.8rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        transition: background 0.3s ease;
+        font-size: 1rem;
+      }
+
+      .notification-close:hover {
+        background: #5a6268;
+      }
+
+      @media (max-width: 768px) {
+        .game-notification {
+          width: 95%;
+          padding: 1.2rem;
+          max-height: 85vh;
+          overflow-y: auto;
+        }
+
+        .notification-title {
+          font-size: 1.4rem;
+          margin-bottom: 0.3rem;
+        }
+
+        .notification-subtitle {
+          font-size: 0.9rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .notification-header {
+          margin-bottom: 1rem;
+        }
+
+        .notification-games {
+          gap: 0.8rem;
+          margin-bottom: 1rem;
+        }
+
+        .notification-game-item {
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1rem;
+          gap: 0.8rem;
+          text-align: left;
+        }
+
+        .notification-game-info {
+          flex-direction: row;
+          align-items: center;
+          gap: 0.8rem;
+          flex: 1;
+        }
+
+        .notification-game-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
+        }
+
+        .notification-game-details {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .notification-game-details h4 {
+          font-size: 1rem;
+          margin-bottom: 0.1rem;
+          line-height: 1.2;
+        }
+
+        .notification-game-details p {
+          font-size: 0.75rem;
+          line-height: 1.2;
+        }
+
+        .notification-play-btn {
+          padding: 0.5rem 0.8rem;
+          font-size: 0.8rem;
+          border-radius: 15px;
+          flex-shrink: 0;
+        }
+
+        .notification-lock-icon {
+          font-size: 1.2rem;
+          flex-shrink: 0;
+        }
+
+        .notification-close {
+          padding: 0.7rem 1.5rem;
+          font-size: 0.9rem;
+        }
+      }
+
+      /* Game Container (iframe) */
+      .game-container-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 2000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .game-container-overlay.show {
+        display: flex;
+      }
+
+      /* Fullscreen styles */
+      .game-container-overlay:fullscreen {
+        background: black;
+        padding: 0;
+      }
+
+      .game-container-overlay:-webkit-full-screen {
+        background: black;
+        padding: 0;
+      }
+
+      .game-container-overlay:-moz-full-screen {
+        background: black;
+        padding: 0;
+      }
+
+      .game-container-overlay:-ms-fullscreen {
+        background: black;
+        padding: 0;
+      }
+
+      .game-container-overlay:fullscreen .game-iframe {
+        height: calc(100vh - 80px);
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+        min-height: unset;
+      }
+
+      .game-container-overlay:-webkit-full-screen .game-iframe {
+        height: calc(100vh - 80px);
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+        min-height: unset;
+      }
+
+      .game-container-overlay:-moz-full-screen .game-iframe {
+        height: calc(100vh - 80px);
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+        min-height: unset;
+      }
+
+      .game-container-overlay:-ms-fullscreen .game-iframe {
+        height: calc(100vh - 80px);
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+        min-height: unset;
+      }
+
+      .game-header {
+        width: 100%;
+        max-width: 1200px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px 10px 0 0;
+        backdrop-filter: blur(10px);
+      }
+
+      .game-header-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        color: white;
+      }
+
+      .game-timer {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #ffd700;
+      }
+
+      .close-game-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 20px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+      }
+
+      .close-game-btn:hover {
+        background: #c82333;
+        transform: scale(1.05);
+      }
+
+      .game-iframe {
+        width: 100%;
+        max-width: 1200px;
+        height: calc(100vh - 140px);
+        min-height: 500px;
+        border: none;
+        border-radius: 0 0 10px 10px;
+        background: white;
+        box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+        transition: background 0.3s ease;
+        display: block;
+        margin: 0 auto;
+      }
+
+      @keyframes loading {
+        0% {
+          background-position: 0 0, 10px 10px;
+        }
+        100% {
+          background-position: 20px 20px, 30px 30px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .game-header {
+          padding: 0.8rem 1rem;
+        }
+
+        .game-header-info {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+
+        .game-timer {
+          font-size: 1rem;
+        }
+
+        .close-game-btn {
+          padding: 0.5rem 1rem;
+          font-size: 0.9rem;
+        }
+
+        .game-iframe {
+          height: calc(100vh - 180px);
+          min-height: 400px;
+          max-width: 100%;
+        }
+
+        .game-container-overlay {
+          padding: 10px;
+        }
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .main-container {
+          grid-template-columns: 1fr;
+          padding: 1rem;
+        }
+
+        .header {
+          padding: 1rem;
+          justify-content: center;
+          position: relative;
+        }
+
+        .nav {
+          gap: 1rem;
+        }
+
+        .timer-dashboard {
+          padding: 2rem 1rem 0rem;
+        }
+
+        .quote {
+          font-size: 1rem;
+          padding: 0 0.5rem;
+          margin: 0 auto 1.5rem;
+          max-width: 100%;
+        }
+
+        .timer-circle {
+          width: 200px;
+          height: 200px;
+        }
+
+        .timer-inner {
+          width: 160px;
+          height: 160px;
+        }
+
+        .timer-display {
+          font-size: 2.5rem;
+        }
+
+        .timer-controls {
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .timer-controls-row1 {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          width: 100%;
+        }
+
+        .timer-controls-row2 {
+          display: flex;
+          justify-content: center;
+          width: 100%;
+        }
+
+        .control-btn {
+          padding: 1rem 2rem;
+          font-size: 1rem;
+          flex: 1;
+          max-width: 150px;
+        }
+
+        .stats-display {
+          flex-direction: column;
+          gap: 1rem;
+          padding: 1rem;
+          margin: 1rem auto 0 auto;
+          width: calc(100% - 2rem);
+        }
+
+        .stat {
+          font-size: 1rem;
+          justify-content: center;
+        }
+
+        .intervals-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+          padding: 0 1rem;
+        }
+
+        .interval-selector {
+          padding: 0 1rem;
+          margin-top: 2rem;
+        }
+
+        .selector-title {
+          font-size: 2rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .custom-inputs {
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .mode-text {
+          font-size: 1.1rem;
+          margin-bottom: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="logo">
+        <div class="timer-icon">⏱</div>
+        Study Timer
+      </div>
+      <nav class="nav">
+        <a class="nav-link" id="home-btn">Home</a>
+        <a class="nav-link" id="focus-modes-btn">Focus Modes</a>
+        <a class="nav-link" id="stats-btn">Stats</a>
+        <a class="nav-link" id="games-btn">Games</a>
+        <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+      </nav>
+      <div
+        class="hamburger"
+        id="hamburgerMenu"
+        aria-label="Open menu"
+        tabindex="0"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <nav class="mobile-nav" id="mobileNav">
+        <span class="sidebar-spacer"></span>
+        <a class="nav-link" id="mobile-home-btn">Home</a>
+        <a class="nav-link" id="mobile-focus-modes-btn">Focus Modes</a>
+        <a class="nav-link" id="mobile-stats-btn">Stats</a>
+        <a class="nav-link" id="mobile-games-btn">Games</a>
+        <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+      </nav>
+    </header>
+
+    <div class="main-container">
+      <div class="timer-dashboard">
+        <p class="quote" id="motivationalQuote">
+          "Success is the sum of small efforts repeated day in and day out."
+        </p>
+        <div class="mode-text" id="modeText">Focus: 25/5 Interval</div>
+        <div class="timer-circle" id="timerCircle">
+          <div class="timer-inner">
+            <div class="timer-display" id="timerDisplay">25:00</div>
+            <div class="timer-label" id="timerLabel">Study</div>
+          </div>
+        </div>
+        <div class="timer-controls">
+          <div class="timer-controls-row1">
+            <button class="control-btn start-btn" onclick="startTimer()">
+              Start
+            </button>
+            <button class="control-btn pause-btn" onclick="pauseTimer()">
+              Pause
+            </button>
+          </div>
+          <div class="timer-controls-row2">
+            <button class="reset-btn" onclick="resetTimer()">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-display" id="statsDisplay">
+        <div class="stat">
+          <span>📊</span>
+          <span id="sessionsCount">0 Sessions</span>
+        </div>
+        <div class="stat">
+          <span>⏰</span>
+          <span id="timeStudied">0h 0m Studied</span>
+        </div>
+        <div class="stat">
+          <span>🎮</span>
+          <span id="gamesUnlocked">1/3 Games Unlocked</span>
+        </div>
+      </div>
+
+      <div class="interval-selector" style="display: none">
+        <h3 class="selector-title">Choose Your Focus</h3>
+        <div class="intervals-grid">
+          <div
+            class="interval-card active"
+            onclick="selectInterval(this, 25, 5, 'Quick Focus')"
+          >
+            <div class="card-icon">☕</div>
+            <div class="card-title">Quick Focus</div>
+            <div class="card-time">25 min study / 5 min break</div>
+          </div>
+          <div
+            class="interval-card"
+            onclick="selectInterval(this, 50, 10, 'Deep Dive')"
+          >
+            <div class="card-icon">📚</div>
+            <div class="card-title">Deep Dive</div>
+            <div class="card-time">50 min study / 10 min break</div>
+          </div>
+          <div
+            class="interval-card"
+            onclick="selectInterval(this, 90, 15, 'Power Session')"
+          >
+            <div class="card-icon">💡</div>
+            <div class="card-title">Power Session</div>
+            <div class="card-time">90 min study / 15 min break</div>
+          </div>
+          <div class="interval-card" id="customCard">
+            <div class="card-icon">⚙️</div>
+            <div class="card-title">Custom Focus</div>
+            <div class="card-time" id="customTime">Set your own times</div>
+            <div class="custom-inputs">
+              <div class="input-group">
+                <label class="input-label" for="studyInput">Study (min)</label>
+                <input
+                  type="number"
+                  id="studyInput"
+                  class="time-input"
+                  min="1"
+                  max="180"
+                  value="25"
+                  aria-label="Study time in minutes"
+                />
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="breakInput">Break (min)</label>
+                <input
+                  type="number"
+                  id="breakInput"
+                  class="time-input"
+                  min="1"
+                  max="30"
+                  value="5"
+                  aria-label="Break time in minutes"
+                />
+              </div>
+              <button
+                class="custom-btn"
+                onclick="setCustomInterval()"
+                aria-label="Set custom study and break times"
+              >
+                Set Custom
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="games-gallery" id="games-gallery" style="display: none;"></div>
+
+    <div class="game-container-overlay" id="gameContainerOverlay">
+      <div class="game-header">
+        <div class="game-header-info">
+          <span id="currentGameTitle">🎮 Playing Game</span>
+          <span class="game-timer" id="gameTimer"
+            >Break Time Remaining: 5:00</span
+          >
+        </div>
+        <div style="display: flex; gap: 0.7rem; align-items: center">
+          <button class="close-game-btn" onclick="closeGame()">
+            Close Game
+          </button>
+          <button
+            class="close-game-btn"
+            id="fullscreenGameBtn"
+            title="Fullscreen"
+            style="background: #007bff"
+          >
+            ⛶
+          </button>
+        </div>
+      </div>
+      <iframe
+        id="gameIframe"
+        class="game-iframe"
+        src=""
+        frameborder="0"
+        allowfullscreen
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+        scrolling="auto"
+        loading="lazy"
+      >
+      </iframe>
+    </div>
+
+    <div class="notification-overlay" id="notificationOverlay"></div>
+    <div class="game-notification" id="gameNotification">
+      <div class="notification-header">
+        <h2 class="notification-title">🎮 Break Time!</h2>
+        <p class="notification-subtitle">
+          Choose a game to play during your break
+        </p>
+      </div>
+      <div class="notification-games">
+        <div
+          class="notification-game-item"
+          onclick="playGameFromNotification('tic-tac-toe')"
+        >
+          <div class="notification-game-info">
+            <div class="notification-game-icon">⭕</div>
+            <div class="notification-game-details">
+              <h4>Tic-Tac-Toe</h4>
+              <p>Classic strategy game</p>
+            </div>
+          </div>
+          <button class="notification-play-btn">Play Now</button>
+        </div>
+        <div class="notification-game-item locked" id="notificationTrickyCup">
+          <div class="notification-game-info">
+            <div class="notification-game-icon">🏆</div>
+            <div class="notification-game-details">
+              <h4>Tricky Cup</h4>
+              <p id="trickyCupStatus">Complete 2nd session to unlock</p>
+            </div>
+          </div>
+          <div class="notification-lock-icon">🔒</div>
+        </div>
+        <div class="notification-game-item locked" id="notificationMemoryMatch">
+          <div class="notification-game-info">
+            <div class="notification-game-icon">🧠</div>
+            <div class="notification-game-details">
+              <h4>Memory Match</h4>
+              <p id="memoryMatchStatus">Complete 3rd session to unlock</p>
+            </div>
+          </div>
+          <div class="notification-lock-icon">🔒</div>
+        </div>
+      </div>
+      <button class="notification-close" onclick="closeGameNotification()">
+        Close
+      </button>
+    </div>
+
+    <footer class="footer"></footer>
+
+    <script>
+      let currentInterval = { study: 25, break: 5, name: "Quick Focus" };
+      let timeLeft = 25 * 60; // 25 minutes in seconds
+      let isRunning = false;
+      let isBreakTime = false;
+      let timer = null;
+      let sessionsCompleted = 0;
+      let totalStudyTime = 0;
+      let gamesUnlocked = 1;
+      let isGameOpen = false;
+
+      const quotes = [
+        // Success & Achievement Quotes
+        "Success is not final; failure is not fatal: It is the courage to continue that counts.",
+        "It is better to fail in originality than to succeed in imitation.",
+        "The road to success and the road to failure are almost exactly the same.",
+        "Success usually comes to those who are too busy to be looking for it.",
+        "Develop success from failures. Discouragement and failure are two of the surest stepping stones to success.",
+        "I never dreamed about success. I worked for it.",
+        "Success is getting what you want; happiness is wanting what you get.",
+        "Success is stumbling from failure to failure with no loss of enthusiasm.",
+        "Perfection is not attainable. But if we chase perfection we can catch excellence.",
+        "Get a good idea and stay with it. Dog it, and work at it until it's done right.",
+
+        // Study & Learning Quotes
+        "Education is the most powerful weapon which you can use to change the world.",
+        "The most difficult thing is the decision to act; the rest is merely tenacity.",
+        "You'll find that education is just about the only thing lying around loose in this world, and it's about the only thing a fellow can have as much of as he's willing to haul away.",
+        "Take the attitude of a student: never be too big to ask questions, never know too much to learn something new.",
+        "I have never let my schooling interfere with my education.",
+        "Learn as if you will live forever, live like you will die tomorrow.",
+        "You've got to get up every morning with determination if you're going to go to bed with satisfaction.",
+
+        // Work & Productivity Quotes
+        "Concentrate all your thoughts upon the work in hand. The sun's rays do not burn until brought to a focus.",
+        "Either you run the day or the day runs you.",
+        "I'm a great believer in luck, and I find the harder I work, the more I have of it.",
+        "When we strive to become better than we are, everything around us becomes better too.",
+        "Opportunity is missed by most people because it is dressed in overalls and looks like work.",
+        "Setting goals is the first step in turning the invisible into the visible.",
+        "Your work is going to fill a large part of your life, and the only way to be truly satisfied is to do what you believe is great work.",
+
+        // Daily Motivation Quotes
+        "Life can be much broader once you discover one simple fact: Everything around you that you call life was made up by people that were no smarter than you.",
+        "Life is like riding a bicycle. To keep your balance, you must keep moving.",
+        "What you do speaks so loudly that I cannot hear what you say.",
+        "If you can't yet do great things, do small things in a great way.",
+        "If you really want to do something, you'll find a way. If you don't, you'll find an excuse.",
+        "Be sure you put your feet in the right place, then stand firm.",
+        "Live out of your imagination, not your history.",
+        "Do not wait for the perfect time and place to enter, for you are already onstage.",
+        "The greater the difficulty, the more the glory in surmounting it.",
+        "Courage doesn't always roar. Sometimes courage is a quiet voice at the end of the day saying, 'I will try again tomorrow.'",
+
+        // Monday Motivation Quotes
+        "The greatest discovery of my generation is that a human being can alter his life by altering his attitudes.",
+        "One of the differences between some successful and unsuccessful people is that one group is full of doers, while the other is full of wishers.",
+        "I'd rather regret the things I've done than regret the things I haven't done.",
+        "You cannot plow a field by turning it over in your mind. To begin, begin.",
+        "When you arise in the morning, think of what a privilege it is to be alive, to think, to enjoy, to love.",
+        "Be miserable. Or motivate yourself. Whatever has to be done, it's always your choice.",
+        "Your Monday morning thoughts set the tone for your whole week. See yourself getting stronger, and living a fulfilling, happier, and healthier life.",
+
+        // Powerful & Deep Quotes
+        "The most common way people give up their power is by thinking they don't have any.",
+        "Power's not given to you. You have to take it.",
+        "Believe you can and you're halfway there.",
+        "You have power over your mind—not outside events. Realize this, and you will find strength.",
+        "The future belongs to those who believe in the beauty of their dreams.",
+        "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+        "The greatest weapon against stress is our ability to choose one thought over another.",
+        "You must be the change you wish to see in the world.",
+        "It's not whether you get knocked down; it's whether you get up.",
+        "We cannot solve problems with the kind of thinking we employed when we came up with them.",
+        "Stay away from those people who try to disparage your ambitions. Small minds will always do that, but great minds will give you a feeling that you can become great too.",
+
+        // Short & Inspiring Quotes
+        "Just one small positive thought in the morning can change your whole day.",
+        "Opportunities don't happen, you create them.",
+        "Love your family, work super hard, live your passion.",
+        "It is never too late to be what you might have been.",
+        "Don't let someone else's opinion of you become your reality.",
+        "If you're not positive energy, you're negative energy.",
+        "I am not a product of my circumstances. I am a product of my decisions.",
+        "Do the best you can. No one can do more than that.",
+        "If you can dream it, you can do it.",
+        "Do what you can, with what you have, where you are.",
+
+        // Positive & Uplifting Quotes
+        "Don't look at your feet to see if you are doing it right. Just dance.",
+        "Someone's sitting in the shade today because someone planted a tree a long time ago.",
+        "True freedom is impossible without a mind made free by discipline.",
+        "Rivers know this: there is no hurry. We shall get there someday.",
+        "Small is not just a stepping stone. Small is a great destination itself.",
+        "He that can have patience can have what he will.",
+        "The only one who can tell you 'you can't win' is you, and you don't have to listen.",
+        "Set your goals high, and don't stop till you get there.",
+        "Keep your face towards the sunshine and shadows will fall behind you.",
+        "Failure is simply the opportunity to begin again, this time more intelligently.",
+        "Our greatest glory is not in never falling, but in rising every time we fall.",
+        "If you change the way you look at things, the things you look at change.",
+
+        // Inspirational & Motivational Quotes
+        "Fear of what other people will think is the single most paralyzing dynamic in business and in life. The best moment of my life was the day I realized that I no longer give a damn what anybody thinks.",
+        "The only way of discovering the limits of the possible is to venture a little way past them into the impossible.",
+        "Worry is a misuse of imagination.",
+        "Courage is the most important of all the virtues because, without courage, you can't practice any other virtue consistently.",
+        "I never look back, darling. It distracts from the now.",
+        "A year from now you will wish you had started today.",
+        "Somewhere, something incredible is waiting to be known.",
+        "I will not lose, for even in defeat, there's a valuable lesson learned, so it evens up for me.",
+        "I do not try to dance better than anyone else. I only try to dance better than myself.",
+        "If you don't risk anything, you risk even more.",
+        "You'll never get bored when you try something new. There's really no limit to what you can do.",
+        "If you don't like the road you're walking, start paving another one.",
+        "If it makes you nervous, you're doing it right.",
+        "What you do makes a difference, and you have to decide what kind of difference you want to make.",
+        "I choose to make the rest of my life the best of my life.",
+        "In order to be irreplaceable one must always be different.",
+        "No one changes the world who isn't obsessed.",
+        "Some people want it to happen, some wish it would happen, others make it happen.",
+
+        // Encouraging & Uplifting Quotes
+        "Nothing is impossible, the word itself says 'I'm possible.'",
+        "I can't tell you how many times I've been given a no, only to find that a better, brighter, bigger yes was right around the corner.",
+        "We need to accept that we won't always make the right decisions, that we'll screw up royally sometimes—understanding that failure is not the opposite of success, it's part of success.",
+        "When everything seems to be going against you, remember that the airplane takes off against the wind, not with it.",
+        "You cannot always control what goes on outside. But you can always control what goes on inside.",
+        "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
+        "Start where you are. Use what you have. Do what you can.",
+        "Hustle beats talent when talent doesn't hustle.",
+        "If you're going through hell, keep going.",
+        "All our dreams can come true if we have the courage to pursue them.",
+        "Everything you've ever wanted is sitting on the other side of fear.",
+        "The question isn't who is going to let me; it's who is going to stop me.",
+        "Every strike brings me closer to the next home run.",
+        "I have not failed. I've just found 10,000 ways that won't work.",
+        "Don't worry about failure; you only have to be right once.",
+        "You carry the passport to your own happiness.",
+        "Never let success get to your head, and never let failure get to your heart.",
+        "Ideation without execution is delusion.",
+        "The two most important days in your life are the day you're born and the day you find out why.",
+        "Nothing ever goes away until it teaches us what we need to know.",
+        "We can see through others only when we can see through ourselves.",
+        "First, forget inspiration. Habit is more dependable. Habit will sustain you whether you're inspired or not.",
+        "The best way out is always through.",
+        "The battles that count aren't the ones for gold medals. The struggles within yourself—the invisible, inevitable battles inside all of us—that's where it's at.",
+        "If there is no struggle, there is no progress.",
+        "Courage is like a muscle. We strengthen it by use.",
+        "More is lost by indecision than wrong decision.",
+        "You can be the ripest, juiciest peach in the world, and there's still going to be somebody who hates peaches.",
+        "Keep a little fire burning; however small, however hidden.",
+
+        // Funny & Light-hearted Motivational Quotes
+        "The elevator to success is out of order. You'll have to use the stairs, one step at a time.",
+        "Be a positive energy trampoline—absorb what you need and rebound more back.",
+        "People often say that motivation doesn't last. Well, neither does bathing—that's why we recommend it daily.",
+        "Work until your bank account looks like a phone number.",
+        "I am so clever that sometimes I don't understand a single word of what I am saying.",
+        "People say nothing is impossible, but I do nothing every day.",
+        "Life is like a sewer … what you get out of it depends on what you put into it.",
+        "I always wanted to be somebody, but now I realize I should have been more specific.",
+
+        // Life & Personal Growth Quotes
+        "Make sure your worst enemy doesn't live between your own two ears.",
+        "It is a rough road that leads to the heights of greatness.",
+        "For the great doesn't happen through impulse alone, and is a succession of little things that are brought together.",
+        "If we take care of the moments, the years will take care of themselves.",
+        "Resilience is when you address uncertainty with flexibility.",
+        "Sometimes magic is just someone spending more time on something than anyone else might reasonably expect.",
+        "It's not the will to win that matters—everyone has that. It's the will to prepare to win that matters.",
+        "As a single footstep will not make a path on the earth, so a single thought will not make a pathway in the mind. To make a deep physical path, we walk again and again. To make a deep mental path, we must think over and over the kind of thoughts we wish to dominate our lives.",
+        "Never give up on a dream just because of the time it will take to accomplish it. The time will pass anyway.",
+        "True humility is not thinking less of yourself; it is thinking of yourself less.",
+      ];
+
+      // NEW: Select main UI components to toggle their visibility
+      const timerDashboard = document.querySelector(".timer-dashboard");
+      const intervalSelector = document.querySelector(".interval-selector");
+      const statsDisplay = document.getElementById("statsDisplay");
+
+      // NEW: Add event listeners for new navigation functionality
+      document.addEventListener("DOMContentLoaded", () => {
+        // Desktop nav
+        const homeBtn = document.getElementById("home-btn");
+        const focusModesBtn = document.getElementById("focus-modes-btn");
+        const statsBtn = document.getElementById("stats-btn");
+        const gamesBtn = document.getElementById("games-btn");
+        // Mobile nav
+        const mobileHomeBtn = document.getElementById("mobile-home-btn");
+        const mobileFocusModesBtn = document.getElementById(
+          "mobile-focus-modes-btn"
+        );
+        const mobileStatsBtn = document.getElementById("mobile-stats-btn");
+        const mobileGamesBtn = document.getElementById("mobile-games-btn");
+        // Hamburger
+        const hamburgerMenu = document.getElementById("hamburgerMenu");
+        const mobileNav = document.getElementById("mobileNav");
+        // Removed: const closeMobileNav = document.getElementById("closeMobileNav");
+
+        // Hamburger open/close and animate to X
+        function openMobileNav() {
+          mobileNav.classList.add("show");
+          hamburgerMenu.classList.add("active");
+        }
+        function closeMobileNav() {
+          mobileNav.classList.remove("show");
+          hamburgerMenu.classList.remove("active");
+        }
+        hamburgerMenu.addEventListener("click", () => {
+          if (!mobileNav.classList.contains("show")) {
+            openMobileNav();
+          } else {
+            closeMobileNav();
+          }
+        });
+        hamburgerMenu.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            if (!mobileNav.classList.contains("show")) {
+              openMobileNav();
+            } else {
+              closeMobileNav();
+            }
+          }
+        });
+        // Close nav when clicking outside
+        document.addEventListener("click", (e) => {
+          if (
+            mobileNav.classList.contains("show") &&
+            !mobileNav.contains(e.target) &&
+            !hamburgerMenu.contains(e.target)
+          ) {
+            closeMobileNav();
+          }
+        });
+
+        // Desktop nav events
+        homeBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          showTimerView();
+        });
+        focusModesBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          timerDashboard.style.display = "none";
+          intervalSelector.style.display = "block";
+          document.getElementById("games-gallery").style.display = "none";
+          // Hide stats when switching to focus modes
+          statsDisplay.style.display = "none";
+        });
+        statsBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          const computedStyle = window.getComputedStyle(statsDisplay);
+          const isHidden = computedStyle.display === "none";
+          if (timerDashboard.style.display === "none") {
+            // If we're in focus modes or games gallery, switch to timer view first
+            showTimerView();
+          }
+          // Always show/hide stats when clicked
+          statsDisplay.style.display = isHidden ? "flex" : "none";
+        });
+        // MODIFIED: Games button logic
+        gamesBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (isBreakTime) {
+            showGameNotification();
+          } else {
+            showGamesWarning();
+          }
+        });
+
+        // Helper to set active class on mobile nav links
+        function setActiveMobileNav(btn) {
+          [
+            mobileHomeBtn,
+            mobileFocusModesBtn,
+            mobileStatsBtn,
+            mobileGamesBtn,
+          ].forEach((el) => {
+            el.classList.remove("active");
+          });
+          btn.classList.add("active");
+        }
+        // Mobile nav events (same as desktop, but also close drawer)
+        mobileHomeBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          showTimerView();
+          setActiveMobileNav(mobileHomeBtn);
+          closeMobileNav();
+        });
+        mobileFocusModesBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          timerDashboard.style.display = "none";
+          intervalSelector.style.display = "block";
+          document.getElementById("games-gallery").style.display = "none";
+          // Hide stats when switching to focus modes
+          statsDisplay.style.display = "none";
+          setActiveMobileNav(mobileFocusModesBtn);
+          closeMobileNav();
+        });
+        mobileStatsBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          const computedStyle = window.getComputedStyle(statsDisplay);
+          const isHidden = computedStyle.display === "none";
+          if (timerDashboard.style.display === "none") {
+            // If we're in focus modes or games gallery, switch to timer view first
+            showTimerView();
+          }
+          // Always show/hide stats when clicked
+          statsDisplay.style.display = isHidden ? "flex" : "none";
+          setActiveMobileNav(mobileStatsBtn);
+          closeMobileNav();
+        });
+        // MODIFIED: Mobile games button logic
+        mobileGamesBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (isBreakTime) {
+            showGameNotification();
+          } else {
+            showGamesWarning();
+          }
+          setActiveMobileNav(mobileGamesBtn);
+          closeMobileNav();
+        });
+
+        // Fix fullscreen button for game iframe
+        const fullscreenBtn = document.getElementById("fullscreenGameBtn");
+        const gameOverlay = document.getElementById("gameContainerOverlay");
+        if (fullscreenBtn && gameOverlay) {
+          fullscreenBtn.addEventListener("click", function () {
+            toggleFullscreen();
+          });
+        }
+      });
+
+      // NEW HELPER FUNCTION: To show the main timer view
+      function showTimerView() {
+        timerDashboard.style.display = "block";
+        intervalSelector.style.display = "none";
+        document.getElementById("games-gallery").style.display = "none";
+        // Don't automatically hide stats when returning to timer view
+      }
+
+      // REMOVED: showGamesGallery function is no longer needed
+
+      function updateDisplay() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        document.getElementById("timerDisplay").textContent = `${minutes
+          .toString()
+          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
+        const totalTime = isBreakTime
+          ? currentInterval.break * 60
+          : currentInterval.study * 60;
+        const progress = ((totalTime - timeLeft) / totalTime) * 360;
+        const timerCircle = document.getElementById("timerCircle");
+        const color = isBreakTime ? "#28A745" : "#007BFF";
+        timerCircle.style.background = `conic-gradient(${color} ${progress}deg, #e9ecef ${progress}deg)`;
+
+        if (isGameOpen && isBreakTime) {
+          document.getElementById(
+            "gameTimer"
+          ).textContent = `Break Time Remaining: ${minutes
+            .toString()
+            .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+        }
+      }
+
+      function startTimer() {
+        if (!isRunning) {
+          isRunning = true;
+          timer = setInterval(() => {
+            timeLeft--;
+            updateDisplay();
+
+            if (timeLeft <= 0) {
+              completeSession();
+            }
+          }, 1000);
+        }
+      }
+
+      function pauseTimer() {
+        isRunning = false;
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      }
+
+      function resetTimer() {
+        pauseTimer();
+        isBreakTime = false; // Resetting should always go back to study mode
+        timeLeft = currentInterval.study * 60;
+
+        document.getElementById("timerLabel").textContent = "Study";
+        document.getElementById(
+          "modeText"
+        ).textContent = `Focus: ${currentInterval.name}`;
+        document.getElementById("modeText").classList.remove("break-mode");
+        document.getElementById("timerCircle").classList.remove("break-mode");
+
+        updateDisplay();
+      }
+
+      function completeSession() {
+        pauseTimer();
+
+        if (!isBreakTime) {
+          sessionsCompleted++;
+          totalStudyTime += currentInterval.study;
+          isBreakTime = true;
+          timeLeft = currentInterval.break * 60;
+
+          document.getElementById("timerLabel").textContent = "Break";
+          document.getElementById(
+            "modeText"
+          ).textContent = `Break: ${currentInterval.name}`;
+          document.getElementById("modeText").classList.add("break-mode");
+          document.getElementById("timerCircle").classList.add("break-mode");
+
+          showGameNotification();
+
+          if (sessionsCompleted >= 2 && gamesUnlocked < 2) {
+            gamesUnlocked = 2;
+            unlockSecondGame();
+          }
+
+          if (sessionsCompleted >= 3 && gamesUnlocked < 3) {
+            gamesUnlocked = 3;
+            unlockThirdGame();
+          }
+
+          updateStats();
+          updateDisplay();
+          startTimer();
+        } else {
+          isBreakTime = false;
+          timeLeft = currentInterval.study * 60;
+
+          if (isGameOpen) {
+            closeGame();
+          }
+
+          document.getElementById("timerLabel").textContent = "Study";
+          document.getElementById(
+            "modeText"
+          ).textContent = `Focus: ${currentInterval.name}`;
+          document.getElementById("modeText").classList.remove("break-mode");
+          document.getElementById("timerCircle").classList.remove("break-mode");
+
+          updateDisplay();
+        }
+
+        updateQuote();
+      }
+
+      // NEW: Function to show a warning when trying to access games during focus time
+      function showGamesWarning() {
+        const notification = document.getElementById("gameNotification");
+        const overlay = document.getElementById("notificationOverlay");
+        // Ensure clean state before modifying
+        removeGamesWarning();
+        // Hide all original children except the close button
+        Array.from(notification.children).forEach((child) => {
+          if (!child.classList.contains("notification-close")) {
+            child.style.display = "none";
+          }
+        });
+        // Create and add the warning message
+        const warning = document.createElement("div");
+        warning.id = "gamesWarningMsg";
+        warning.style.background = "#ffc107";
+        warning.style.color = "#333";
+        warning.style.padding = "1rem";
+        warning.style.borderRadius = "10px";
+        warning.style.marginBottom = "1rem";
+        warning.style.fontWeight = "bold";
+        warning.style.textAlign = "center";
+        warning.textContent = "Games are only available during break time!";
+        notification.insertBefore(warning, notification.firstChild);
+
+        notification.classList.add("show");
+        overlay.classList.add("show");
+      }
+
+      // NEW: Function to clean up the warning message from the notification
+      function removeGamesWarning() {
+        const notification = document.getElementById("gameNotification");
+        const warning = document.getElementById("gamesWarningMsg");
+        if (warning) {
+          warning.remove();
+        }
+        // Restore visibility of all other children
+        Array.from(notification.children).forEach((child) => {
+          child.style.display = "";
+        });
+      }
+
+      // MODIFIED: This function now cleans up any warning before showing
+      function showGameNotification() {
+        removeGamesWarning(); // Clean up before showing
+        const notification = document.getElementById("gameNotification");
+        const overlay = document.getElementById("notificationOverlay");
+
+        notification.classList.add("show");
+        overlay.classList.add("show");
+      }
+
+      function closeGameNotification() {
+        const notification = document.getElementById("gameNotification");
+        const overlay = document.getElementById("notificationOverlay");
+
+        notification.classList.remove("show");
+        overlay.classList.remove("show");
+      }
+
+      function unlockSecondGame() {
+        const notificationTrickyCup = document.getElementById(
+          "notificationTrickyCup"
+        );
+        notificationTrickyCup.classList.remove("locked");
+        notificationTrickyCup.onclick = function () {
+          playGameFromNotification("tricky-cup");
+        };
+
+        const lockIcon = notificationTrickyCup.querySelector(
+          ".notification-lock-icon"
+        );
+        if (lockIcon) lockIcon.remove();
+
+        const playBtn = document.createElement("button");
+        playBtn.className = "notification-play-btn";
+        playBtn.textContent = "Play Now";
+        playBtn.onclick = function (e) {
+          e.stopPropagation();
+          playGameFromNotification("tricky-cup");
+        };
+        notificationTrickyCup.appendChild(playBtn);
+
+        document.getElementById("trickyCupStatus").textContent =
+          "Memory challenge game";
+      }
+
+      function unlockThirdGame() {
+        const notificationMemoryMatch = document.getElementById(
+          "notificationMemoryMatch"
+        );
+        notificationMemoryMatch.classList.remove("locked");
+        notificationMemoryMatch.onclick = function () {
+          playGameFromNotification("memory-match");
+        };
+
+        const lockIcon = notificationMemoryMatch.querySelector(
+          ".notification-lock-icon"
+        );
+        if (lockIcon) lockIcon.remove();
+
+        const playBtn = document.createElement("button");
+        playBtn.className = "notification-play-btn";
+        playBtn.textContent = "Play Now";
+        playBtn.onclick = function (e) {
+          e.stopPropagation();
+          playGameFromNotification("memory-match");
+        };
+        notificationMemoryMatch.appendChild(playBtn);
+
+        document.getElementById("memoryMatchStatus").textContent =
+          "Memory card matching game";
+      }
+
+      function playGameFromNotification(gameType) {
+        if (gameType === "tic-tac-toe") {
+          closeGameNotification();
+          openGame("/games/tic-tac-toe.html", "⭕ Tic-Tac-Toe");
+        } else if (gameType === "tricky-cup" && gamesUnlocked >= 2) {
+          closeGameNotification();
+          openGame("/games/Tricky-Cup.html", "🏆 Tricky Cup");
+        } else if (gameType === "memory-match" && gamesUnlocked >= 3) {
+          closeGameNotification();
+          openGame("/games/Memory-Match.html", "🧠 Memory Match");
+        }
+      }
+
+      function openGame(gameSrc, gameTitle) {
+        const gameContainer = document.getElementById("gameContainerOverlay");
+        const gameIframe = document.getElementById("gameIframe");
+        const gameTitleElement = document.getElementById("currentGameTitle");
+
+        gameTitleElement.textContent = gameTitle;
+
+        // Add loading indicator
+        gameIframe.style.background =
+          "linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%), linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%)";
+        gameIframe.style.backgroundSize = "20px 20px";
+        gameIframe.style.backgroundPosition = "0 0, 10px 10px";
+        gameIframe.style.animation = "loading 1s linear infinite";
+
+        // Clear the iframe first, then set the new source
+        gameIframe.src = "";
+        setTimeout(() => {
+          // Ensure we have the correct path for the game
+          const fullGamePath = gameSrc;
+          console.log("Loading game:", fullGamePath); // Debug log
+          gameIframe.src = fullGamePath;
+
+          // Remove loading animation when loaded
+          gameIframe.onload = function () {
+            gameIframe.style.background = "white";
+            gameIframe.style.animation = "none";
+            console.log("Game loaded successfully:", fullGamePath);
+          };
+
+          // Handle loading errors
+          gameIframe.onerror = function () {
+            gameIframe.style.background = "#ffebee";
+            gameIframe.style.animation = "none";
+            console.error("Failed to load game:", fullGamePath);
+          };
+        }, 100);
+
+        gameContainer.classList.add("show");
+        isGameOpen = true;
+
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        document.getElementById(
+          "gameTimer"
+        ).textContent = `Break Time Remaining: ${minutes
+          .toString()
+          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+      }
+
+      function closeGame() {
+        const gameContainer = document.getElementById("gameContainerOverlay");
+        const gameIframe = document.getElementById("gameIframe");
+
+        gameContainer.classList.remove("show");
+
+        // Reset iframe state
+        gameIframe.src = "";
+        gameIframe.style.background = "white";
+        gameIframe.style.animation = "none";
+        gameIframe.onload = null;
+        gameIframe.onerror = null;
+
+        isGameOpen = false;
+      }
+
+      // MODIFIED: This function now also switches the view back to the timer
+      function selectInterval(element, studyMin, breakMin, name) {
+        document.querySelectorAll(".interval-card").forEach((card) => {
+          card.classList.remove("active");
+        });
+
+        element.classList.add("active");
+
+        currentInterval = { study: studyMin, break: breakMin, name: name };
+
+        resetTimer(); // Reset timer with the new interval values
+
+        // NEW: Switch back to the timer view after selection
+        showTimerView();
+      }
+
+      // MODIFIED: This function now also switches the view back to the timer
+      function setCustomInterval() {
+        const studyInput = document.getElementById("studyInput");
+        const breakInput = document.getElementById("breakInput");
+
+        const studyMin = parseInt(studyInput.value);
+        const breakMin = parseInt(breakInput.value);
+
+        if (isNaN(studyMin) || studyMin < 1 || studyMin > 180) {
+          console.error("Invalid study time. Must be between 1 and 180.");
+          return;
+        }
+
+        if (isNaN(breakMin) || breakMin < 1 || breakMin > 30) {
+          console.error("Invalid break time. Must be between 1 and 30.");
+          return;
+        }
+
+        document.querySelectorAll(".interval-card").forEach((card) => {
+          card.classList.remove("active");
+        });
+        document.getElementById("customCard").classList.add("active");
+        document.getElementById(
+          "customTime"
+        ).textContent = `${studyMin} min study / ${breakMin} min break`;
+
+        currentInterval = { study: studyMin, break: breakMin, name: "Custom" };
+
+        resetTimer(); // Reset timer with new custom values
+
+        // NEW: Switch back to the timer view after setting
+        showTimerView();
+      }
+
+      // MODIFIED: This function now updates the stats in their new location
+      // No code changes needed here as we moved the elements with their original IDs
+      function updateStats() {
+        document.getElementById(
+          "sessionsCount"
+        ).textContent = `${sessionsCompleted} Sessions`;
+
+        const hours = Math.floor(totalStudyTime / 60);
+        const minutes = totalStudyTime % 60;
+        document.getElementById(
+          "timeStudied"
+        ).textContent = `${hours}h ${minutes}m Studied`;
+
+        document.getElementById(
+          "gamesUnlocked"
+        ).textContent = `${gamesUnlocked}/3 Games Unlocked`;
+      }
+
+      function updateQuote() {
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        document.getElementById(
+          "motivationalQuote"
+        ).textContent = `"${randomQuote}"`;
+      }
+
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+        const isDarkMode = document.body.classList.contains("dark-mode");
+        localStorage.setItem("darkMode", isDarkMode);
+      }
+
+      // Fullscreen functionality for games
+      function toggleFullscreen() {
+        const gameOverlay = document.getElementById("gameContainerOverlay");
+        const fullscreenBtn = document.getElementById("fullscreenGameBtn");
+
+        if (
+          !document.fullscreenElement &&
+          !document.webkitFullscreenElement &&
+          !document.mozFullScreenElement &&
+          !document.msFullscreenElement
+        ) {
+          // Enter fullscreen
+          if (gameOverlay.requestFullscreen) {
+            gameOverlay.requestFullscreen();
+          } else if (gameOverlay.webkitRequestFullscreen) {
+            gameOverlay.webkitRequestFullscreen();
+          } else if (gameOverlay.mozRequestFullScreen) {
+            gameOverlay.mozRequestFullScreen();
+          } else if (gameOverlay.msRequestFullscreen) {
+            gameOverlay.msRequestFullscreen();
+          }
+          fullscreenBtn.textContent = "⛶";
+          fullscreenBtn.title = "Exit Fullscreen";
+        } else {
+          // Exit fullscreen
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+          } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+          }
+          fullscreenBtn.textContent = "⛶";
+          fullscreenBtn.title = "Fullscreen";
+        }
+      }
+
+      // Listen for fullscreen changes to update button state
+      document.addEventListener("fullscreenchange", updateFullscreenButton);
+      document.addEventListener(
+        "webkitfullscreenchange",
+        updateFullscreenButton
+      );
+      document.addEventListener("mozfullscreenchange", updateFullscreenButton);
+      document.addEventListener("MSFullscreenChange", updateFullscreenButton);
+
+      function updateFullscreenButton() {
+        const fullscreenBtn = document.getElementById("fullscreenGameBtn");
+        if (fullscreenBtn) {
+          if (
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement
+          ) {
+            fullscreenBtn.textContent = "⛶";
+            fullscreenBtn.title = "Exit Fullscreen";
+          } else {
+            fullscreenBtn.textContent = "⛶";
+            fullscreenBtn.title = "Fullscreen";
+          }
+        }
+      }
+
+      // Load dark mode preference on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        const savedDarkMode = localStorage.getItem("darkMode");
+        if (savedDarkMode === "true") {
+          document.body.classList.add("dark-mode");
+        }
+      });
+
+      // Initialize
+      updateDisplay();
+      updateStats();
+      updateQuote();
+    </script>
+  </body>
+</html>

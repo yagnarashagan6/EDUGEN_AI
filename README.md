@@ -1,13 +1,6 @@
 # 📚 EduGen AI
 
-> A comprehensive AI-powered learning platform designed specifically for engineering students, with specialized### 👥 Collaboration & Monitoring
-
-- **👨‍🏫 Staff Dashboard**: Teacher interface for student monitoring and topic posting
-- **📋 Topic Assignment System**: Staff can post classroom topics for student engagement
-- **📈 Performance Analytics**: Detailed insights into student progress and quiz completion
-- **💬 Real-time Communication**: Direct student-staff interaction
-- **🎯 Goal Setting**: Personalized learning objectives and milestones
-- **📊 Learning Flow Tracking**: Monitor student progression through the 3-step learning processres to help arrear students achieve academic success through personalized, interactive learning experiences.
+> A comprehensive AI-powered learning platform designed specifically for engineering students, with specialized features to help arrear students achieve academic success through personalized, interactive learning experiences.
 
 🌐 **Live Website**: [edugen-ai-zeta.vercel.app](https://edugen-ai-zeta.vercel.app)  
 📦 **GitHub Repository**: [EduGen AI](https://github.com/yagnarashagan6/EDUGEN_AI)
@@ -97,7 +90,7 @@ This methodology is backed by proven educational research:
 
 - 🎤 **Speech-to-Text** – Voice input processing
 - 🔊 **Text-to-Speech** – Audio output generation
-- � **Natural Language Processing** – Intelligent content generation
+- 📝 **Natural Language Processing** – Intelligent content generation
 - 🧩 **Multi-modal AI** – Text, voice, and document understanding
 
 ### Development & Deployment
@@ -124,7 +117,7 @@ This methodology is backed by proven educational research:
 - **📝 Smart Notes Generation**: AI-powered personalized notes based on topics
 - **❓ Dynamic Quiz Creation**: Instant MCQ generation with explanations
 - **📊 Progress Tracking**: Comprehensive learning analytics and goal setting
-- **� Task Management**: Structured learning paths with progress monitoring
+- **📋 Task Management**: Structured learning paths with progress monitoring
 
 ### 🎙️ Voice & Audio Features
 
@@ -141,23 +134,42 @@ This methodology is backed by proven educational research:
 
 ### 👥 Collaboration & Monitoring
 
-- **�‍🏫 Staff Dashboard**: Teacher interface for student monitoring
-- **📈 Performance Analytics**: Detailed insights into student progress
+- **👨‍🏫 Staff Dashboard**: Teacher interface for student monitoring and topic posting
+- **📋 Topic Assignment System**: Staff can post classroom topics for student engagement
+- **📈 Performance Analytics**: Detailed insights into student progress and quiz completion
 - **💬 Real-time Communication**: Direct student-staff interaction
 - **🎯 Goal Setting**: Personalized learning objectives and milestones
+- **📊 Learning Flow Tracking**: Monitor student progression through the 3-step learning process
 
 ### 🎥 Educational Content
 
 - **📺 YouTube Integration**: Curated educational videos by subject and language
-- **� Multi-language Support**: Tamil, English, Hindi, Telugu, Malayalam
+- **🌍 Multi-language Support**: Tamil, English, Hindi, Telugu, Malayalam
 - **📑 Document Processing**: Upload and analyze educational materials
 - **📋 PDF Export**: Generate downloadable learning materials
+
+### ⏱️ Study Timer & Productivity Tools
+
+- **🎮 Pomodoro-Style Study Timer**: Multiple focus modes with customizable intervals
+  - **Quick Focus**: 25 min study / 5 min break
+  - **Deep Dive**: 50 min study / 10 min break
+  - **Power Session**: 90 min study / 15 min break
+  - **Custom Focus**: User-defined study and break times
+- **📊 Study Statistics**: Track sessions completed, time studied, and productivity metrics
+- **🎮 Gamified Break Activities**: Unlock games based on study session completion
+  - **Tic-Tac-Toe (Aether Tactics)**: Classic strategy game with AI opponents
+  - **Memory Match (Aether Memory)**: Tech-themed memory card game with multiple levels
+  - **Tricky Cup**: 3D cup shuffling game with progressive difficulty (12 levels)
+- **🔓 Progressive Unlocking System**: Games unlock as students complete more study sessions
+- **🌙 Dark/Light Mode Toggle**: Comfortable studying in any environment
+- **📱 Fully Responsive**: Optimized for desktop, tablet, and mobile devices
 
 ### 🏆 Gamification
 
 - **🎉 Achievement System**: Celebrations for completed tasks and high scores
 - **🏅 Leaderboards**: Competitive learning environment
 - **💫 Interactive Feedback**: Visual and audio rewards for progress
+- **🎮 Study Break Games**: Reward focused study time with entertaining mini-games
 
 ---
 
@@ -185,6 +197,19 @@ edugen-backend/
 ├── server.js           # Main Express server
 ├── package.json        # Dependencies and scripts
 └── vercel.json         # Deployment configuration
+```
+
+### Game Integration
+
+```
+public/
+├── games/              # Embedded HTML5 games
+│   ├── Study-Timer.html     # Main study timer application
+│   ├── tic-tac-toe.html     # Aether Tactics strategy game
+│   ├── Memory-Match.html    # Aether Memory card game
+│   ├── Tricky-Cup.html      # 3D cup shuffling game
+│   └── logo/               # Game assets and icons
+└── ...
 ```
 
 ---
@@ -266,6 +291,11 @@ The application will be available at `http://localhost:3000`
 5. **Knowledge Assessment**: Complete mandatory quizzes for each studied topic
 6. **Progress Tracking**: Monitor your learning journey and quiz completion rates
 7. **Note Management**: Create, organize, and export study notes for revision
+8. **Study Timer**: Use the integrated study timer for focused learning sessions:
+   - Choose from preset intervals or create custom study/break periods
+   - Track study statistics and session completion
+   - Unlock fun games as rewards for completing study sessions
+9. **Break Activities**: Enjoy gamified breaks with educational mini-games
 
 ### For Staff/Teachers
 
@@ -343,6 +373,7 @@ We welcome contributions to EduGen AI! Here's how you can help:
 - 📚 Educational content and curriculum integration
 - 🎨 UI/UX enhancements
 - 📖 Documentation improvements
+- 🎮 Additional study break games and activities
 
 ---
 
@@ -354,6 +385,7 @@ We welcome contributions to EduGen AI! Here's how you can help:
 - **Uptime**: 99.9% availability with fallback architecture
 - **User Engagement**: Average session duration tracking
 - **Learning Progress**: Completion rates and quiz scores
+- **Study Time**: Focus session statistics and productivity metrics
 
 ### Monitoring Tools
 
@@ -361,6 +393,7 @@ We welcome contributions to EduGen AI! Here's how you can help:
 - Error tracking and logging
 - Performance analytics
 - User activity insights
+- Study timer usage analytics
 
 ---
 
@@ -406,6 +439,12 @@ npm install
 - The platform includes fallback API endpoints
 - Monitor usage in the console for quota management
 
+**Study Timer Games Not Loading**
+
+- Ensure games are located in the `public/games/` directory
+- Check iframe sandbox permissions
+- Verify game paths are correct (`/games/GameName.html`)
+
 ---
 
 ## 📞 Support & Contact
@@ -430,6 +469,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **React Community** for excellent documentation and tools
 - **Educational Content Creators** for inspiring the platform's design
 - **Beta Testers** and early users for valuable feedback
+- **Game Development Communities** for open-source game frameworks and inspiration
 
 ---
 
@@ -443,13 +483,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🎯 **Curriculum Integration**: Alignment with university syllabi and semester planning
 - 🤖 **Enhanced AI**: More sophisticated tutoring capabilities with personalized learning paths
 - 👥 **Social Learning**: Peer-to-peer collaboration features and study groups
-- � **Institution Dashboard**: School and college management tools with performance insights
+- 🏫 **Institution Dashboard**: School and college management tools with performance insights
 - 🏆 **Gamification Enhancement**: Advanced reward systems for completing learning flows
+- ⏱️ **Study Timer Enhancements**:
+  - More customizable interval presets
+  - Study group timer synchronization
+  - Advanced productivity analytics
+  - Additional educational games and activities
+- 🎮 **Expanded Game Library**: More educational mini-games and brain training exercises
 
 ### Version History
 
 - **v0.1.0** - Initial release with core functionality
-- **Current** - Enhanced UI, voice features, and backend reliability
+- **v0.2.0** - Enhanced UI, voice features, and backend reliability
+- **v0.3.0** - Study Timer integration with gamified break activities
+- **Current** - Comprehensive learning platform with productivity tools
 
 ---
 
