@@ -3383,14 +3383,13 @@ const StudentDashboard = () => {
               activeContainer === "study-timer-container" ? "active" : ""
             }`}
           >
-            <div className="container-header">⏱️ Study Timer</div>
             <div className="container-body" style={{ padding: "0px" }}>
               <iframe
                 src="/games/Study-Timer.html"
                 title="Study Timer"
                 style={{
                   width: "100%",
-                  height: "calc(100vh - 200px)",
+                  height: "calc(125vh - 210px)",
                   minHeight: "600px",
                   border: "none",
                   borderRadius: "10px",
