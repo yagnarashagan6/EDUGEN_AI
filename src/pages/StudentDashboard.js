@@ -923,84 +923,74 @@ const StudentDashboard = () => {
     }
 
     try {
-      const apiKey = "b3831cfaa5f710d1e5c81a21e7c6451e";
+      // Use your backend endpoint instead of direct API calls
+      const backendUrl =
+        process.env.NODE_ENV === "production"
+          ? "https://edugen-backend-zbjr.onrender.com"
+          : "http://localhost:5000";
 
-      if (!apiKey) {
-        throw new Error("News API key is not configured");
-      }
-
-      // Use both US and Indian sources for better coverage
-      const countries = ["us", "in"]; // US and India
-      let allArticles = [];
-
-      for (const country of countries) {
-        try {
-          const response = await fetch(
-            `https://gnews.io/api/v4/top-headlines?category=${category}&lang=en&country=${country}&max=5&page=${page}&apikey=${apiKey}`
-          );
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              throw new Error("Invalid API key");
-            } else if (response.status === 429) {
-              throw new Error("Too many requests. Please try again later.");
-            }
-            continue; // Skip this country if there's an error
-          }
-
-          const data = await response.json();
-          if (data.articles && data.articles.length > 0) {
-            // Process articles to ensure images are included with better fallbacks
-            const processedArticles = data.articles.map((article) => {
-              let imageUrl = article.image;
-
-              // Check if image URL is valid and accessible
-              if (
-                !imageUrl ||
-                imageUrl === null ||
-                imageUrl === "null" ||
-                imageUrl === ""
-              ) {
-                imageUrl = `https://picsum.photos/400/220?random=${Math.floor(
-                  Math.random() * 1000
-                )}`;
-              }
-
-              // Ensure HTTPS for images
-              if (imageUrl && imageUrl.startsWith("http://")) {
-                imageUrl = imageUrl.replace("http://", "https://");
-              }
-
-              return {
-                ...article,
-                image: imageUrl,
-                imageAlt: article.title || "News Article",
-                country: country, // Add country for source identification
-              };
-            });
-            allArticles = [...allArticles, ...processedArticles];
-          }
-        } catch (countryError) {
-          console.warn(`Error fetching news from ${country}:`, countryError);
-          continue;
+      const response = await fetch(
+        `${backendUrl}/api/news?category=${category}&page=${page}&country=us,in&max=10`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
+      );
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error("Too many requests. Please try again later.");
+        }
+        throw new Error(`Failed to fetch news: ${response.status}`);
       }
 
-      // Remove duplicates based on title and URL
-      const uniqueArticles = allArticles.filter(
-        (article, index, self) =>
-          index ===
-          self.findIndex(
-            (a) => a.title === article.title || a.url === article.url
-          )
-      );
+      const data = await response.json();
 
-      // Sort by publication date (newest first)
-      uniqueArticles.sort(
-        (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
-      );
+      if (data.articles && data.articles.length > 0) {
+        // Process articles to ensure images are included with better fallbacks
+        const processedArticles = data.articles.map((article) => {
+          let imageUrl = article.image;
 
-      if (uniqueArticles.length > 0) {
+          // Check if image URL is valid and accessible
+          if (
+            !imageUrl ||
+            imageUrl === null ||
+            imageUrl === "null" ||
+            imageUrl === ""
+          ) {
+            imageUrl = `https://picsum.photos/400/220?random=${Math.floor(
+              Math.random() * 1000
+            )}`;
+          }
+
+          // Ensure HTTPS for images
+          if (imageUrl && imageUrl.startsWith("http://")) {
+            imageUrl = imageUrl.replace("http://", "https://");
+          }
+
+          return {
+            ...article,
+            image: imageUrl,
+            imageAlt: article.title || "News Article",
+          };
+        });
+
+        // Remove duplicates based on title and URL
+        const uniqueArticles = processedArticles.filter(
+          (article, index, self) =>
+            index ===
+            self.findIndex(
+              (a) => a.title === article.title || a.url === article.url
+            )
+        );
+
+        // Sort by publication date (newest first)
+        uniqueArticles.sort(
+          (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
+        );
+
         if (loadMore) {
           // Check if we already have these articles to avoid duplicates
           setNews((prevNews) => {
@@ -1023,7 +1013,7 @@ const StudentDashboard = () => {
         }
 
         // Set hasMoreNews based on whether we got articles
-        setHasMoreNews(uniqueArticles.length >= 8); // Reduced threshold
+        setHasMoreNews(uniqueArticles.length >= 8);
       } else {
         if (!loadMore) {
           setNews([]);

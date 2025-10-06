@@ -46,6 +46,107 @@ const apiLimiter = rateLimit({
 app.use("/api/chat", apiLimiter);
 app.use("/api/generate-quiz", apiLimiter);
 
+// News endpoint - no rate limiting to allow frequent updates
+app.get("/api/news", async (req, res) => {
+  try {
+    const {
+      category = "general",
+      page = 1,
+      country = "us,in",
+      max = 10,
+    } = req.query;
+    const apiKey = "23ab6517111b7f89ae1b385dde66dee5"; // Your new GNews API key
+
+    console.log(
+      `Fetching news: category=${category}, page=${page}, country=${country}, max=${max}`
+    );
+
+    const countries = country.split(",");
+    let allArticles = [];
+
+    for (const countryCode of countries) {
+      try {
+        const apiUrl = `https://gnews.io/api/v4/top-headlines?category=${category}&lang=en&country=${countryCode}&max=${max}&page=${page}&apikey=${apiKey}`;
+
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            "User-Agent": "EduGen-AI/1.0",
+          },
+          timeout: 10000,
+        });
+
+        if (!response.ok) {
+          console.warn(
+            `Failed to fetch news for ${countryCode}:`,
+            response.status,
+            response.statusText
+          );
+          continue;
+        }
+
+        const data = await response.json();
+
+        if (
+          data.articles &&
+          Array.isArray(data.articles) &&
+          data.articles.length > 0
+        ) {
+          const processedArticles = data.articles.map((article) => ({
+            ...article,
+            country: countryCode,
+            // Ensure image URL is valid
+            image:
+              article.image && article.image !== "null" && article.image !== ""
+                ? article.image
+                : `https://picsum.photos/400/220?random=${Math.floor(
+                    Math.random() * 1000
+                  )}`,
+          }));
+          allArticles = [...allArticles, ...processedArticles];
+        }
+      } catch (countryError) {
+        console.warn(
+          `Error fetching news from ${countryCode}:`,
+          countryError.message
+        );
+        continue;
+      }
+    }
+
+    // Remove duplicates based on title and URL
+    const uniqueArticles = allArticles.filter(
+      (article, index, self) =>
+        index ===
+        self.findIndex(
+          (a) => a.title === article.title || a.url === article.url
+        )
+    );
+
+    // Sort by publication date (newest first)
+    uniqueArticles.sort(
+      (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
+    );
+
+    console.log(
+      `Successfully fetched ${uniqueArticles.length} unique articles`
+    );
+
+    res.json({
+      articles: uniqueArticles,
+      totalArticles: uniqueArticles.length,
+      success: true,
+    });
+  } catch (error) {
+    console.error("Error fetching news:", error.message);
+    res.status(500).json({
+      error: "Failed to fetch news",
+      message: error.message,
+      success: false,
+    });
+  }
+});
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({
