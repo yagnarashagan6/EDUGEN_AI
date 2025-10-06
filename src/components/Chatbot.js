@@ -527,8 +527,6 @@ const Chatbot = ({
     if (
       lowerInput.includes("time") ||
       lowerInput.includes("date") ||
-      lowerInput.includes("today") ||
-      lowerInput.includes("now") ||
       lowerInput.includes("current time") ||
       lowerInput.includes("current date") ||
       lowerInput.includes("what time is it") ||

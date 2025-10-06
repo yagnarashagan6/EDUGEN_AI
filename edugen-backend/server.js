@@ -3,8 +3,39 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import admin from "firebase-admin";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
+
+// =============== FIREBASE ADMIN SDK INITIALIZATION ===============
+let db;
+try {
+  // Prevent re-initialization in serverless/hot-reload environments
+  if (!admin.apps.length) {
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      throw new Error(
+        "FIREBASE_SERVICE_ACCOUNT_KEY environment variable not set."
+      );
+    }
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+    console.log("✅ Firebase Admin SDK initialized successfully.");
+  } else {
+    console.log("ℹ️ Firebase Admin SDK already initialized.");
+  }
+  db = getFirestore();
+} catch (error) {
+  console.error("❌ Firebase Admin initialization failed:", error.message);
+  // Exit if Firebase Admin fails to initialize, as it's critical for caching.
+  // process.exit(1);
+}
+// Export db if needed in other backend files
+export { db };
+// =================================================================
 
 const app = express();
 
@@ -166,21 +197,55 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Route 1: Chat (Study Mode ONLY using OpenRouter)
+// =============== MODIFIED ROUTE: Chat with Caching Logic ===============
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
 
     console.log("=== STUDY MODE REQUEST ===");
-    console.log("Using model: google/gemma-3-27b-it:free");
     console.log("Message received:", message);
 
     if (!message || typeof message !== "string" || !message.trim()) {
-      console.log("Invalid message provided:", message);
       return res.status(400).json({ error: "Valid message is required." });
     }
 
-    // Study mode prompt only
+    const studentQuestion = message.trim().toLowerCase();
+
+    // 1. Fetch staff-posted topics from Firestore
+    let isStaffTopic = false;
+    try {
+      const tasksDocRef = db.collection("tasks").doc("shared");
+      const tasksDoc = await tasksDocRef.get();
+      if (tasksDoc.exists) {
+        const staffTasks = tasksDoc.data().tasks || [];
+        const staffTopics = staffTasks.map((task) =>
+          task.content.toLowerCase()
+        );
+        isStaffTopic = staffTopics.includes(studentQuestion);
+      }
+    } catch (dbError) {
+      console.error("Error fetching staff topics from Firestore:", dbError);
+      // Proceed without caching if Firestore read fails
+    }
+
+    // 2. Caching logic for staff-posted topics
+    if (isStaffTopic) {
+      const cacheKey = studentQuestion.replace(/[^a-zA-Z0-9]/g, "_"); // Sanitize topic for doc ID
+      const cacheRef = db.collection("cached_responses").doc(cacheKey);
+
+      const cachedDoc = await cacheRef.get();
+
+      if (cachedDoc.exists) {
+        console.log("✅ Cache HIT for topic:", studentQuestion);
+        return res.status(200).json({ response: cachedDoc.data().response });
+      }
+
+      console.log("⚠️ Cache MISS for topic:", studentQuestion);
+    } else {
+      console.log("💬 Not a staff topic, fetching fresh response.");
+    }
+
+    // 3. If it's a cache miss or not a staff topic, call the AI API
     const promptContent = `You are EduGen AI 🎓, an expert educational assistant. Your goal is to provide clear, concise, and structured answers for exam preparation. Keep all explanations brief and to the point.
 
 Follow this format strictly:
@@ -210,12 +275,7 @@ Student's question: ${message}`;
         },
         body: JSON.stringify({
           model: "google/gemma-3-27b-it:free",
-          messages: [
-            {
-              role: "user",
-              content: promptContent,
-            },
-          ],
+          messages: [{ role: "user", content: promptContent }],
           temperature: 0.7,
         }),
         timeout: 120000,
@@ -232,19 +292,35 @@ Student's question: ${message}`;
     const reply =
       data.choices?.[0]?.message?.content || "I couldn't generate a response.";
 
-    console.log("Response received, length:", reply?.length);
+    // 4. If it was a staff topic, save the new response to the cache
+    if (isStaffTopic) {
+      const cacheKey = studentQuestion.replace(/[^a-zA-Z0-9]/g, "_");
+      const cacheRef = db.collection("cached_responses").doc(cacheKey);
+      try {
+        await cacheRef.set({
+          response: reply,
+          topic: studentQuestion,
+          createdAt: new Date().toISOString(),
+        });
+        console.log("💾 Cached new response for topic:", studentQuestion);
+      } catch (dbError) {
+        console.error("Error saving response to cache:", dbError);
+      }
+    }
+
+    console.log("Response sent, length:", reply?.length);
     res.status(200).json({ response: reply });
   } catch (error) {
     console.error("=== STUDY MODE ERROR ===");
     console.error("Error message:", error.message);
-    console.error("Error details:", error);
-
     res.status(500).json({
       error: "Failed to get response from AI. Please try again.",
       message: error.message,
     });
   }
-}); // Route 2: Quiz Generation
+});
+
+// Route 2: Quiz Generation
 app.post("/api/generate-quiz", async (req, res) => {
   console.log("Quiz generation request received:", req.body);
 
