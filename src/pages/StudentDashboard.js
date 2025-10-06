@@ -724,7 +724,9 @@ const loadingIcons = [
 // Helper function for quiz generation with fallback logic
 const generateQuizWithFallback = async (requestBody) => {
   const primaryUrl =
-    "https://edugen-backend-zbjr.onrender.com/api/generate-quiz";
+    process.env.NODE_ENV === "production"
+      ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
+      : "http://localhost:8080/api/generate-quiz";
   const fallbackUrl =
     "https://edugen-ai-backend.onrender.com/api/generate-quiz";
 
@@ -927,7 +929,7 @@ const StudentDashboard = () => {
       const backendUrl =
         process.env.NODE_ENV === "production"
           ? "https://edugen-backend-zbjr.onrender.com"
-          : "http://localhost:5000";
+          : "http://localhost:8080";
 
       const response = await fetch(
         `${backendUrl}/api/news?category=${category}&page=${page}&country=us,in&max=10`,
@@ -942,6 +944,55 @@ const StudentDashboard = () => {
       if (!response.ok) {
         if (response.status === 429) {
           throw new Error("Too many requests. Please try again later.");
+        }
+        if (response.status === 404) {
+          // Fallback to placeholder news when backend endpoint is not available
+          console.warn("News endpoint not available, using placeholder data");
+          const placeholderNews = {
+            articles: [
+              {
+                id: "placeholder-1",
+                title: "EduGen AI - Your Learning Companion",
+                description: "Stay tuned for the latest educational news and updates. Our news service is currently being updated.",
+                content: "EduGen AI provides personalized learning experiences with AI-powered study assistance, quiz generation, and progress tracking.",
+                url: "#",
+                image: "https://picsum.photos/400/220?random=1",
+                publishedAt: new Date().toISOString(),
+                source: { name: "EduGen AI", url: "#" }
+              },
+              {
+                id: "placeholder-2", 
+                title: "Personalized Learning with AI",
+                description: "Discover how artificial intelligence is revolutionizing education and making learning more accessible.",
+                content: "AI-powered educational tools are helping students learn more effectively by adapting to their individual learning styles and pace.",
+                url: "#",
+                image: "https://picsum.photos/400/220?random=2", 
+                publishedAt: new Date(Date.now() - 3600000).toISOString(),
+                source: { name: "EduGen AI", url: "#" }
+              },
+              {
+                id: "placeholder-3",
+                title: "Interactive Quiz Generation",
+                description: "Generate custom quizzes on any topic to test your knowledge and track your progress.",
+                content: "Our AI-powered quiz generation creates personalized questions to help reinforce your learning.",
+                url: "#",
+                image: "https://picsum.photos/400/220?random=3",
+                publishedAt: new Date(Date.now() - 7200000).toISOString(), 
+                source: { name: "EduGen AI", url: "#" }
+              }
+            ],
+            totalArticles: 3,
+            success: true
+          };
+          
+          if (loadMore) {
+            setNews((prev) => [...prev, ...placeholderNews.articles]);
+          } else {
+            setNews(placeholderNews.articles);
+          }
+          setHasMoreNews(false);
+          setNewsLoading(false);
+          return;
         }
         throw new Error(`Failed to fetch news: ${response.status}`);
       }

@@ -3,7 +3,7 @@ services:
     name: edugen-backend
     env: node
     repo: https://github.com/yagnarashagan6/EDUGEN_AI
-    rootDir: .
+    rootDir: edugen-backend
     buildCommand: npm install
     startCommand: npm start
     envVars:
