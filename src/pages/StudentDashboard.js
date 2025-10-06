@@ -1117,6 +1117,7 @@ const StudentDashboard = () => {
   };
 
   const logStudentActivity = async (activityType, subject = "N/A") => {
+    /*
     const user = auth.currentUser;
     if (!user || !userData) return;
     try {
@@ -1130,6 +1131,7 @@ const StudentDashboard = () => {
     } catch (err) {
       console.error("Error logging student activity:", err);
     }
+      */
   };
   useEffect(() => {
     setMobileHamburger(
