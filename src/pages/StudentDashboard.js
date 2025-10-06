@@ -726,7 +726,7 @@ const generateQuizWithFallback = async (requestBody) => {
   const primaryUrl =
     process.env.NODE_ENV === "production"
       ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
-      : "http://localhost:8080/api/generate-quiz";
+      : "http://localhost:10000/api/generate-quiz";
   const fallbackUrl =
     "https://edugen-ai-backend.onrender.com/api/generate-quiz";
 
@@ -929,7 +929,7 @@ const StudentDashboard = () => {
       const backendUrl =
         process.env.NODE_ENV === "production"
           ? "https://edugen-backend-zbjr.onrender.com"
-          : "http://localhost:8080";
+          : "http://localhost:10000";
 
       const response = await fetch(
         `${backendUrl}/api/news?category=${category}&page=${page}&country=us,in&max=10`,

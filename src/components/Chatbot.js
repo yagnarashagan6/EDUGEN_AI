@@ -10,14 +10,14 @@ const BACKEND_URLS = {
   STUDY_MODE_PRIMARY:
     process.env.NODE_ENV === "production"
       ? "https://edugen-backend-zbjr.onrender.com/api/chat"
-      : "http://localhost:8080/api/chat",
+      : "http://localhost:10000/api/chat",
   STUDY_MODE_FALLBACK: "https://edugen-ai-backend.onrender.com/api/chat",
 
   // Quiz generation with fallback support
   QUIZ_PRIMARY:
     process.env.NODE_ENV === "production"
       ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
-      : "http://localhost:8080/api/generate-quiz",
+      : "http://localhost:10000/api/generate-quiz",
   QUIZ_FALLBACK: "https://edugen-ai-backend.onrender.com/api/generate-quiz",
 
   // Talk Mode uses Python backend
@@ -176,7 +176,7 @@ const Chatbot = ({
     const studyHealth = await checkHealth(
       process.env.NODE_ENV === "production"
         ? "https://edugen-backend-zbjr.onrender.com/api/health"
-        : "http://localhost:8080/api/health",
+        : "http://localhost:10000/api/health",
       "study"
     );
     const talkHealth = await checkHealth(

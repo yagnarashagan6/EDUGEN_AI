@@ -5,11 +5,9 @@ services:
     repo: https://github.com/yagnarashagan6/EDUGEN_AI
     rootDir: edugen-backend
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: OPENROUTER_API_KEY
         sync: false # Set this in the Render dashboard
-      - key: PORT
-        value: 10000

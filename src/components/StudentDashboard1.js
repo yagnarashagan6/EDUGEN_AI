@@ -1175,7 +1175,7 @@ const StudentDashboard = () => {
       const response = await fetch(
         process.env.NODE_ENV === "production"
           ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
-          : "http://localhost:8080/api/generate-quiz",
+          : "http://localhost:10000/api/generate-quiz",
         {
           method: "POST",
           headers: {
