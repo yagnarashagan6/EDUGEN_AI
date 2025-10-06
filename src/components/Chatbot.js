@@ -7,15 +7,17 @@ import html2pdf from "html2pdf.js";
 // Backend URLs for different modes with fallback support
 const BACKEND_URLS = {
   // Primary backend (Node.js) - fallback to Python backend if quota reached
-  STUDY_MODE_PRIMARY: process.env.NODE_ENV === "production"
-    ? "https://edugen-backend-zbjr.onrender.com/api/chat"
-    : "http://localhost:8080/api/chat",
+  STUDY_MODE_PRIMARY:
+    process.env.NODE_ENV === "production"
+      ? "https://edugen-backend-zbjr.onrender.com/api/chat"
+      : "http://localhost:8080/api/chat",
   STUDY_MODE_FALLBACK: "https://edugen-ai-backend.onrender.com/api/chat",
 
   // Quiz generation with fallback support
-  QUIZ_PRIMARY: process.env.NODE_ENV === "production"
-    ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
-    : "http://localhost:8080/api/generate-quiz",
+  QUIZ_PRIMARY:
+    process.env.NODE_ENV === "production"
+      ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
+      : "http://localhost:8080/api/generate-quiz",
   QUIZ_FALLBACK: "https://edugen-ai-backend.onrender.com/api/generate-quiz",
 
   // Talk Mode uses Python backend

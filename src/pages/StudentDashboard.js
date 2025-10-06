@@ -953,38 +953,44 @@ const StudentDashboard = () => {
               {
                 id: "placeholder-1",
                 title: "EduGen AI - Your Learning Companion",
-                description: "Stay tuned for the latest educational news and updates. Our news service is currently being updated.",
-                content: "EduGen AI provides personalized learning experiences with AI-powered study assistance, quiz generation, and progress tracking.",
+                description:
+                  "Stay tuned for the latest educational news and updates. Our news service is currently being updated.",
+                content:
+                  "EduGen AI provides personalized learning experiences with AI-powered study assistance, quiz generation, and progress tracking.",
                 url: "#",
                 image: "https://picsum.photos/400/220?random=1",
                 publishedAt: new Date().toISOString(),
-                source: { name: "EduGen AI", url: "#" }
+                source: { name: "EduGen AI", url: "#" },
               },
               {
-                id: "placeholder-2", 
+                id: "placeholder-2",
                 title: "Personalized Learning with AI",
-                description: "Discover how artificial intelligence is revolutionizing education and making learning more accessible.",
-                content: "AI-powered educational tools are helping students learn more effectively by adapting to their individual learning styles and pace.",
+                description:
+                  "Discover how artificial intelligence is revolutionizing education and making learning more accessible.",
+                content:
+                  "AI-powered educational tools are helping students learn more effectively by adapting to their individual learning styles and pace.",
                 url: "#",
-                image: "https://picsum.photos/400/220?random=2", 
+                image: "https://picsum.photos/400/220?random=2",
                 publishedAt: new Date(Date.now() - 3600000).toISOString(),
-                source: { name: "EduGen AI", url: "#" }
+                source: { name: "EduGen AI", url: "#" },
               },
               {
                 id: "placeholder-3",
                 title: "Interactive Quiz Generation",
-                description: "Generate custom quizzes on any topic to test your knowledge and track your progress.",
-                content: "Our AI-powered quiz generation creates personalized questions to help reinforce your learning.",
+                description:
+                  "Generate custom quizzes on any topic to test your knowledge and track your progress.",
+                content:
+                  "Our AI-powered quiz generation creates personalized questions to help reinforce your learning.",
                 url: "#",
                 image: "https://picsum.photos/400/220?random=3",
-                publishedAt: new Date(Date.now() - 7200000).toISOString(), 
-                source: { name: "EduGen AI", url: "#" }
-              }
+                publishedAt: new Date(Date.now() - 7200000).toISOString(),
+                source: { name: "EduGen AI", url: "#" },
+              },
             ],
             totalArticles: 3,
-            success: true
+            success: true,
           };
-          
+
           if (loadMore) {
             setNews((prev) => [...prev, ...placeholderNews.articles]);
           } else {
