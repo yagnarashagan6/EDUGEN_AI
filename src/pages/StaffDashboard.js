@@ -347,6 +347,8 @@ const StaffDashboard = () => {
     activeStudents: 0,
     overallPerformance: 0,
   });
+  // Cache of task completion statuses per student for real-time updates
+  const [taskStatusByStudent, setTaskStatusByStudent] = useState({});
   const [isChatbotOpen, setIsChatbotOpen] = useState(window.innerWidth > 768);
   const [filterType, setFilterType] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -590,6 +592,53 @@ const StaffDashboard = () => {
     return () => unsubscribe();
   }, [addNotification]);
 
+  // Listen in real-time to each student's task_status so results update when students complete tasks
+  useEffect(() => {
+    // Only attach listeners when we have students and tasks loaded
+    if (loading.students || loading.tasks) return;
+    if (!studentStats || studentStats.length === 0) return;
+
+    const unsubs = [];
+    try {
+      studentStats.forEach((student) => {
+        const statusColRef = collection(
+          db,
+          "students",
+          student.id,
+          "task_status"
+        );
+        const unsub = onSnapshot(
+          statusColRef,
+          (snap) => {
+            const map = {};
+            snap.forEach((d) => {
+              map[d.id] = d.data();
+            });
+            setTaskStatusByStudent((prev) => ({ ...prev, [student.id]: map }));
+          },
+          (err) => {
+            console.warn(
+              "task_status listener error for",
+              student.id,
+              err?.message || err
+            );
+          }
+        );
+        unsubs.push(unsub);
+      });
+    } catch (e) {
+      console.warn("Failed to attach task_status listeners:", e?.message || e);
+    }
+
+    return () => {
+      unsubs.forEach((u) => {
+        try {
+          u && u();
+        } catch (_) {}
+      });
+    };
+  }, [studentStats, loading.students, loading.tasks]);
+
   const fetchAssignments = useCallback(() => {
     setLoading((prev) => ({ ...prev, assignments: true }));
     const user = auth.currentUser;
@@ -630,23 +679,45 @@ const StaffDashboard = () => {
     const unsubscribe = fetchAssignments();
     return () => unsubscribe();
   }, [fetchAssignments]);
+  // ...existing code...
 
   useEffect(() => {
-    if (!loading.students && !loading.tasks) {
-      const resultsData = studentStats.map((student) => ({
-        id: student.id,
-        name: student.name || "Anonymous",
-        // Only count tasks completed by this student that were posted by the current staff member
-        completedTasks: tasks.filter(
-          (task) =>
-            task.completedBy?.includes(student.id) &&
-            task.staffId === auth.currentUser?.uid
-        ).length,
-        totalTasks: tasks.length, // This will now be the count of tasks posted by current staff
-      }));
+    if (loading.students || loading.tasks) return;
+
+    const compute = () => {
+      const resultsData = studentStats.map((student) => {
+        let completedCount = 0;
+
+        for (const task of tasks) {
+          const status = taskStatusByStudent[student.id]?.[task.id];
+          const isCompleted =
+            (status && status.completed === true) ||
+            (Array.isArray(task.completedBy) &&
+              task.completedBy.includes(student.id));
+          if (isCompleted) completedCount++;
+        }
+
+        return {
+          id: student.id,
+          name: student.name || "Anonymous",
+          completedTasks: completedCount,
+          totalTasks: tasks.length,
+        };
+      });
+
       setResults(resultsData);
-    }
-  }, [tasks, studentStats, loading.students, loading.tasks]);
+    };
+
+    compute();
+  }, [
+    tasks,
+    studentStats,
+    taskStatusByStudent,
+    loading.students,
+    loading.tasks,
+  ]);
+
+  // ...existing code...
 
   useEffect(() => {
     // Temporarily disable fetching latest activity from Firebase
@@ -1276,7 +1347,10 @@ const StaffDashboard = () => {
           );
         });
       case "performance":
-        return studentStats.filter((student) => (student.progress || 0) >= 75);
+        // Show all students sorted by progress (high to low) instead of filtering by threshold
+        return [...studentStats].sort(
+          (a, b) => (b.progress || 0) - (a.progress || 0)
+        );
       default:
         return studentStats;
     }
