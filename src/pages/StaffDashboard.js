@@ -31,6 +31,7 @@ import TaskItem from "../components/TaskItem";
 import GuideModal from "../components/GuideModal";
 import StudentMonitor from "../components/StudentMonitor";
 import Notification from "../components/Notification";
+import Timetable from "../components/Timetable";
 import "../styles/Dashboard.css";
 import "../styles/StaffInteraction.css";
 import "../styles/Chat.css";
@@ -2353,6 +2354,18 @@ const StaffDashboard = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+            <div
+              id="timetable-creator-container"
+              className={`toggle-container ${
+                activeContainer === "timetable-creator-container"
+                  ? "active"
+                  : ""
+              }`}
+            >
+              <div className="container-body scrollable">
+                <Timetable isContainer={true} />
               </div>
             </div>
           </div>

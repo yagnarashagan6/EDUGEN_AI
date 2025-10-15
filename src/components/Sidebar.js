@@ -99,9 +99,9 @@ const Sidebar = ({
       label: "Quick Stats",
     },
     {
-      id: "study-timer-container", // Add Study Timer option for staff too
-      icon: "fas fa-stopwatch",
-      label: "Study Timer",
+      id: "timetable-creator-container", // Timetable Creator option for staff
+      icon: "fas fa-calendar-alt",
+      label: "Timetable Creator",
     },
     // Only show chatbot option on mobile
     ...(isMobile
