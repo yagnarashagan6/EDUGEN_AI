@@ -132,6 +132,9 @@ const Homepage = ({ isContainer = false }) => {
 
   const refreshExamFolders = async () => {
     const auth = localStorage.getItem("auth");
+    let serverFolders = [];
+    let localSavedTimetables = [];
+
     if (auth) {
       try {
         const response = await fetch(
@@ -139,8 +142,7 @@ const Homepage = ({ isContainer = false }) => {
           { headers: { Authorization: `Basic ${auth}` } }
         );
         if (response.ok) {
-          const examFolders = await response.json();
-          dispatch({ type: "SET_EXAM_FOLDERS", payload: examFolders });
+          serverFolders = await response.json();
         } else {
           console.log(
             "Server not available during refresh, keeping current data"
@@ -153,12 +155,19 @@ const Homepage = ({ isContainer = false }) => {
         );
       }
     } else {
-      // No auth, use local storage
-      const storedFolders = JSON.parse(
-        localStorage.getItem("examFolders") || "[]"
-      );
-      dispatch({ type: "SET_EXAM_FOLDERS", payload: storedFolders });
+      // No auth, use local storage for server folders
+      serverFolders = JSON.parse(localStorage.getItem("examFolders") || "[]");
     }
+
+    // Always load locally saved timetables
+    localSavedTimetables = JSON.parse(
+      localStorage.getItem("savedTimetables") || "[]"
+    );
+
+    // Merge server folders and locally saved timetables
+    const allFolders = [...serverFolders, ...localSavedTimetables];
+
+    dispatch({ type: "SET_EXAM_FOLDERS", payload: allFolders });
   };
 
   const handleClearAllTimetables = () => {
@@ -170,6 +179,7 @@ const Homepage = ({ isContainer = false }) => {
       dispatch({ type: "CLEAR_ALL_TIMETABLES" });
       localStorage.removeItem("examFolders");
       localStorage.removeItem("examTimetables"); // Clear legacy key
+      localStorage.removeItem("savedTimetables"); // Clear locally saved timetables
     }
   };
 
@@ -294,7 +304,10 @@ const Homepage = ({ isContainer = false }) => {
         f.timetables.some((t) => t.id === timetableId)
       );
       if (!folder) return;
+
       const auth = localStorage.getItem("auth");
+      let deleted = false;
+
       if (auth) {
         try {
           const response = await fetch(
@@ -312,10 +325,37 @@ const Homepage = ({ isContainer = false }) => {
             } else {
               dispatch({ type: "UPDATE_EXAM_FOLDER", payload: updatedFolder });
             }
+            deleted = true;
           }
         } catch (error) {
           console.error("Failed to delete timetable from backend:", error);
         }
+      }
+
+      // Handle local storage deletion (for locally saved timetables)
+      if (!deleted || !auth) {
+        const savedTimetables = JSON.parse(
+          localStorage.getItem("savedTimetables") || "[]"
+        );
+        const updatedTimetables = savedTimetables.filter(
+          (t) => t.id !== folder.id
+        );
+
+        if (updatedTimetables.length !== savedTimetables.length) {
+          localStorage.setItem(
+            "savedTimetables",
+            JSON.stringify(updatedTimetables)
+          );
+          dispatch({ type: "DELETE_EXAM_FOLDER", payload: folder.id });
+          deleted = true;
+        }
+      }
+
+      if (deleted) {
+        alert("Timetable deleted successfully!");
+        refreshExamFolders();
+      } else {
+        alert("Failed to delete timetable. Please try again.");
       }
     }
   };
@@ -791,7 +831,12 @@ const TimetableFolder = ({ timetable: folder, onEdit, onDelete }) => {
     </div>
   );
 };
-const TimetableGenerator = () => {
+const TimetableGenerator = ({
+  onSaveTimetable,
+  editingTimetable,
+  onUpdateTimetable,
+  dispatch,
+}) => {
   const [config, setConfig] = useState({
     tableName: "IV B.Tech AIDS",
     numDays: 5,
@@ -1137,7 +1182,9 @@ const TimetableGenerator = () => {
 
   const handleDownload = (type) => {
     if (!timetableRef.current || !window.html2canvas || !window.jspdf) {
-      alert("Required libraries for download are not available.");
+      alert(
+        "Required libraries for download are not available. Please refresh the page."
+      );
       return;
     }
 
@@ -1192,8 +1239,7 @@ const TimetableGenerator = () => {
         })
         .then((canvas) => {
           const imgData = canvas.toDataURL("image/png");
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF("l", "mm", "a4");
+          const pdf = new window.jspdf.jsPDF("l", "mm", "a4");
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
           const imgProps = pdf.getImageProperties(imgData);
@@ -1294,16 +1340,64 @@ const TimetableGenerator = () => {
   };
 
   const handleSaveLocally = () => {
-    const data = {
+    if (!timetable || !timetableData) {
+      alert("Please generate a timetable first before saving.");
+      return;
+    }
+
+    const savedTimetable = {
+      id: Date.now().toString(),
+      folderName: config.tableName,
       timetable,
       timetableData,
       courseDetails,
       config,
       hours,
       times,
+      createdAt: new Date().toISOString(),
+      timetables: [
+        {
+          id: Date.now().toString(),
+          name: config.tableName,
+          data: timetableData,
+          courseDetails,
+          config,
+          hours,
+          times,
+          createdAt: new Date().toISOString(),
+        },
+      ],
     };
-    localStorage.setItem("savedTimetable", JSON.stringify(data));
-    alert("Timetable saved locally!");
+
+    // Get existing saved timetables from localStorage
+    const existingTimetables = JSON.parse(
+      localStorage.getItem("savedTimetables") || "[]"
+    );
+
+    // Check if timetable with same name already exists
+    const existingIndex = existingTimetables.findIndex(
+      (t) => t.folderName === config.tableName
+    );
+
+    if (existingIndex >= 0) {
+      // Update existing timetable
+      existingTimetables[existingIndex] = savedTimetable;
+    } else {
+      // Add new timetable
+      existingTimetables.push(savedTimetable);
+    }
+
+    // Save to localStorage
+    localStorage.setItem("savedTimetables", JSON.stringify(existingTimetables));
+
+    // Update the parent component's state if available
+    if (onSaveTimetable) {
+      onSaveTimetable(savedTimetable);
+    }
+
+    alert(
+      `Timetable "${config.tableName}" saved successfully! You can view and edit it in the "View" section.`
+    );
   };
 
   const toggleFullScreen = () => {
@@ -1356,6 +1450,18 @@ const TimetableGenerator = () => {
       window.removeEventListener("orientationchange", updateOrientation);
     };
   }, []);
+
+  // Load editing timetable data
+  useEffect(() => {
+    if (editingTimetable && editingTimetable.timetable) {
+      setTimetable(editingTimetable.timetable);
+      setTimetableData(editingTimetable.timetableData || editingTimetable.data);
+      setCourseDetails(editingTimetable.courseDetails || []);
+      setConfig(editingTimetable.config || config);
+      setHours(editingTimetable.hours || []);
+      setTimes(editingTimetable.times || []);
+    }
+  }, [editingTimetable]);
 
   return (
     <main className="create-exam">
