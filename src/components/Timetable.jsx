@@ -999,8 +999,10 @@ const TimetableGenerator = ({
         "SAT",
         "SUN",
       ].slice(0, config.numDays);
-      let periods = [];
-      let currentTime = new Date(`1970-01-01T${config.startTime}:00`);
+
+      const finalPeriods = [];
+      const finalTimetable = {};
+      weekDaysFull.forEach((day) => (finalTimetable[day] = []));
 
       const formatTime = (date) =>
         date.toLocaleTimeString("en-US", {
@@ -1009,63 +1011,22 @@ const TimetableGenerator = ({
           hour12: false,
         });
 
-      const allPeriods = {};
-      weekDaysFull.forEach((day) => (allPeriods[day] = []));
-
-      for (let i = 1; i <= config.periodsPerDay; i++) {
-        if (i === parseInt(config.breakAfterPeriod, 10) + 1) {
-          const breakStartTime = new Date(currentTime.getTime());
-          currentTime.setMinutes(
-            currentTime.getMinutes() + parseInt(config.breakDuration, 10)
-          );
-          const breakEndTime = new Date(currentTime.getTime());
-          periods.push({
-            type: "BREAK",
-            time: `${formatTime(breakStartTime)} to ${formatTime(
-              breakEndTime
-            )}`,
-          });
-        }
-        if (i === parseInt(config.lunchAfterPeriod, 10) + 1) {
-          const lunchStartTime = new Date(currentTime.getTime());
-          currentTime.setMinutes(
-            currentTime.getMinutes() + parseInt(config.lunchDuration, 10)
-          );
-          const lunchEndTime = new Date(currentTime.getTime());
-          periods.push({
-            type: "LUNCH",
-            time: `${formatTime(lunchStartTime)} to ${formatTime(
-              lunchEndTime
-            )}`,
-          });
-        }
-
-        const periodStartTime = new Date(currentTime.getTime());
-        currentTime.setMinutes(
-          currentTime.getMinutes() + parseInt(config.periodDuration, 10)
-        );
-        const periodEndTime = new Date(currentTime.getTime());
-
-        periods.push({
-          type: "CLASS",
-          time: `${formatTime(periodStartTime)} to ${formatTime(
-            periodEndTime
-          )}`,
-        });
-      }
-
-      const finalPeriods = [];
-      const finalTimetable = {};
-      weekDaysFull.forEach((day) => (finalTimetable[day] = []));
-
+      let currentTimePointer = new Date(`1970-01-01T${config.startTime}:00`);
+      let classIndex = 0;
       let breakAdded = false;
       let lunchAdded = false;
-      let classIndex = 0;
 
-      let currentTimePointer = new Date(`1970-01-01T${config.startTime}:00`);
+      const numTotalSlots =
+        config.periodsPerDay +
+        (config.breakDuration > 0 ? 1 : 0) +
+        (config.lunchDuration > 0 ? 1 : 0);
 
-      for (let i = 1; i <= config.periodsPerDay; i++) {
-        if (i === parseInt(config.breakAfterPeriod, 10) + 1 && !breakAdded) {
+      for (let i = 0; i < numTotalSlots; i++) {
+        if (
+          config.breakDuration > 0 &&
+          !breakAdded &&
+          classIndex === parseInt(config.breakAfterPeriod, 10)
+        ) {
           const breakStart = new Date(currentTimePointer.getTime());
           currentTimePointer.setMinutes(
             currentTimePointer.getMinutes() + parseInt(config.breakDuration, 10)
@@ -1077,9 +1038,11 @@ const TimetableGenerator = ({
             isBreak: true,
           });
           breakAdded = true;
-        }
-
-        if (i === parseInt(config.lunchAfterPeriod, 10) + 1 && !lunchAdded) {
+        } else if (
+          config.lunchDuration > 0 &&
+          !lunchAdded &&
+          classIndex === parseInt(config.lunchAfterPeriod, 10)
+        ) {
           const lunchStart = new Date(currentTimePointer.getTime());
           currentTimePointer.setMinutes(
             currentTimePointer.getMinutes() + parseInt(config.lunchDuration, 10)
@@ -1090,23 +1053,25 @@ const TimetableGenerator = ({
             time: `${formatTime(lunchStart)} to ${formatTime(lunchEnd)}`,
             isBreak: true,
           });
+
           lunchAdded = true;
+        } else if (classIndex < config.periodsPerDay) {
+          const periodStart = new Date(currentTimePointer.getTime());
+          currentTimePointer.setMinutes(
+            currentTimePointer.getMinutes() +
+              parseInt(config.periodDuration, 10)
+          );
+          const periodEnd = new Date(currentTimePointer.getTime());
+
+          weekDaysFull.forEach((day) => {
+            finalTimetable[day].push(timetableData[day][classIndex] || "FREE");
+          });
+          finalPeriods.push({
+            time: `${formatTime(periodStart)} to ${formatTime(periodEnd)}`,
+            isBreak: false,
+          });
+          classIndex++;
         }
-
-        const periodStart = new Date(currentTimePointer.getTime());
-        currentTimePointer.setMinutes(
-          currentTimePointer.getMinutes() + parseInt(config.periodDuration, 10)
-        );
-        const periodEnd = new Date(currentTimePointer.getTime());
-
-        weekDaysFull.forEach((day) => {
-          finalTimetable[day].push(timetableData[day][classIndex] || "FREE");
-        });
-        finalPeriods.push({
-          time: `${formatTime(periodStart)} to ${formatTime(periodEnd)}`,
-          isBreak: false,
-        });
-        classIndex++;
       }
 
       setTimetable({
@@ -1124,12 +1089,11 @@ const TimetableGenerator = ({
       const timesArr = [];
       let hourNum = 1;
       finalPeriods.forEach((p) => {
+        timesArr.push(p.time);
         if (p.isBreak) {
           hoursArr.push("");
-          timesArr.push(p.time);
         } else {
           hoursArr.push(hourNum.toString());
-          timesArr.push(p.time);
           hourNum++;
         }
       });
@@ -1180,162 +1144,226 @@ const TimetableGenerator = ({
     setCourseDetails((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleDownload = (type) => {
-    if (!timetableRef.current || !window.html2canvas || !window.jspdf) {
+  const handleDownload = async (type) => {
+    if (
+      !timetableRef.current ||
+      !window.html2canvas ||
+      (type === "pdf" && !window.jspdf)
+    ) {
       alert(
         "Required libraries for download are not available. Please refresh the page."
       );
       return;
     }
 
-    // Ensure vertical text styling is applied before capture
-    const breakLunchCells = timetableRef.current.querySelectorAll(
-      ".break-cell-static, .editable-cell"
-    );
-    breakLunchCells.forEach((cell) => {
-      if (cell.textContent === "BREAK" || cell.textContent === "LUNCH") {
-        cell.style.writingMode = "vertical-rl";
-        cell.style.textOrientation = "mixed";
-      }
-    });
+    if (type === "word") {
+      const timetableClone = timetableRef.current.cloneNode(true);
+      timetableClone
+        .querySelectorAll(
+          ".download-section, .fullscreen-button, .back-button, .orientation-prompt, .legend-table th:last-child, .legend-table td:last-child, .legend-container .generate-button, .legend-container .download-button, .timetable-header-controls"
+        )
+        .forEach((el) => el.remove());
+      timetableClone
+        .querySelectorAll(".cell-input")
+        .forEach((input) => (input.parentElement.innerText = input.value));
 
-    // Hide Actions column and Add Course button
-    const actionsHeaders = timetableRef.current.querySelectorAll(
-      ".legend-table th:last-child, .legend-table td:last-child"
-    );
-    const addCourseButton =
-      timetableRef.current.querySelector(".generate-button");
-    const originalDisplays = [];
-    actionsHeaders.forEach((el) => {
-      originalDisplays.push(el.style.display);
-      el.style.display = "none";
-    });
-    if (addCourseButton) {
-      originalDisplays.push(addCourseButton.style.display);
-      addCourseButton.style.display = "none";
-    }
-
-    if (type === "png") {
-      window
-        .html2canvas(timetableRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-        })
-        .then((canvas) => {
-          const link = document.createElement("a");
-          link.href = canvas.toDataURL("image/png");
-          link.download = `${config.tableName}.png`;
-          link.click();
-        });
-    } else if (type === "pdf") {
-      window
-        .html2canvas(timetableRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-        })
-        .then((canvas) => {
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new window.jspdf.jsPDF("l", "mm", "a4");
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const imgProps = pdf.getImageProperties(imgData);
-          const imgWidth = pdfWidth - 20;
-          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-          pdf.addImage(
-            imgData,
-            "PNG",
-            10,
-            (pdfHeight - imgHeight) / 2,
-            imgWidth,
-            imgHeight
-          );
-          pdf.save(`${config.tableName}.pdf`);
-        });
-    } else if (type === "word") {
-      let tableHTML = `<table style="width:100%; border-collapse:collapse; font-family:Arial,sans-serif;">
-        <thead>
-            <tr style="background-color:#e0e0e0;">
-                <th style="padding:8px; border:1px solid #b0b0b0;">HOUR</th>
-                ${hours
-                  .map(
-                    (h) =>
-                      `<th style="padding:8px; border:1px solid #b0b0b0;">${h}</th>`
-                  )
-                  .join("")}
-            </tr>
-            <tr style="background-color:#e0e0e0;">
-                <th style="padding:8px; border:1px solid #b0b0b0;">TIME/DAY</th>
-                ${times
-                  .map(
-                    (t) =>
-                      `<th style="padding:8px; border:1px solid #b0b0b0;">${t.replace(
-                        " to ",
-                        "-"
-                      )}</th>`
-                  )
-                  .join("")}
-            </tr>
-        </thead>
-        <tbody>`;
-      Object.entries(timetableData).forEach(([day, periods], index) => {
-        const breakIndex = periods.indexOf("BREAK");
-        const lunchIndex = periods.indexOf("LUNCH");
-        tableHTML += `<tr style="background-color:${
-          index % 2 === 0 ? "#fff" : "#f9f9f9"
-        };">
-            <td style="padding:8px; border:1px solid #b0b0b0; font-weight:bold;">${day}</td>`;
-        periods.forEach((period, pIndex) => {
-          if (pIndex === breakIndex && day === "MON") {
-            // BREAK
-            tableHTML += `<td rowspan="5" style="padding:8px; border:1px solid #b0b0b0; text-align:center; background-color:#d3d3d3; font-weight:bold; font-style:italic; color:#555;">BREAK</td>`;
-          } else if (pIndex === lunchIndex && day === "MON") {
-            // LUNCH
-            tableHTML += `<td rowspan="5" style="padding:8px; border:1px solid #b0b0b0; text-align:center; background-color:#d3d3d3; font-weight:bold; font-style:italic; color:#555;">LUNCH</td>`;
-          } else if (pIndex !== breakIndex && pIndex !== lunchIndex) {
-            tableHTML += `<td style="padding:8px; border:1px solid #b0b0b0; text-align:center;">${period}</td>`;
-          }
-        });
-        tableHTML += `</tr>`;
-      });
-      tableHTML += `</tbody></table>`;
-
-      let legendHTML = `<h2>Course Legend</h2><table style="width:100%; border-collapse:collapse; font-family:Arial,sans-serif; margin-top: 20px;">
-        <thead><tr style="background-color:#374151; color:#f3f4f6;"><th style="padding:8px; border:1px solid #ddd;">Abbreviation</th><th style="padding:8px; border:1px solid #ddd;">Course Name</th><th style="padding:8px; border:1px solid #ddd;">Course Teacher</th></tr></thead>
-        <tbody>`;
-      courseDetails.forEach((course, index) => {
-        legendHTML += `<tr style="background-color:${
-          index % 2 === 0 ? "#fff" : "#f9f9f9"
-        };"><td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:bold;">${
-          course.ABB
-        }</td><td style="padding:8px; border:1px solid #ddd;">${
-          course.NAME
-        }</td><td style="padding:8px; border:1px solid #ddd;">${
-          course.TEACHER
-        }</td></tr>`;
-      });
-      legendHTML += `</tbody></table>`;
-
-      const source = `<html><head><meta charset='utf-8'><title>${config.tableName}</title></head><body>
-        <h1 style="text-align:center;">${config.tableName}</h1>${tableHTML}${legendHTML}</body></html>`;
+      const source = `<html><head><meta charset='utf-8'><title>${
+        config.tableName
+      }</title><style>body{font-family:Arial,sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:8px;text-align:center;} th{background-color:#f2f2f2;} .timetable-folder-name{font-size:1.5em;font-weight:bold;text-align:center;margin-bottom:1em;} .legend-container{margin-top:2em;} .legend-title{font-size:1.2em;font-weight:bold;text-align:center;} .break-cell{writing-mode:vertical-rl;text-orientation:mixed;font-weight:bold;background-color:#e0e0e0;}</style></head><body>${timetableClone.innerHTML.replace(
+        /style="[^"]*writing-mode[^"]*"/g,
+        'class="break-cell"'
+      )}</body></html>`;
       const file = new Blob([source], { type: "application/msword" });
-      const url = URL.createObjectURL(file);
       const link = document.createElement("a");
-      link.href = url;
+      link.href = URL.createObjectURL(file);
       link.download = `${config.tableName}.doc`;
       link.click();
+      URL.revokeObjectURL(link.href);
+      return;
     }
 
-    // Restore visibility
-    actionsHeaders.forEach((el, index) => {
-      el.style.display = originalDisplays[index] || "";
+    const wrapper = timetableRef.current;
+    const elementsToHide = wrapper.querySelectorAll(
+      ".download-section, .fullscreen-button, .back-button, .orientation-prompt, .legend-table th:last-child, .legend-table td:last-child, .legend-container .generate-button, .legend-container .download-button, .timetable-header-controls"
+    );
+    const parents = [];
+    let current = wrapper.parentElement;
+    while (current) {
+      const styles = window.getComputedStyle(current);
+      if (
+        styles.overflow !== "visible" ||
+        styles.overflowX !== "visible" ||
+        styles.overflowY !== "visible"
+      ) {
+        parents.push(current);
+      }
+      current = current.parentElement;
+    }
+
+    const originalStyles = new Map();
+    const storeStyle = (el, props) => {
+      if (!el) return;
+      const styles = {};
+      props.forEach((prop) => (styles[prop] = el.style[prop]));
+      originalStyles.set(el, styles);
+    };
+
+    // Store original styles
+    storeStyle(wrapper, [
+      "overflow",
+      "height",
+      "maxHeight",
+      "width",
+      "boxSizing",
+    ]);
+    parents.forEach((p) =>
+      storeStyle(p, ["overflow", "overflowX", "overflowY", "height", "width"])
+    );
+    elementsToHide.forEach((el) => storeStyle(el, ["display"]));
+
+    // Apply styles for full capture
+    if (wrapper) {
+      wrapper.style.overflow = "visible";
+      wrapper.style.height = "auto";
+      wrapper.style.maxHeight = "none";
+      wrapper.style.width = "100%";
+      wrapper.style.boxSizing = "border-box";
+    }
+
+    // Fix parent overflow
+    parents.forEach((p) => {
+      p.style.overflow = "visible";
+      p.style.overflowX = "visible";
+      p.style.overflowY = "visible";
+      p.style.height = "auto";
+      p.style.width = "auto";
     });
-    if (addCourseButton) {
-      addCourseButton.style.display =
-        originalDisplays[actionsHeaders.length] || "";
+
+    // Hide unnecessary elements
+    elementsToHide.forEach((el) => (el.style.display = "none"));
+
+    // Also ensure table container has proper styles
+    const tableContainer = wrapper.querySelector(".timetable-table-container");
+    if (tableContainer) {
+      tableContainer.style.overflow = "visible";
+      tableContainer.style.width = "100%";
+      tableContainer.style.margin = "0";
+      tableContainer.style.padding = "0";
+    }
+
+    const table = wrapper.querySelector(".timetable-table-static");
+    if (table) {
+      table.style.width = "100%";
+      table.style.tableLayout = "auto";
+      table.style.minWidth = "auto";
+    }
+
+    // Ensure all table cells display properly
+    const tableCells = wrapper.querySelectorAll(
+      ".timetable-table-static th, .timetable-table-static td"
+    );
+    tableCells.forEach((cell) => {
+      cell.style.minWidth = "auto";
+      cell.style.whiteSpace = "normal";
+    });
+
+    // Reduce wrapper padding for capture
+    const originalWrapperPadding = wrapper.style.padding;
+    wrapper.style.padding = "0.5rem";
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    try {
+      // Get the actual width and height of just the content (table + legend)
+      const tableElement = wrapper.querySelector(".timetable-table-container");
+      const legendElement = wrapper.querySelector(".legend-container");
+      const headerElement = wrapper.querySelector(".timetable-header-info");
+
+      let contentWidth = wrapper.offsetWidth;
+      let contentHeight = wrapper.offsetHeight;
+
+      // Calculate dimensions more accurately
+      if (tableElement) {
+        contentWidth = tableElement.scrollWidth || tableElement.offsetWidth;
+      }
+
+      // Calculate total height including header and legend with minimal gaps
+      let totalHeight = 0;
+      if (headerElement) {
+        totalHeight += headerElement.scrollHeight || headerElement.offsetHeight;
+      }
+      if (tableElement) {
+        totalHeight += tableElement.scrollHeight || tableElement.offsetHeight;
+      }
+      if (legendElement) {
+        totalHeight += legendElement.scrollHeight || legendElement.offsetHeight;
+      }
+
+      // Use calculated dimensions
+      contentHeight = totalHeight > 0 ? totalHeight : wrapper.offsetHeight;
+
+      const canvas = await window.html2canvas(wrapper, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        width: contentWidth,
+        height: contentHeight,
+        windowWidth: contentWidth,
+        windowHeight: contentHeight,
+        logging: false,
+      });
+      if (type === "png") {
+        const link = document.createElement("a");
+        link.href = canvas.toDataURL("image/png");
+        link.download = `${config.tableName}.png`;
+        link.click();
+      } else if (type === "pdf") {
+        const imgData = canvas.toDataURL("image/png");
+
+        // Determine PDF orientation based on canvas ratio
+        const canvasRatio = canvas.width / canvas.height;
+        const orientation = canvasRatio > 1 ? "landscape" : "portrait";
+
+        const pdf = new window.jspdf.jsPDF({
+          orientation: orientation,
+          unit: "mm",
+          format: "a4",
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const ratio = imgProps.width / imgProps.height;
+
+        // Calculate dimensions to fit the PDF while maintaining aspect ratio
+        let imgWidth = pdfWidth - 10;
+        let imgHeight = imgWidth / ratio;
+
+        // If height exceeds PDF height, scale down both dimensions
+        if (imgHeight > pdfHeight - 10) {
+          imgHeight = pdfHeight - 10;
+          imgWidth = imgHeight * ratio;
+        }
+
+        // Add image to PDF (top-left corner with minimal margins)
+        const x = 5;
+        const y = 5;
+        pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight);
+        pdf.save(`${config.tableName}.pdf`);
+      }
+    } catch (error) {
+      console.error("Error during canvas capture:", error);
+      alert("Failed to create the download file.");
+    } finally {
+      // Restore original wrapper padding
+      wrapper.style.padding = originalWrapperPadding;
+
+      originalStyles.forEach((styles, el) => {
+        for (const prop in styles) {
+          el.style[prop] = styles[prop];
+        }
+      });
     }
   };
 
@@ -1401,16 +1429,9 @@ const TimetableGenerator = ({
   };
 
   const toggleFullScreen = () => {
-    // Determine which element to make fullscreen based on current state
-    let elem;
-    if (timetable) {
-      // If timetable is displayed, use the timetable wrapper
-      elem = timetableRef.current;
-    } else {
-      // If in create mode, use the generator form container
-      elem = document.querySelector(".generator-form-container");
-    }
-
+    let elem = timetable
+      ? timetableRef.current
+      : document.querySelector(".generator-form-container");
     if (!elem) return;
 
     if (!document.fullscreenElement) {
@@ -1419,10 +1440,8 @@ const TimetableGenerator = ({
           `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
         );
       });
-      setIsFullScreen(true);
     } else {
       document.exitFullscreen();
-      setIsFullScreen(false);
     }
   };
 
@@ -1434,34 +1453,28 @@ const TimetableGenerator = ({
       document.removeEventListener("fullscreenchange", onFullScreenChange);
   }, []);
 
-  // Orientation and screen size detection
   useEffect(() => {
     const updateOrientation = () => {
       setIsLandscape(window.innerWidth > window.innerHeight);
       setIsMobile(window.innerWidth <= 768);
     };
-
     updateOrientation();
     window.addEventListener("resize", updateOrientation);
-    window.addEventListener("orientationchange", updateOrientation);
-
-    return () => {
-      window.removeEventListener("resize", updateOrientation);
-      window.removeEventListener("orientationchange", updateOrientation);
-    };
+    return () => window.removeEventListener("resize", updateOrientation);
   }, []);
 
-  // Load editing timetable data
   useEffect(() => {
     if (editingTimetable && editingTimetable.timetable) {
       setTimetable(editingTimetable.timetable);
-      setTimetableData(editingTimetable.timetableData || editingTimetable.data);
+      setTimetableData(
+        editingTimetable.timetableData || editingTimetable.timetable.data
+      );
       setCourseDetails(editingTimetable.courseDetails || []);
       setConfig(editingTimetable.config || config);
       setHours(editingTimetable.hours || []);
       setTimes(editingTimetable.times || []);
     }
-  }, [editingTimetable]);
+  }, [editingTimetable, config]);
 
   return (
     <main className="create-exam">
@@ -1501,7 +1514,7 @@ const TimetableGenerator = ({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                 </svg>
               )}
             </button>
@@ -1533,15 +1546,15 @@ const TimetableGenerator = ({
                 lineHeight: "1.6",
               }}
             >
-              <li>Fill in your class details and schedule preferences</li>
+              <li>Fill in your class details and schedule preferences.</li>
               <li>
                 Add subjects using the table below - specify subject name,
-                periods per day, periods per week, and staff name
+                periods per day, periods per week, and staff name.
               </li>
-              <li>Use the "Add Subject" button to add more subjects</li>
-              <li>Click "Generate Timetable" to create your schedule</li>
+              <li>Use the "Add Subject" button to add more subjects.</li>
+              <li>Click "Generate Timetable" to create your schedule.</li>
               <li>
-                You can edit the generated timetable by clicking on any cell
+                You can edit the generated timetable by clicking on any cell.
               </li>
             </ul>
           </div>
@@ -1812,12 +1825,10 @@ const TimetableGenerator = ({
           </div>
 
           <div className="timetable-wrapper" ref={timetableRef}>
-            {/* Add folder name display */}
             <div className="timetable-header-info">
               <h1 className="timetable-folder-name">{timetable.name}</h1>
             </div>
 
-            {/* Orientation prompt for mobile portrait mode */}
             {isMobile && !isLandscape && (
               <div className="orientation-prompt">
                 <svg
@@ -1836,160 +1847,106 @@ const TimetableGenerator = ({
                 </svg>
                 <h3>Please Rotate to Landscape</h3>
                 <p>
-                  Please rotate your device to landscape orientation to edit the
-                  timetable. This ensures all columns are visible and provides
-                  the best editing experience.
+                  For the best editing experience, please rotate your device to
+                  landscape orientation.
                 </p>
               </div>
             )}
-            {/* Timetable table - only show in landscape or desktop */}
+
             {(!isMobile || isLandscape) && (
               <div className="timetable-table-container">
-                {/* Wrap both table and legend in a single parent div */}
                 <div>
                   <table className="timetable-table-static">
                     <thead>
                       <tr>
-                        <th className="header-static">HOUR</th>
+                        <th>HOUR</th>
                         {hours.map((hour, index) => (
-                          <th key={index} className="header-static">
-                            {hour}
-                          </th>
+                          <th key={index}>{hour}</th>
                         ))}
                       </tr>
                       <tr>
-                        <th className="header-static">TIME/DAY</th>
+                        <th>TIME/DAY</th>
                         {times.map((time, index) => (
-                          <th key={index} className="header-static time-header">
-                            {time}
-                          </th>
+                          <th key={index}>{time}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(timetableData).map(
-                        ([day, periods], dayIndex) => (
-                          <tr key={day}>
-                            <td className="day-cell-static">{day}</td>
-                            {periods.map((period, index) => {
-                              if (index === 2) {
-                                // BREAK column
-                                if (day === "MON") {
-                                  return (
-                                    <td
-                                      key={index}
-                                      className="period-cell-static"
-                                      rowSpan="5"
-                                    >
-                                      <span
-                                        className="break-cell-static"
-                                        style={{
-                                          writingMode: "vertical-rl",
-                                          textOrientation: "mixed",
-                                        }}
-                                      >
-                                        BREAK
-                                      </span>
-                                    </td>
-                                  );
-                                } else {
-                                  return null; // Skip for other days
+                      {timetable.days.map((day, dayIndex) => (
+                        <tr key={day}>
+                          <td className="day-cell-static">{day}</td>
+                          {timetableData[day].map((period, periodIndex) => {
+                            if (
+                              (period === "BREAK" || period === "LUNCH") &&
+                              dayIndex > 0
+                            ) {
+                              return null; // Rendered by rowspan from first row
+                            }
+                            return (
+                              <td
+                                key={periodIndex}
+                                className={
+                                  period === "BREAK" || period === "LUNCH"
+                                    ? "break-cell"
+                                    : ""
                                 }
-                              } else if (index === 5) {
-                                // LUNCH column
-                                if (day === "MON") {
-                                  return (
-                                    <td
-                                      key={index}
-                                      className="period-cell-static"
-                                      rowSpan="5"
-                                    >
-                                      <span
-                                        className="break-cell-static"
-                                        style={{
-                                          writingMode: "vertical-rl",
-                                          textOrientation: "mixed",
-                                        }}
-                                      >
-                                        LUNCH
-                                      </span>
-                                    </td>
-                                  );
-                                } else {
-                                  return null; // Skip for other days
+                                rowSpan={
+                                  period === "BREAK" || period === "LUNCH"
+                                    ? timetable.days.length
+                                    : 1
                                 }
-                              } else {
-                                return (
-                                  <td
-                                    key={index}
-                                    className="period-cell-static"
+                              >
+                                {editingCell &&
+                                editingCell.day === day &&
+                                editingCell.periodIndex === periodIndex ? (
+                                  <input
+                                    type="text"
+                                    value={period}
+                                    onChange={(e) =>
+                                      handleCellChange(
+                                        day,
+                                        periodIndex,
+                                        e.target.value
+                                      )
+                                    }
+                                    onBlur={() => setEditingCell(null)}
+                                    onKeyPress={(e) =>
+                                      e.key === "Enter" && setEditingCell(null)
+                                    }
+                                    className="cell-input"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <span
+                                    className={
+                                      period !== "BREAK" && period !== "LUNCH"
+                                        ? "editable-cell"
+                                        : ""
+                                    }
+                                    draggable={
+                                      period !== "BREAK" && period !== "LUNCH"
+                                    }
+                                    onDragStart={(e) =>
+                                      handleDragStart(e, day, periodIndex)
+                                    }
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) =>
+                                      handleDrop(e, day, periodIndex)
+                                    }
+                                    onClick={() =>
+                                      period !== "BREAK" &&
+                                      period !== "LUNCH" &&
+                                      setEditingCell({ day, periodIndex })
+                                    }
                                   >
-                                    {editingCell &&
-                                    editingCell.day === day &&
-                                    editingCell.periodIndex === index ? (
-                                      <input
-                                        type="text"
-                                        value={period}
-                                        onChange={(e) =>
-                                          handleCellChange(
-                                            day,
-                                            index,
-                                            e.target.value
-                                          )
-                                        }
-                                        onBlur={() => setEditingCell(null)}
-                                        onKeyPress={(e) =>
-                                          e.key === "Enter" &&
-                                          setEditingCell(null)
-                                        }
-                                        className="cell-input"
-                                        autoFocus
-                                      />
-                                    ) : (
-                                      <span
-                                        className="editable-cell"
-                                        style={
-                                          period === "BREAK" ||
-                                          period === "LUNCH"
-                                            ? {
-                                                writingMode: "vertical-rl",
-                                                textOrientation: "mixed",
-                                              }
-                                            : {}
-                                        }
-                                        draggable={
-                                          period !== "BREAK" &&
-                                          period !== "LUNCH"
-                                        }
-                                        onDragStart={(e) => {
-                                          if (
-                                            period !== "BREAK" &&
-                                            period !== "LUNCH"
-                                          ) {
-                                            handleDragStart(e, day, index);
-                                          }
-                                        }}
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) =>
-                                          handleDrop(e, day, index)
-                                        }
-                                        onClick={() =>
-                                          setEditingCell({
-                                            day,
-                                            periodIndex: index,
-                                          })
-                                        }
-                                      >
-                                        {period}
-                                      </span>
-                                    )}
-                                  </td>
-                                );
-                              }
-                            })}
-                          </tr>
-                        )
-                      )}
+                                    {period}
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                   <div className="legend-container">
@@ -2150,6 +2107,19 @@ const TimetableGenerator = ({
                     >
                       Add Course
                     </button>
+                    {isFullScreen && (
+                      <button
+                        onClick={() => handleDownload("png")}
+                        className="download-button download-button-image"
+                        style={{
+                          marginTop: "1rem",
+                          marginLeft: "1rem",
+                        }}
+                        title="Download Image"
+                      >
+                        📷 Download Image
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2158,7 +2128,7 @@ const TimetableGenerator = ({
           <div className="download-section">
             <button
               onClick={() => handleDownload("word")}
-              className="download-button download-button-word"
+              className="download-button"
             >
               Download Word
             </button>

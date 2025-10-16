@@ -103,6 +103,11 @@ const Sidebar = ({
       icon: "fas fa-calendar-alt",
       label: "Timetable Creator",
     },
+    {
+      id: "youtube-controller-container", // YouTube Controller option for staff
+      icon: "fab fa-youtube",
+      label: "YouTube Controller",
+    },
     // Only show chatbot option on mobile
     ...(isMobile
       ? [

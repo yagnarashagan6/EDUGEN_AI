@@ -1,837 +1,544 @@
-import React, { useState, useEffect, useRef } from "react";
-import "../styles/Youtube.css";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase"; // Assuming firebase config is in src/firebase.js
 
-const LANGUAGES = [
-  { code: "ta", name: "Tamil" },
-  { code: "en", name: "English" },
-  { code: "hi", name: "Hindi" },
-  { code: "te", name: "Telugu" },
-  { code: "ml", name: "Malayalam" },
-];
+// --- HELPER COMPONENTS ---
 
-const CHANNELS = [
-  {
-    id: "UCrx-FlNM6BWOJvu3re6HH7w",
-    name: "4G Silver Academy தமிழ்",
-    category: "Engineering",
-    language: "ta",
-  },
-  {
-    id: "UCwr-evhuzGZgDFrq_1pLt_A",
-    name: "Error Makes Clever",
-    category: "Coding",
-    language: "ta",
-  },
-  {
-    id: "UC4SVo0Ue36XCfOyb5Lh1viQ",
-    name: "Bro Code",
-    category: "Coding",
-    language: "en",
-  },
-  {
-    id: "UC8GD4akofUsOzgNpaiAisdQ",
-    name: "Mathematics kala",
-    category: "Maths",
-    language: "ta",
-  },
-];
+const VideoPlayer = ({ videoId, onClose }) => {
+  const playerRef = useRef(null);
 
-const CATEGORY_LIST = Array.from(new Set(CHANNELS.map((c) => c.category)));
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [videoId]);
 
-const API_KEY = process.env.REACT_APP_YT_API_KEY;
+  if (!videoId) return null;
 
-function parseDuration(iso) {
-  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  const [, h, m, s] = match.map(Number);
-
-  return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
-}
-
-async function youtubeSearch(query, langCode, channelId) {
-  const allowedChannel = CHANNELS.find(
-    (c) =>
-      c.id === channelId || c.name.toLowerCase() === query.trim().toLowerCase()
+  return (
+    <div className="yt-video-player-backdrop">
+      <div className="yt-video-player-container" ref={playerRef}>
+        <div className="yt-video-responsive-embed">
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          ></iframe>
+        </div>
+        <button
+          onClick={onClose}
+          className="yt-video-close-btn"
+          title="Close player"
+        >
+          <i className="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
   );
-  if (!allowedChannel) {
-    return [];
-  }
+};
 
-  const languageName = LANGUAGES.find((l) => l.code === langCode)?.name;
-  let finalQuery = query;
+const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
+  <div className="yt-video-card">
+    <div className="yt-card-thumbnail" onClick={() => onPlay(video.id)}>
+      <img src={video.thumbnail} alt={video.title} loading="lazy" />
+      <div className="yt-card-play-icon">
+        <i className="fab fa-youtube"></i>
+      </div>
+      <span className="yt-card-duration">{video.duration}</span>
+    </div>
+    <div className="yt-card-info">
+      <h3 className="yt-card-title">{video.title}</h3>
+      <p className="yt-card-channel">{video.channel}</p>
+      <div className="yt-card-actions">
+        <button
+          onClick={() => onAddFavorite(video)}
+          className={`yt-card-fav-btn ${isFavorite ? "is-favorite" : ""}`}
+          disabled={isFavorite}
+          title={isFavorite ? "Already in favorites" : "Add to favorites"}
+        >
+          <i className={`fas ${isFavorite ? "fa-star" : "fa-star-o"}`}></i>
+          <span>{isFavorite ? "Added" : "Favorite"}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
-  if (langCode !== "all" && languageName) {
-    finalQuery = `${query} ${languageName}`;
-  }
+// --- MAIN YOUTUBE COMPONENT ---
 
-  const params = new URLSearchParams({
-    key: API_KEY,
-    q: finalQuery,
-    part: "snippet",
-    type: "video",
-    maxResults: 10,
-    relevanceLanguage: langCode !== "all" ? langCode : undefined,
-    order: "relevance",
-    channelId: allowedChannel.id,
-    videoEmbeddable: "true",
-    safeSearch: "strict",
-  });
-
-  const url = `https://www.googleapis.com/youtube/v3/search?${params.toString()}`;
-  const res = await fetch(url);
-  const data = await res.json();
-
-  if (!data.items || data.items.length === 0) return [];
-
-  const validVideoItems = data.items.filter((item) => item.id.videoId);
-  if (validVideoItems.length === 0) return [];
-
-  const videoIds = validVideoItems.map((item) => item.id.videoId).join(",");
-  const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?key=${API_KEY}&id=${videoIds}&part=contentDetails,snippet,statistics`;
-  const detailsRes = await fetch(detailsUrl);
-  const detailsData = await detailsRes.json();
-
-  return detailsData.items
-    .map((item) => {
-      const durationSec = parseDuration(item.contentDetails.duration);
-      return {
-        id: item.id,
-        title: item.snippet.title,
-        channel: item.snippet.channelTitle,
-        language: langCode,
-        thumbnail: item.snippet.thumbnails.high.url,
-        duration: item.contentDetails.duration.replace("PT", "").toLowerCase(),
-        durationSec,
-        url: `https://www.youtube.com/watch?v=${item.id}`,
-        viewCount: item.statistics
-          ? parseInt(item.statistics.viewCount, 10)
-          : 0,
-      };
-    })
-    .filter((item) => item.durationSec >= 60);
-}
-
-export default function Youtube({ containerBodyRef }) {
+export default function Youtube() {
+  // State management
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState("ta");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedChannelIds, setSelectedChannelIds] = useState([]);
+  const [channels, setChannels] = useState([]);
   const [results, setResults] = useState([]);
-  const [resultsPage, setResultsPage] = useState(1);
-  const [hasMoreResults, setHasMoreResults] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showFavorites, setShowFavorites] = useState(false);
-  const [favorites, setFavorites] = useState(() => {
-    const saved = localStorage.getItem("favoriteVideos");
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [preview, setPreview] = useState(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [error, setError] = useState("");
   const [playingVideoId, setPlayingVideoId] = useState(null);
-  const [history, setHistory] = useState(() => {
-    const saved = localStorage.getItem("searchHistory");
-    return saved ? JSON.parse(saved) : [];
+
+  // LocalStorage backed state
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const saved = localStorage.getItem("yt-favorites");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
   });
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem("yt-history");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Refs and UI state
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef(null);
-  const [activeSuggestion, setActiveSuggestion] = useState(-1);
-  const [error, setError] = useState("");
-  const [resultsPageTokens, setResultsPageTokens] = useState({ 1: undefined });
-  const [allResults, setAllResults] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(5);
-  const [filterChannelId, setFilterChannelId] = useState(""); // For filtering search results
-  const [favCategoryFilter, setFavCategoryFilter] = useState(""); // For toggling favorite categories
+  const [activeView, setActiveView] = useState("search"); // 'search' or 'favorites'
 
-  // Dropdown open/close state for custom channel dropdown
-  const [channelDropdownOpen, setChannelDropdownOpen] = useState(false);
-  const channelDropdownRef = useRef(null);
-  const videoPlayerRef = useRef(null); // Add this line
+  const API_KEY = process.env.REACT_APP_YT_API_KEY;
+
+  // --- DATA FETCHING & SIDE EFFECTS ---
 
   useEffect(() => {
-    localStorage.setItem("searchHistory", JSON.stringify(history));
+    localStorage.setItem("yt-history", JSON.stringify(history));
   }, [history]);
 
   useEffect(() => {
-    localStorage.setItem("favoriteVideos", JSON.stringify(favorites));
+    localStorage.setItem("yt-favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  const filteredSuggestions = topic
-    ? history.filter(
-        (item) =>
-          item.toLowerCase().includes(topic.toLowerCase()) && item !== topic
-      )
-    : history;
+  useEffect(() => {
+    const settingsRef = doc(db, "settings", "youtube");
+    const unsubscribe = onSnapshot(
+      settingsRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setLanguage(data.defaultLanguage || "ta");
+          setSelectedCategory(data.defaultCategory || "all");
+          setSelectedChannelIds(data.defaultChannelIds || []);
+          setChannels(data.channels || []);
+        }
+        setSettingsLoaded(true);
+      },
+      (err) => {
+        console.error("Failed to load YouTube settings:", err);
+        setError("Could not load channel settings.");
+        setSettingsLoaded(true);
+      }
+    );
 
-  // Filter channels based on selected category
-  const filteredChannels =
-    selectedCategory === "all"
-      ? CHANNELS
-      : CHANNELS.filter((c) => c.category === selectedCategory);
+    return () => unsubscribe();
+  }, []);
 
-  // Group filtered channels for dropdown
-  const groupedChannels = filteredChannels.reduce((acc, channel) => {
-    if (!acc[channel.category]) acc[channel.category] = [];
-    acc[channel.category].push(channel);
-    return acc;
-  }, {});
+  // --- API & UTILITY FUNCTIONS ---
 
-  const fetchVideos = async (page = 1, append = false) => {
-    let allowedChannels = [];
-    if (selectedChannelIds.length > 0 && selectedChannelIds[0] !== "all") {
-      allowedChannels = CHANNELS.filter((c) =>
+  const parseDuration = (iso) => {
+    const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return "0:00";
+    const [, h, m, s] = match.map((val) => parseInt(val) || 0);
+    const totalSeconds = h * 3600 + m * 60 + s;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  const fetchVideos = async () => {
+    if (!topic.trim()) {
+      setError("Please enter a search topic.");
+      return;
+    }
+
+    let channelsToSearch = [];
+    if (selectedChannelIds.length > 0) {
+      channelsToSearch = channels.filter((c) =>
         selectedChannelIds.includes(c.id)
       );
     } else if (selectedCategory !== "all") {
-      allowedChannels = CHANNELS.filter((c) => c.category === selectedCategory);
+      channelsToSearch = channels.filter(
+        (c) => c.category === selectedCategory
+      );
     } else {
-      allowedChannels = CHANNELS;
+      channelsToSearch = channels;
     }
 
-    if (allowedChannels.length === 0) {
-      setResults([]);
-      setError("Please select a valid channel or category.");
-      setHasMoreResults(false);
+    if (channelsToSearch.length === 0) {
+      setError(
+        "No channels selected for this category. Please check settings."
+      );
       return;
     }
 
     setLoading(true);
-    setPlayingVideoId(null);
+    setError("");
+    setResults([]);
 
-    const maxResults = 10;
-    let pageToken = undefined;
-    if (page > 1 && resultsPageTokens[page]) {
-      pageToken = resultsPageTokens[page];
-    }
-
-    // Fetch videos from all selected channels and merge results
-    let allNewVideos = [];
-    for (const channel of allowedChannels) {
-      const params = new URLSearchParams({
-        key: API_KEY,
-        q: topic,
-        part: "snippet",
-        type: "video",
-        maxResults: maxResults,
-        relevanceLanguage: language !== "all" ? language : undefined,
-        order: "relevance",
-        channelId: channel.id,
-        videoEmbeddable: "true",
-        safeSearch: "strict",
-        ...(pageToken ? { pageToken } : {}),
+    try {
+      const searchPromises = channelsToSearch.map((channel) => {
+        const params = new URLSearchParams({
+          key: API_KEY,
+          q: topic,
+          part: "snippet",
+          type: "video",
+          maxResults: 10,
+          relevanceLanguage: language,
+          order: "relevance",
+          channelId: channel.id,
+          videoEmbeddable: "true",
+          safeSearch: "strict",
+        });
+        return fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
       });
 
-      const url = `https://www.googleapis.com/youtube/v3/search?${params.toString()}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const responses = await Promise.all(searchPromises);
+      const jsonData = await Promise.all(responses.map((res) => res.json()));
 
-      setResultsPageTokens((prev) => ({
-        ...prev,
-        [page + 1]: data.nextPageToken,
-      }));
+      const videoIds = jsonData
+        .flatMap((data) => data.items?.map((item) => item.id.videoId) || [])
+        .filter(Boolean);
 
-      if (!data.items || data.items.length === 0) continue;
+      if (videoIds.length === 0) {
+        setResults([]);
+        setLoading(false);
+        return;
+      }
 
-      const validVideoItems = data.items.filter((item) => item.id.videoId);
-      if (validVideoItems.length === 0) continue;
-
-      const videoIds = validVideoItems.map((item) => item.id.videoId).join(",");
-      const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?key=${API_KEY}&id=${videoIds}&part=contentDetails,snippet,statistics`;
+      const uniqueVideoIds = [...new Set(videoIds)];
+      const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?key=${API_KEY}&id=${uniqueVideoIds.join(
+        ","
+      )}&part=contentDetails,snippet,statistics`;
       const detailsRes = await fetch(detailsUrl);
       const detailsData = await detailsRes.json();
 
-      let newVideos = detailsData.items
-        .map((item) => {
-          const durationSec = parseDuration(item.contentDetails.duration);
-          return {
-            id: item.id,
-            title: item.snippet.title,
-            channel: item.snippet.channelTitle,
-            language: language,
-            thumbnail: item.snippet.thumbnails.high.url,
-            duration: item.contentDetails.duration
-              .replace("PT", "")
-              .toLowerCase(),
-            durationSec,
-            url: `https://www.youtube.com/watch?v=${item.id}`,
-          };
-        })
-        .filter((item) => item.durationSec >= 60);
+      const formattedResults = detailsData.items
+        .map((item) => ({
+          id: item.id,
+          title: item.snippet.title,
+          channel: item.snippet.channelTitle,
+          thumbnail:
+            item.snippet.thumbnails.high?.url ||
+            item.snippet.thumbnails.default?.url,
+          duration: parseDuration(item.contentDetails.duration),
+          url: `https://www.youtube.com/watch?v=${item.id}`,
+        }))
+        .sort((a, b) => a.title.localeCompare(b.title)); // Sort alphabetically
 
-      allNewVideos = [...allNewVideos, ...newVideos];
+      setResults(formattedResults);
+    } catch (err) {
+      console.error("YouTube search error:", err);
+      setError("Failed to fetch videos. The API quota might be exceeded.");
+    } finally {
+      setLoading(false);
     }
-
-    // Sort and deduplicate by video id
-    const lowerTopic = topic.trim().toLowerCase();
-    allNewVideos = allNewVideos
-      .filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i)
-      .sort((a, b) => {
-        const aInTitle = a.title.toLowerCase().includes(lowerTopic) ? 1 : 0;
-        const bInTitle = b.title.toLowerCase().includes(lowerTopic) ? 1 : 0;
-        if (aInTitle !== bInTitle) return bInTitle - aInTitle;
-        return 0;
-      });
-
-    setHasMoreResults(
-      allNewVideos.length >= maxResults * allowedChannels.length
-    );
-
-    if (append) {
-      setResults((prev) => [...prev, ...allNewVideos]);
-      setAllResults((prev) => [...prev, ...allNewVideos]);
-    } else {
-      setResults(allNewVideos);
-      setAllResults(allNewVideos);
-    }
-    setLoading(false);
   };
 
-  const handleSearch = async (e) => {
+  // --- EVENT HANDLERS ---
+
+  const handleSearch = (e) => {
     e.preventDefault();
-    setError("");
-    setResultsPage(1);
-    setResultsPageTokens({ 1: undefined });
-    await fetchVideos(1, false);
+    if (topic.trim() && !history.includes(topic.trim())) {
+      setHistory((prev) => [topic.trim(), ...prev].slice(0, 10));
+    }
+    setShowSuggestions(false);
+    fetchVideos();
+  };
 
-    setHistory((prev) => {
-      const exists = prev.find(
-        (item) => item.toLowerCase() === topic.toLowerCase()
-      );
-      if (exists) {
-        return [topic, ...prev.filter((item) => item !== exists)];
+  const addFavorite = (video) => {
+    const category =
+      channels.find((c) => c.name === video.channel)?.category ||
+      "Uncategorized";
+    setFavorites((prev) => {
+      const categoryFavorites = prev[category] || [];
+      if (categoryFavorites.some((fav) => fav.id === video.id)) {
+        return prev; // Already exists
       }
-      return [topic, ...prev].slice(0, 10);
+      return { ...prev, [category]: [...categoryFavorites, video] };
     });
-    setShowSuggestions(false);
   };
 
-  // Show only the first visibleCount videos
-  const visibleResults = allResults.slice(0, visibleCount);
-
-  // Load more handler
-  const handleLoadMore = async () => {
-    // If we have more in allResults, just increase visibleCount
-    if (visibleCount + 5 <= allResults.length) {
-      setVisibleCount((prev) => prev + 5);
-    } else if (hasMoreResults && !loading) {
-      // If we need more from API, fetch next page
-      const nextPage = resultsPage + 1;
-      setResultsPage(nextPage);
-      await fetchVideos(nextPage, true);
-      setVisibleCount((prev) => prev + 5);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setTopic(e.target.value);
-    setShowSuggestions(true);
-    setActiveSuggestion(-1);
-    setError("");
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    setTopic(suggestion);
-    setShowSuggestions(false);
-    setActiveSuggestion(-1);
-    setError("");
-  };
-
-  const handleInputKeyDown = (e) => {
-    if (!showSuggestions || filteredSuggestions.length === 0) return;
-
-    if (e.key === "ArrowDown") {
-      setActiveSuggestion((prev) =>
-        prev < filteredSuggestions.length - 1 ? prev + 1 : 0
-      );
-    } else if (e.key === "ArrowUp") {
-      setActiveSuggestion((prev) =>
-        prev > 0 ? prev - 1 : filteredSuggestions.length - 1
-      );
-    } else if (e.key === "Enter" && activeSuggestion >= 0) {
-      e.preventDefault();
-      handleSuggestionClick(filteredSuggestions[activeSuggestion]);
-    } else if (e.key === "Escape") {
-      setShowSuggestions(false);
-    }
-  };
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (inputRef.current && !inputRef.current.contains(e.target)) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  const handleLanguageChange = (e) => setLanguage(e.target.value);
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setSelectedCategory(value);
-    setSelectedChannelIds([]); // Reset channel selection on category change
-  };
-
-  function addFavorite(video) {
-    setFavorites((prevFavorites) => {
-      const channel =
-        CHANNELS.find((c) => c.id === video.channelId) ||
-        CHANNELS.find(
-          (c) =>
-            c.name.trim().toLowerCase() === video.channel.trim().toLowerCase()
+  const removeFavorite = (video) => {
+    setFavorites((prev) => {
+      const updatedFavorites = { ...prev };
+      for (const category in updatedFavorites) {
+        updatedFavorites[category] = updatedFavorites[category].filter(
+          (fav) => fav.id !== video.id
         );
-      const category = channel ? channel.category : "Uncategorized";
-      const categoryVideos = Array.isArray(prevFavorites[category])
-        ? prevFavorites[category]
-        : [];
-      const exists = categoryVideos.some((v) => v.id === video.id);
-
-      if (exists) {
-        return prevFavorites;
+        if (updatedFavorites[category].length === 0) {
+          delete updatedFavorites[category];
+        }
       }
-
-      return {
-        ...prevFavorites,
-        [category]: [...categoryVideos, video],
-      };
+      return updatedFavorites;
     });
-  }
-
-  // Scroll to top of the container when playing a video
-  const handlePlayVideo = (videoId) => {
-    setPlayingVideoId(videoId);
-    setShowSuggestions(false);
-    setTimeout(() => {
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      } else if (containerBodyRef.current) {
-        containerBodyRef.current.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    }, 100);
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (window.OneSignal) {
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        window.OneSignalDeferred.push(function (OneSignal) {
-          OneSignal.Notifications.showNotification("Hey there! 👋", {
-            body: "Check out the latest videos or your favorites!",
-            icon: "/favicon.ico",
-            url: window.location.href,
-          });
-        });
-      }
-    }, 5 * 60 * 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        channelDropdownRef.current &&
-        !channelDropdownRef.current.contains(event.target)
-      ) {
-        setChannelDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Handle checkbox change for channels
-  const handleChannelCheckboxChange = (e) => {
-    const value = e.target.value;
-    setSelectedChannelIds((prev) =>
-      e.target.checked ? [...prev, value] : prev.filter((id) => id !== value)
-    );
-  };
-
-  // Update language automatically based on selected channels
-  useEffect(() => {
-    if (selectedChannelIds.length === 1) {
-      const channel = CHANNELS.find((c) => c.id === selectedChannelIds[0]);
-      if (channel && language !== channel.language) {
-        setLanguage(channel.language);
-      }
-    } else if (selectedChannelIds.length > 1) {
-      const langs = selectedChannelIds
-        .map((id) => CHANNELS.find((c) => c.id === id)?.language)
-        .filter(Boolean);
-      const uniqueLangs = Array.from(new Set(langs));
-      if (uniqueLangs.length === 1 && language !== uniqueLangs[0]) {
-        setLanguage(uniqueLangs[0]);
-      }
-    }
-  }, [selectedChannelIds, language]);
-
-  // Get unique channels from current search results for filter dropdown
-  const uniqueResultChannels = Array.from(
-    new Set(results.map((v) => v.channel))
-  ).map((channelName) => {
-    const channelObj = CHANNELS.find((c) => c.name === channelName);
-    return channelObj
-      ? { id: channelObj.id, name: channelObj.name }
-      : { id: channelName, name: channelName };
-  });
-
-  // Filtered visible results by channel filter
-  const filteredVisibleResults =
-    filterChannelId && filterChannelId !== "all"
-      ? visibleResults.filter(
-          (video) =>
-            CHANNELS.find((c) => c.id === filterChannelId)?.name ===
-            video.channel
-        )
-      : visibleResults;
-
-  // Get all favorite categories with videos
-  const favCategories = Object.keys(favorites).filter(
-    (cat) => Array.isArray(favorites[cat]) && favorites[cat].length > 0
+  // --- MEMOIZED VALUES ---
+  const LANGUAGES = useMemo(
+    () => [
+      { code: "ta", name: "Tamil" },
+      { code: "en", name: "English" },
+      { code: "hi", name: "Hindi" },
+      { code: "te", name: "Telugu" },
+      { code: "ml", name: "Malayalam" },
+    ],
+    []
   );
 
+  const categoryList = useMemo(
+    () => ["all", ...new Set(channels.map((c) => c.category))],
+    [channels]
+  );
+
+  const filteredChannels = useMemo(
+    () =>
+      selectedCategory === "all"
+        ? channels
+        : channels.filter((c) => c.category === selectedCategory),
+    [channels, selectedCategory]
+  );
+
+  const allFavorites = useMemo(
+    () => Object.values(favorites).flat(),
+    [favorites]
+  );
+
+  const favoriteCategories = useMemo(() => Object.keys(favorites), [favorites]);
+
+  // --- RENDER ---
+
+  if (!settingsLoaded) {
+    return (
+      <div className="yt-loader">
+        <i className="fas fa-spinner fa-spin"></i>
+        <span>Loading Settings...</span>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <form className="search-form" onSubmit={handleSearch} autoComplete="off">
-        <div className="search-input-group">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Type or select a channel name (e.g., 4G Silver Academy)"
-            value={topic}
-            onChange={handleInputChange}
-            onFocus={() => setShowSuggestions(true)}
-            onKeyDown={handleInputKeyDown}
-            required
-            autoComplete="off"
-            className="search-input"
-          />
-          <button type="submit" disabled={loading} className="search-btn">
-            {loading ? "Searching..." : "Search"}
-          </button>
-          {showSuggestions && filteredSuggestions.length > 0 && (
-            <ul className="search-suggestions">
-              {filteredSuggestions.map((suggestion, idx) => (
-                <li
-                  key={idx}
-                  className={
-                    "search-suggestion-item" +
-                    (activeSuggestion === idx ? " active" : "")
-                  }
-                  onMouseDown={() => handleSuggestionClick(suggestion)}
-                >
-                  {suggestion}
-                </li>
-              ))}
-            </ul>
-          )}
+    <div className="yt-search-container">
+      <VideoPlayer
+        videoId={playingVideoId}
+        onClose={() => setPlayingVideoId(null)}
+      />
+
+      <header className="yt-header">
+        <div className="yt-logo">
+          <i className="fab fa-youtube"></i>
+          <h1>EduTube Search</h1>
         </div>
-        <div className="search-options-group">
+        <div className="yt-view-toggle">
           <button
-            type="button"
-            className={`fav-toggle-btn${showFavorites ? " active" : ""}`}
-            onClick={() => setShowFavorites((prev) => !prev)}
-            title="Show Favorites"
+            className={activeView === "search" ? "active" : ""}
+            onClick={() => setActiveView("search")}
           >
-            ★
+            <i className="fas fa-search"></i> Search
           </button>
-          <select value={language} onChange={handleLanguageChange}>
-            <option value="all">Any Language</option>
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-          {/* New Category Dropdown */}
-          <select value={selectedCategory} onChange={handleCategoryChange}>
-            <option value="all">All Categories</option>
-            {CATEGORY_LIST.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          {/* Custom Channel Dropdown with Checkbox Multi-select */}
-          <div ref={channelDropdownRef} className="youtube-channel-dropdown">
-            <div
-              className="youtube-channel-dropdown-toggle"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setChannelDropdownOpen((open) => !open)}
-              tabIndex={0}
-            >
-              <span>
-                {selectedChannelIds.length === 0
-                  ? "Select Channel(s)"
-                  : filteredChannels
-                      .filter((c) => selectedChannelIds.includes(c.id))
-                      .map((c) => c.name)
-                      .join(", ")}
-              </span>
-              <span style={{ marginLeft: 8, fontSize: "1.2em" }}>▼</span>
-            </div>
-            {channelDropdownOpen && (
-              <div
-                className="youtube-channel-dropdown-list"
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                {Object.entries(groupedChannels).map(([category, channels]) => (
-                  <div key={category}>
-                    <div className="youtube-channel-dropdown-category">
-                      {category}
-                    </div>
-                    {channels.map((channel) => (
-                      <label key={channel.id}>
-                        <input
-                          type="checkbox"
-                          value={channel.id}
-                          checked={selectedChannelIds.includes(channel.id)}
-                          onChange={handleChannelCheckboxChange}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        {channel.name}
-                      </label>
-                    ))}
-                  </div>
-                ))}
-                {filteredChannels.length === 0 && (
-                  <div style={{ padding: "8px 16px", color: "#888" }}>
-                    No channels available
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </form>
-
-      {/* --- Channel Filter Dropdown after Search --- */}
-      {!showFavorites && results.length > 0 && (
-        <div
-          style={{
-            margin: "10px 0 20px 0",
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-          }}
-        >
-          <label htmlFor="channel-filter" style={{ fontWeight: 500 }}>
-            Filter by Channel:
-          </label>
-          <select
-            id="channel-filter"
-            value={filterChannelId}
-            onChange={(e) => setFilterChannelId(e.target.value)}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: "1px solid #ccc",
-            }}
-          >
-            <option value="">All Channels</option>
-            {uniqueResultChannels.map((ch) => (
-              <option key={ch.id} value={ch.id}>
-                {ch.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {error && (
-        <div className="educational-error shake error-message">{error}</div>
-      )}
-
-      {playingVideoId && (
-        <>
-          <div className="video-player" ref={videoPlayerRef}>
-            <iframe
-              width="560"
-              height="315"
-              src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
-          </div>
           <button
-            className="close-player-button"
-            onClick={() => setPlayingVideoId(null)}
+            className={activeView === "favorites" ? "active" : ""}
+            onClick={() => setActiveView("favorites")}
           >
-            Close Video
+            <i className="fas fa-star"></i> Favorites ({allFavorites.length})
           </button>
-        </>
-      )}
+        </div>
+      </header>
 
-      {/* --- Favorite Category Toggle Buttons --- */}
-      {showFavorites && favCategories.length > 0 && (
-        <div>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-              justifyContent: "center",
-              marginBottom: 18,
-            }}
-          >
-            {favCategories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                className={`fav-toggle-btn${
-                  favCategoryFilter === cat ? " active" : ""
-                }`}
-                style={{
-                  background: favCategoryFilter === cat ? "#1a73e8" : "#e0e0e0",
-                  color: favCategoryFilter === cat ? "#fff" : "#333",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "8px 18px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontSize: "1em",
-                }}
-                onClick={() =>
-                  setFavCategoryFilter((prev) => (prev === cat ? "" : cat))
-                }
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          <h2
-            className="favorite-videos-title"
-            style={{ display: "flex", justifyContent: "center" }}
-          >
-            Favorite Videos
-          </h2>
-          <div className="results">
-            {Object.entries(favorites)
-              .filter(
-                ([category, videos]) =>
-                  Array.isArray(videos) &&
-                  videos.length > 0 &&
-                  (!favCategoryFilter || favCategoryFilter === category)
-              )
-              .flatMap(([category, videos]) =>
-                videos.map((video) => (
-                  <div
-                    className="video-card"
-                    key={video.id}
-                    onMouseEnter={() => setPreview(video.id)}
-                    onMouseLeave={() => setPreview(null)}
-                  >
-                    <div
-                      className="video-thumbnail-wrapper video-thumbnail-pointer"
-                      onClick={() => handlePlayVideo(video.id)}
-                    >
-                      <img src={video.thumbnail} alt={video.title} />
-                    </div>
-                    <div className="video-info">
-                      <h3>{video.title}</h3>
-                      <p>
-                        <b>Channel:</b> {video.channel}
-                        <br />
-                        <b>Language:</b>{" "}
-                        {LANGUAGES.find((l) => l.code === video.language)
-                          ?.name || video.language}{" "}
-                        | <b>Duration:</b> {video.duration}
-                      </p>
-                      <button
-                        className="delete-fav-btn align-right"
+      {activeView === "search" && (
+        <div className="yt-search-view">
+          <form className="yt-search-form" onSubmit={handleSearch}>
+            <div className="yt-search-bar" ref={inputRef}>
+              <i className="fas fa-search yt-search-icon"></i>
+              <input
+                type="text"
+                placeholder="Enter a topic to search..."
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                required
+              />
+              {showSuggestions && history.length > 0 && (
+                <div className="yt-suggestions">
+                  {history
+                    .filter((h) =>
+                      h.toLowerCase().includes(topic.toLowerCase())
+                    )
+                    .map((item) => (
+                      <div
+                        key={item}
+                        className="yt-suggestion-item"
                         onClick={() => {
-                          setFavorites((prev) => {
-                            const updated = { ...prev };
-                            updated[category] = updated[category].filter(
-                              (v) => v.id !== video.id
-                            );
-                            if (updated[category].length === 0)
-                              delete updated[category];
-                            return updated;
-                          });
+                          setTopic(item);
                         }}
                       >
-                        ❌ Remove Favorite
-                      </button>
-                    </div>
-                  </div>
-                ))
+                        <i className="fas fa-history"></i> {item}
+                      </div>
+                    ))}
+                </div>
               )}
-            {Object.entries(favorites).filter(
-              ([_, videos]) => Array.isArray(videos) && videos.length > 0
-            ).length %
-              2 !==
-              0 && <div className="invisible-placeholder"></div>}
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="yt-search-button"
+            >
+              {loading ? <i className="fas fa-spinner fa-spin"></i> : "Search"}
+            </button>
+          </form>
+
+          <div className="yt-filters">
+            <div className="yt-filter-group">
+              <label>
+                <i className="fas fa-language"></i> Language
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="yt-filter-group">
+              <label>
+                <i className="fas fa-list-alt"></i> Category
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                {categoryList.map((c) => (
+                  <option key={c} value={c}>
+                    {c === "all" ? "All Categories" : c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="yt-filter-group yt-channel-filter">
+              <label>
+                <i className="fas fa-tv"></i> Channels
+              </label>
+              <div className="yt-channel-selector">
+                {filteredChannels.length > 0 ? (
+                  filteredChannels.map((channel) => (
+                    <label key={channel.id} className="yt-channel-tag">
+                      <input
+                        type="checkbox"
+                        value={channel.id}
+                        checked={selectedChannelIds.includes(channel.id)}
+                        onChange={(e) => {
+                          const { value, checked } = e.target;
+                          setSelectedChannelIds((prev) =>
+                            checked
+                              ? [...prev, value]
+                              : prev.filter((id) => id !== value)
+                          );
+                        }}
+                      />
+                      <span>{channel.name}</span>
+                    </label>
+                  ))
+                ) : (
+                  <span className="yt-no-channels">
+                    No channels in this category
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="yt-results-area">
+            {loading && (
+              <div className="yt-loader">
+                <i className="fas fa-spinner fa-spin"></i>
+                <span>Fetching Videos...</span>
+              </div>
+            )}
+            {error && <div className="yt-error-message">{error}</div>}
+            {!loading && results.length > 0 && (
+              <div className="yt-results-grid">
+                {results.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    onPlay={setPlayingVideoId}
+                    onAddFavorite={addFavorite}
+                    isFavorite={allFavorites.some((fav) => fav.id === video.id)}
+                  />
+                ))}
+              </div>
+            )}
+            {!loading && results.length === 0 && topic && (
+              <div className="yt-no-results">
+                No videos found for "{topic}". Try a different search.
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* --- Search Results --- */}
-      {!showFavorites && topic.trim() && results.length > 0 && (
-        <>
-          <h2 id="r" className="results-title" style={{ textAlign: "center" }}>
-            Results
-          </h2>
-          <div className="results">
-            {filteredVisibleResults.map((video) => {
-              // Check if this video is already in favorites
-              const isFav = Object.values(favorites).some(
-                (videos) =>
-                  Array.isArray(videos) && videos.some((v) => v.id === video.id)
-              );
-              return (
-                <div
-                  className="video-card"
-                  key={video.id}
-                  onMouseEnter={() => setPreview(video.id)}
-                  onMouseLeave={() => setPreview(null)}
-                >
-                  <div
-                    className="video-thumbnail-wrapper video-thumbnail-pointer"
-                    onClick={() => handlePlayVideo(video.id)}
-                  >
-                    <img src={video.thumbnail} alt={video.title} />
-                  </div>
-                  <div className="video-info">
-                    <h3>{video.title}</h3>
-                    <p>
-                      <b>Channel:</b> {video.channel}
-                      <br />
-                      <b>Language:</b>{" "}
-                      {LANGUAGES.find((l) => l.code === video.language)?.name ||
-                        video.language}{" "}
-                      | <b>Duration:</b> {video.duration}
-                    </p>
-                    <button
-                      onClick={() => addFavorite(video)}
-                      className={isFav ? "fav-added" : ""}
-                      disabled={isFav}
-                    >
-                      {isFav ? "★ Added" : "Add Favorite"}
-                    </button>
-                  </div>
+      {activeView === "favorites" && (
+        <div className="yt-favorites-view">
+          {allFavorites.length === 0 ? (
+            <div className="yt-no-results">
+              You haven't added any favorite videos yet.
+            </div>
+          ) : (
+            favoriteCategories.map((category) => (
+              <div key={category} className="yt-favorite-category-section">
+                <h2 className="yt-category-title">{category}</h2>
+                <div className="yt-results-grid">
+                  {favorites[category].map((video) => (
+                    <div className="yt-video-card" key={video.id}>
+                      <div
+                        className="yt-card-thumbnail"
+                        onClick={() => setPlayingVideoId(video.id)}
+                      >
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          loading="lazy"
+                        />
+                        <div className="yt-card-play-icon">
+                          <i className="fab fa-youtube"></i>
+                        </div>
+                        <span className="yt-card-duration">
+                          {video.duration}
+                        </span>
+                      </div>
+                      <div className="yt-card-info">
+                        <h3 className="yt-card-title">{video.title}</h3>
+                        <p className="yt-card-channel">{video.channel}</p>
+                        <div className="yt-card-actions">
+                          <button
+                            onClick={() => removeFavorite(video)}
+                            className="yt-card-fav-btn remove-fav"
+                            title="Remove from favorites"
+                          >
+                            <i className="fas fa-trash"></i>
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-            {(visibleCount < allResults.length || hasMoreResults) && (
-              <div className="load-more-container">
-                <button
-                  className="load-more-btn"
-                  onClick={handleLoadMore}
-                  disabled={loading}
-                >
-                  {loading ? "Loading..." : "Load More"}
-                </button>
               </div>
-            )}
-          </div>
-        </>
+            ))
+          )}
+        </div>
       )}
-    </>
+    </div>
   );
 }

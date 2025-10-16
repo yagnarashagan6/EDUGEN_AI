@@ -35,6 +35,76 @@ import Timetable from "../components/Timetable";
 import "../styles/Dashboard.css";
 import "../styles/StaffInteraction.css";
 import "../styles/Chat.css";
+import "../styles/Youtube.css";
+
+// YouTube constants for controller
+const LANGUAGES = [
+  { code: "ta", name: "Tamil" },
+  { code: "en", name: "English" },
+  { code: "hi", name: "Hindi" },
+  { code: "te", name: "Telugu" },
+  { code: "ml", name: "Malayalam" },
+];
+
+const API_KEY = process.env.REACT_APP_YT_API_KEY;
+
+async function resolveChannelId(id) {
+  if (id.startsWith("UC") && id.length === 24) return id;
+  if (id.includes("youtube.com/channel/")) {
+    const match = id.match(/youtube\.com\/channel\/([UC][^/?]+)/);
+    return match ? match[1] : id;
+  }
+  if (id.includes("@")) {
+    const handle = id.split("@")[1].split("/")[0];
+    try {
+      // Use channels API with forHandle for @handles
+      const params = new URLSearchParams({
+        key: API_KEY,
+        part: "id",
+        forHandle: handle,
+      });
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?${params}`
+      );
+      const data = await res.json();
+      if (data.items && data.items.length > 0) {
+        return data.items[0].id;
+      }
+    } catch (e) {
+      console.error("Error resolving channel ID for", id, e);
+    }
+  }
+  return id; // return original if can't resolve
+}
+
+const CHANNELS = [
+  {
+    id: "UCrx-FlNM6BWOJvu3re6HH7w",
+    name: "4G Silver Academy தமிழ்",
+    category: "Engineering",
+    language: "ta",
+  },
+  {
+    id: "UCwr-evhuzGZgDFrq_1pLt_A",
+    name: "Error Makes Clever",
+    category: "Coding",
+    language: "ta",
+  },
+  {
+    id: "UC4SVo0Ue36XCfOyb5Lh1viQ",
+    name: "Bro Code",
+    category: "Coding",
+    language: "en",
+  },
+  {
+    id: "UC8GD4akofUsOzgNpaiAisdQ",
+    name: "Mathematics kala",
+    category: "Maths",
+    language: "ta",
+  },
+];
+
+const CATEGORY_LIST = Array.from(new Set(CHANNELS.map((c) => c.category)));
 
 const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
@@ -369,6 +439,21 @@ const StaffDashboard = () => {
   const [showAbout, setShowAbout] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [unreadMessageCounts, setUnreadMessageCounts] = useState({}); // Add this line
+  const [youtubeSettings, setYoutubeSettings] = useState({
+    defaultLanguage: "ta",
+    defaultCategory: "all",
+    defaultChannelIds: [],
+    channels: CHANNELS,
+  });
+  const [youtubeSettingsLoading, setYoutubeSettingsLoading] = useState(false);
+  const [newChannelId, setNewChannelId] = useState("");
+  const [newChannelName, setNewChannelName] = useState("");
+  const [newChannelLanguage, setNewChannelLanguage] = useState("ta");
+  const [newChannelCategory, setNewChannelCategory] = useState("");
+
+  // YouTube settings toggle states
+  const [showConfigureSection, setShowConfigureSection] = useState(true);
+  const [showAddChannelSection, setShowAddChannelSection] = useState(false);
 
   const addNotification = useCallback((message, type = "info") => {
     setNotifications((prev) => [...prev, { id: Date.now(), message, type }]);
@@ -680,6 +765,103 @@ const StaffDashboard = () => {
     const unsubscribe = fetchAssignments();
     return () => unsubscribe();
   }, [fetchAssignments]);
+
+  // YouTube Settings Functions
+  const loadYoutubeSettings = useCallback(async () => {
+    try {
+      const settingsRef = doc(db, "settings", "youtube");
+      const settingsSnap = await getDoc(settingsRef);
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        setYoutubeSettings({
+          defaultLanguage: data.defaultLanguage || "ta",
+          defaultCategory: data.defaultCategory || "all",
+          defaultChannelIds: data.defaultChannelIds || [],
+          channels: data.channels || CHANNELS,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading YouTube settings:", error);
+      addNotification("Failed to load YouTube settings", "error");
+    }
+  }, [addNotification]);
+
+  const saveYoutubeSettings = useCallback(
+    async (settings) => {
+      setYoutubeSettingsLoading(true);
+      try {
+        const settingsRef = doc(db, "settings", "youtube");
+        await setDoc(settingsRef, {
+          ...settings,
+          updatedBy: auth.currentUser?.uid,
+          updatedAt: Timestamp.now(),
+        });
+        setYoutubeSettings(settings);
+        addNotification("YouTube settings updated successfully", "success");
+      } catch (error) {
+        console.error("Error saving YouTube settings:", error);
+        addNotification("Failed to save YouTube settings", "error");
+      } finally {
+        setYoutubeSettingsLoading(false);
+      }
+    },
+    [addNotification]
+  );
+
+  const addNewChannel = useCallback(async () => {
+    if (
+      !newChannelId.trim() ||
+      !newChannelName.trim() ||
+      !newChannelCategory.trim()
+    ) {
+      addNotification("Please fill all fields", "error");
+      return;
+    }
+    const resolvedId = await resolveChannelId(newChannelId.trim());
+    if (youtubeSettings.channels.some((c) => c.id === resolvedId)) {
+      addNotification("Channel ID already exists", "error");
+      return;
+    }
+    const newChannel = {
+      id: resolvedId,
+      name: newChannelName.trim(),
+      category: newChannelCategory.trim(),
+      language: newChannelLanguage,
+    };
+    const updatedChannels = [...youtubeSettings.channels, newChannel];
+    const updatedSettings = { ...youtubeSettings, channels: updatedChannels };
+    await saveYoutubeSettings(updatedSettings);
+    setNewChannelId("");
+    setNewChannelName("");
+    setNewChannelCategory("");
+    setNewChannelLanguage("ta");
+  }, [
+    newChannelId,
+    newChannelName,
+    newChannelCategory,
+    newChannelLanguage,
+    youtubeSettings,
+    saveYoutubeSettings,
+    addNotification,
+  ]);
+
+  const deleteChannel = useCallback(
+    async (channelId) => {
+      const updatedChannels = youtubeSettings.channels.filter(
+        (c) => c.id !== channelId
+      );
+      const updatedSettings = { ...youtubeSettings, channels: updatedChannels };
+      await saveYoutubeSettings(updatedSettings);
+      addNotification("Channel deleted successfully", "success");
+    },
+    [youtubeSettings, saveYoutubeSettings, addNotification]
+  );
+
+  // Load YouTube settings on component mount
+  useEffect(() => {
+    loadYoutubeSettings();
+  }, [loadYoutubeSettings]);
+
   // ...existing code...
 
   useEffect(() => {
@@ -2248,6 +2430,232 @@ const StaffDashboard = () => {
                       ))}
                   </div>
                 )}
+              </div>
+            </div>
+            <div
+              id="youtube-controller-container"
+              className={`toggle-container ${
+                activeContainer === "youtube-controller-container"
+                  ? "active"
+                  : ""
+              }`}
+            >
+              <div className="container-header">🎥 YouTube Settings</div>
+              <div className="container-body scrollable yt-settings-container">
+                <div className="yt-settings-toggle">
+                  <button
+                    onClick={() => {
+                      setShowConfigureSection(true);
+                      setShowAddChannelSection(false);
+                    }}
+                    className={`yt-settings-toggle-btn ${
+                      showConfigureSection ? "active" : ""
+                    }`}
+                  >
+                    <i className="fas fa-sliders-h"></i>
+                    Configure
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowConfigureSection(false);
+                      setShowAddChannelSection(true);
+                    }}
+                    className={`yt-settings-toggle-btn ${
+                      showAddChannelSection ? "active" : ""
+                    }`}
+                  >
+                    <i className="fas fa-plus-circle"></i>
+                    Add Channel
+                  </button>
+                </div>
+
+                {showConfigureSection && (
+                  <div className="yt-section-content">
+                    <div className="yt-form-group">
+                      <label htmlFor="default-language">Default Language</label>
+                      <select
+                        id="default-language"
+                        value={youtubeSettings.defaultLanguage}
+                        onChange={(e) =>
+                          setYoutubeSettings((prev) => ({
+                            ...prev,
+                            defaultLanguage: e.target.value,
+                          }))
+                        }
+                        className="yt-select"
+                      >
+                        {LANGUAGES.map((lang) => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="yt-form-group">
+                      <label htmlFor="default-category">
+                        Default Category Filter
+                      </label>
+                      <select
+                        id="default-category"
+                        value={youtubeSettings.defaultCategory}
+                        onChange={(e) =>
+                          setYoutubeSettings((prev) => ({
+                            ...prev,
+                            defaultCategory: e.target.value,
+                          }))
+                        }
+                        className="yt-select"
+                      >
+                        <option value="all">All Categories</option>
+                        {Array.from(
+                          new Set(
+                            youtubeSettings.channels.map((c) => c.category)
+                          )
+                        ).map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="yt-form-group">
+                      <label>Enable Channels by Default</label>
+                      <div className="yt-channels-list">
+                        {youtubeSettings.channels
+                          .filter(
+                            (channel) =>
+                              youtubeSettings.defaultCategory === "all" ||
+                              channel.category ===
+                                youtubeSettings.defaultCategory
+                          )
+                          .map((channel) => (
+                            <div key={channel.id} className="yt-channel-item">
+                              <label className="yt-channel-label">
+                                <input
+                                  type="checkbox"
+                                  checked={youtubeSettings.defaultChannelIds.includes(
+                                    channel.id
+                                  )}
+                                  onChange={(e) => {
+                                    const isChecked = e.target.checked;
+                                    setYoutubeSettings((prev) => ({
+                                      ...prev,
+                                      defaultChannelIds: isChecked
+                                        ? [
+                                            ...prev.defaultChannelIds,
+                                            channel.id,
+                                          ]
+                                        : prev.defaultChannelIds.filter(
+                                            (id) => id !== channel.id
+                                          ),
+                                    }));
+                                  }}
+                                  className="yt-channel-checkbox"
+                                />
+                                <span className="yt-channel-name">
+                                  {channel.name}
+                                </span>
+                                <span className="yt-channel-category">
+                                  {channel.category}
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => deleteChannel(channel.id)}
+                                className="yt-channel-delete-btn"
+                                title={`Delete ${channel.name}`}
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {showAddChannelSection && (
+                  <div className="yt-section-content">
+                    <div className="yt-form-group">
+                      <label htmlFor="new-channel-id">
+                        Channel ID or Handle (@...)
+                      </label>
+                      <input
+                        id="new-channel-id"
+                        type="text"
+                        placeholder="e.g., UCrx-FlNM6BWOJvu3re6HH7w"
+                        value={newChannelId}
+                        onChange={(e) => setNewChannelId(e.target.value)}
+                        className="yt-input"
+                      />
+                    </div>
+                    <div className="yt-form-group">
+                      <label htmlFor="new-channel-name">Channel Name</label>
+                      <input
+                        id="new-channel-name"
+                        type="text"
+                        placeholder="e.g., 4G Silver Academy"
+                        value={newChannelName}
+                        onChange={(e) => setNewChannelName(e.target.value)}
+                        className="yt-input"
+                      />
+                    </div>
+                    <div className="yt-form-group">
+                      <label htmlFor="new-channel-lang">Language</label>
+                      <select
+                        id="new-channel-lang"
+                        value={newChannelLanguage}
+                        onChange={(e) => setNewChannelLanguage(e.target.value)}
+                        className="yt-select"
+                      >
+                        {LANGUAGES.map((lang) => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="yt-form-group">
+                      <label htmlFor="new-channel-cat">Category</label>
+                      <input
+                        id="new-channel-cat"
+                        type="text"
+                        placeholder="e.g., Engineering"
+                        value={newChannelCategory}
+                        onChange={(e) => setNewChannelCategory(e.target.value)}
+                        className="yt-input"
+                      />
+                    </div>
+                    <button
+                      onClick={addNewChannel}
+                      className="yt-button primary"
+                    >
+                      <i className="fas fa-plus"></i> Add Channel
+                    </button>
+                  </div>
+                )}
+
+                <div className="yt-save-section">
+                  <button
+                    onClick={() => saveYoutubeSettings(youtubeSettings)}
+                    disabled={youtubeSettingsLoading}
+                    className="yt-button secondary"
+                  >
+                    {youtubeSettingsLoading ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-save"></i>
+                        Save All Settings
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
             <div
