@@ -1008,7 +1008,7 @@ const TimetableGenerator = ({
         date.toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
-          hour12: false,
+          hour12: true,
         });
 
       let currentTimePointer = new Date(`1970-01-01T${config.startTime}:00`);
