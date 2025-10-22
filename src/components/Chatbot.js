@@ -8,14 +8,14 @@ import html2pdf from "html2pdf.js";
 const BACKEND_URLS = {
   // Primary backend (Node.js) - fallback to Python backend if quota reached
   STUDY_MODE_PRIMARY:
-    process.env.NODE_ENV === "production"
+    process.env.REACT_APP_USE_RENDER_BACKEND === "true"
       ? "https://edugen-backend-zbjr.onrender.com/api/chat"
       : "http://localhost:10000/api/chat",
   STUDY_MODE_FALLBACK: "https://edugen-ai-backend.onrender.com/api/chat",
 
   // Quiz generation with fallback support
   QUIZ_PRIMARY:
-    process.env.NODE_ENV === "production"
+    process.env.REACT_APP_USE_RENDER_BACKEND === "true"
       ? "https://edugen-backend-zbjr.onrender.com/api/generate-quiz"
       : "http://localhost:10000/api/generate-quiz",
   QUIZ_FALLBACK: "https://edugen-ai-backend.onrender.com/api/generate-quiz",
@@ -134,6 +134,9 @@ const Chatbot = ({
     talk: "unknown",
   });
 
+  // Add state to prevent concurrent health checks
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+
   // NEW: State for handling file uploads
   const [file, setFile] = useState(null); // { name: string, data: base64 string }
   const fileInputRef = useRef(null);
@@ -161,30 +164,93 @@ const Chatbot = ({
 
   // Function to check backend health
   const checkBackendHealth = async () => {
-    const checkHealth = async (url, mode) => {
-      try {
-        const response = await fetch(url, {
-          method: "GET",
-          timeout: 5000,
-        });
-        return response.ok ? "online" : "offline";
-      } catch (error) {
-        return "offline";
+    // Prevent concurrent health checks
+    if (isCheckingHealth) {
+      console.log("Health check already in progress, skipping");
+      return;
+    }
+
+    // Skip if we're currently rate limited
+    if (localStorage.getItem("chatbot_rate_limited")) {
+      console.log("Currently rate limited, skipping health check");
+      return;
+    }
+
+    setIsCheckingHealth(true);
+
+    try {
+      const checkHealth = async (url, mode) => {
+        try {
+          // Create AbortController for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          const response = await fetch(url, {
+            method: "GET",
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.status === 429) {
+            // Rate limited - back off and don't check again soon
+            console.log(
+              `${mode} backend rate limited, skipping further checks`
+            );
+            localStorage.setItem("chatbot_rate_limited", Date.now().toString());
+            // Reset rate limit flag after 10 minutes
+            setTimeout(
+              () => localStorage.removeItem("chatbot_rate_limited"),
+              10 * 60 * 1000
+            );
+            return "rate-limited";
+          }
+          return response.ok ? "online" : "offline";
+        } catch (error) {
+          if (error.name === "AbortError") {
+            console.log(
+              `${mode} backend offline: Request timeout after 5 seconds`
+            );
+          } else {
+            console.log(`${mode} backend offline: ${error.message}`);
+          }
+          return "offline";
+        }
+      };
+
+      const studyHealth = await checkHealth(
+        process.env.REACT_APP_USE_RENDER_BACKEND === "true"
+          ? "https://edugen-backend-zbjr.onrender.com/api/health"
+          : "http://localhost:10000/api/health",
+        "study"
+      );
+
+      // Always check talk backend status independently
+      const talkHealth = await checkHealth(
+        "https://edugen-ai-backend.onrender.com/api/health",
+        "talk"
+      );
+
+      setBackendStatus({ study: studyHealth, talk: talkHealth });
+
+      // If both are rate-limited, stop checking for a longer period
+      if (studyHealth === "rate-limited" && talkHealth === "rate-limited") {
+        console.log("Both backends rate-limited, extending check interval");
+        // Reset after 15 minutes for double rate limit
+        setTimeout(
+          () => localStorage.removeItem("chatbot_rate_limited"),
+          15 * 60 * 1000
+        );
+      } else if (
+        studyHealth !== "rate-limited" &&
+        talkHealth !== "rate-limited"
+      ) {
+        // If we're not rate limited anymore, reset the flag
+        localStorage.removeItem("chatbot_rate_limited");
       }
-    };
-
-    const studyHealth = await checkHealth(
-      process.env.NODE_ENV === "production"
-        ? "https://edugen-backend-zbjr.onrender.com/api/health"
-        : "http://localhost:10000/api/health",
-      "study"
-    );
-    const talkHealth = await checkHealth(
-      "https://edugen-ai-backend.onrender.com/api/health",
-      "talk"
-    );
-
-    setBackendStatus({ study: studyHealth, talk: talkHealth });
+    } finally {
+      setIsCheckingHealth(false);
+    }
   };
 
   // Initialize speech recognition
@@ -210,7 +276,6 @@ const Chatbot = ({
       };
 
       recognition.current.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
         setIsListening(false);
       };
 
@@ -227,11 +292,20 @@ const Chatbot = ({
   }, []);
 
   // Check backend health on component mount
+  const intervalRef = useRef(null);
   useEffect(() => {
-    checkBackendHealth();
-    // Recheck every 5 minutes
-    const interval = setInterval(checkBackendHealth, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    const rateLimited = localStorage.getItem("chatbot_rate_limited");
+    if (!rateLimited) {
+      checkBackendHealth();
+      // Recheck every 30 minutes to avoid rate limiting
+      intervalRef.current = setInterval(checkBackendHealth, 30 * 60 * 1000);
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, []);
 
   // Load chat history from localStorage on component mount

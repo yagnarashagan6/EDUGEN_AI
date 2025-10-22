@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef, useReducer } from "react";
 import "../styles/Timetable.css";
 
-// Mock API_BASE_URL if it's not available in your environment
-const API_BASE_URL = window.API_BASE_URL || "http://localhost:8080";
-
 const initialState = {
   isLoggedIn: true,
   currentPage: "dashboard",
@@ -86,41 +83,17 @@ const Homepage = ({ isContainer = false }) => {
 
   useEffect(() => {
     const fetchExamFolders = async () => {
-      const auth = localStorage.getItem("auth");
-      if (auth) {
-        try {
-          const response = await fetch(
-            `${API_BASE_URL}/api/exam-folders/user/${appState.currentUserId}`,
-            {
-              headers: { Authorization: `Basic ${auth}` },
-            }
-          );
-          if (response.ok) {
-            const examFolders = await response.json();
-            dispatch({ type: "SET_EXAM_FOLDERS", payload: examFolders });
-          } else {
-            // Server not available or other error, use local storage
-            console.log("Server not available, using local storage");
-            const storedFolders = JSON.parse(
-              localStorage.getItem("examFolders") || "[]"
-            );
-            dispatch({ type: "SET_EXAM_FOLDERS", payload: storedFolders });
-          }
-        } catch (error) {
-          // Network error or server down, silently use local storage
-          console.log("Network error, using local storage:", error.message);
-          const storedFolders = JSON.parse(
-            localStorage.getItem("examFolders") || "[]"
-          );
-          dispatch({ type: "SET_EXAM_FOLDERS", payload: storedFolders });
-        }
-      } else {
-        // No auth, use local storage
-        const storedFolders = JSON.parse(
-          localStorage.getItem("examFolders") || "[]"
-        );
-        dispatch({ type: "SET_EXAM_FOLDERS", payload: storedFolders });
-      }
+      // Load all timetables from localStorage
+      const storedFolders = JSON.parse(
+        localStorage.getItem("examFolders") || "[]"
+      );
+      const savedTimetables = JSON.parse(
+        localStorage.getItem("savedTimetables") || "[]"
+      );
+
+      // Merge stored folders and saved timetables
+      const allFolders = [...storedFolders, ...savedTimetables];
+      dispatch({ type: "SET_EXAM_FOLDERS", payload: allFolders });
     };
     fetchExamFolders();
   }, [appState.currentUserId]);
@@ -131,41 +104,16 @@ const Homepage = ({ isContainer = false }) => {
   };
 
   const refreshExamFolders = async () => {
-    const auth = localStorage.getItem("auth");
-    let serverFolders = [];
-    let localSavedTimetables = [];
-
-    if (auth) {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/exam-folders/user/${appState.currentUserId}`,
-          { headers: { Authorization: `Basic ${auth}` } }
-        );
-        if (response.ok) {
-          serverFolders = await response.json();
-        } else {
-          console.log(
-            "Server not available during refresh, keeping current data"
-          );
-        }
-      } catch (error) {
-        console.log(
-          "Network error during refresh, keeping current data:",
-          error.message
-        );
-      }
-    } else {
-      // No auth, use local storage for server folders
-      serverFolders = JSON.parse(localStorage.getItem("examFolders") || "[]");
-    }
-
-    // Always load locally saved timetables
-    localSavedTimetables = JSON.parse(
+    // Load all timetables from localStorage
+    const storedFolders = JSON.parse(
+      localStorage.getItem("examFolders") || "[]"
+    );
+    const savedTimetables = JSON.parse(
       localStorage.getItem("savedTimetables") || "[]"
     );
 
-    // Merge server folders and locally saved timetables
-    const allFolders = [...serverFolders, ...localSavedTimetables];
+    // Merge stored folders and saved timetables
+    const allFolders = [...storedFolders, ...savedTimetables];
 
     dispatch({ type: "SET_EXAM_FOLDERS", payload: allFolders });
   };
@@ -191,104 +139,29 @@ const Homepage = ({ isContainer = false }) => {
   };
 
   const handleCreateTimetable = async (timetableData) => {
-    const auth = localStorage.getItem("auth");
-    if (auth) {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/exam-folders/create-with-timetable?userId=${appState.currentUserId}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Basic ${auth}`,
-            },
-            body: JSON.stringify(timetableData),
-          }
-        );
-        if (response.ok) {
-          const newFolder = await response.json();
-          dispatch({ type: "ADD_EXAM_FOLDER", payload: newFolder });
-          return {
-            success: true,
-            message: "Timetable stored successfully in new folder!",
-          };
-        } else {
-          throw new Error(`Failed to create folder: ${response.statusText}`);
-        }
-      } catch (error) {
-        console.log(
-          "Failed to save timetable to backend, saving locally:",
-          error.message
-        );
-        const folder = {
-          id: Date.now().toString(),
-          userId: appState.currentUserId,
-          folderName: timetableData.tableName,
-          timetables: [timetableData],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        dispatch({ type: "ADD_EXAM_FOLDER", payload: folder });
-        const storedFolders = JSON.parse(
-          localStorage.getItem("examFolders") || "[]"
-        );
-        storedFolders.push(folder);
-        localStorage.setItem("examFolders", JSON.stringify(storedFolders));
-        return {
-          success: false,
-          message: `Failed to save to database. Saved locally instead.`,
-        };
-      }
-    } else {
-      const folder = {
-        id: Date.now().toString(),
-        userId: appState.currentUserId,
-        folderName: timetableData.tableName,
-        timetables: [timetableData],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      dispatch({ type: "ADD_EXAM_FOLDER", payload: folder });
-      const storedFolders = JSON.parse(
-        localStorage.getItem("examFolders") || "[]"
-      );
-      storedFolders.push(folder);
-      localStorage.setItem("examFolders", JSON.stringify(storedFolders));
-      return {
-        success: false,
-        message: "Not authenticated. Saved locally only.",
-      };
-    }
+    // Save timetable to localStorage only
+    const folder = {
+      id: Date.now().toString(),
+      userId: appState.currentUserId,
+      folderName: timetableData.tableName,
+      timetables: [timetableData],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    dispatch({ type: "ADD_EXAM_FOLDER", payload: folder });
+    const storedFolders = JSON.parse(
+      localStorage.getItem("examFolders") || "[]"
+    );
+    storedFolders.push(folder);
+    localStorage.setItem("examFolders", JSON.stringify(storedFolders));
+    return {
+      success: true,
+      message: "Timetable saved successfully!",
+    };
   };
 
   const handleUpdateTimetable = async (updatedTimetableData) => {
-    const auth = localStorage.getItem("auth");
-    const folder = appState.examFolders.find((f) =>
-      f.timetables.some((t) => t.id === updatedTimetableData.id)
-    );
-    if (auth && folder && updatedTimetableData.id) {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/exam-folders/${folder.id}/timetables/${updatedTimetableData.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Basic ${auth}`,
-            },
-            body: JSON.stringify(updatedTimetableData),
-          }
-        );
-        if (response.ok) {
-          const updatedFolder = await response.json();
-          dispatch({ type: "UPDATE_EXAM_FOLDER", payload: updatedFolder });
-        } else {
-          console.error("Failed to update timetable in backend");
-        }
-      } catch (error) {
-        console.error("Failed to update timetable in backend:", error);
-      }
-    }
+    // Update in state only, local storage is handled separately if needed
     dispatch({ type: "SET_EDITING_TIMETABLE", payload: null });
     dispatch({ type: "SET_PAGE", payload: "upcoming-exams" });
   };
@@ -305,58 +178,35 @@ const Homepage = ({ isContainer = false }) => {
       );
       if (!folder) return;
 
-      const auth = localStorage.getItem("auth");
-      let deleted = false;
+      // Handle local storage deletion
+      const savedTimetables = JSON.parse(
+        localStorage.getItem("savedTimetables") || "[]"
+      );
+      const examFolders = JSON.parse(
+        localStorage.getItem("examFolders") || "[]"
+      );
 
-      if (auth) {
-        try {
-          const response = await fetch(
-            `${API_BASE_URL}/api/exam-folders/${folder.id}/timetables/${timetableId}`,
-            { method: "DELETE", headers: { Authorization: `Basic ${auth}` } }
-          );
-          if (response.ok) {
-            const updatedFolder = await response.json();
-            if (updatedFolder.timetables.length === 0) {
-              await fetch(`${API_BASE_URL}/api/exam-folders/${folder.id}`, {
-                method: "DELETE",
-                headers: { Authorization: `Basic ${auth}` },
-              });
-              dispatch({ type: "DELETE_EXAM_FOLDER", payload: folder.id });
-            } else {
-              dispatch({ type: "UPDATE_EXAM_FOLDER", payload: updatedFolder });
-            }
-            deleted = true;
-          }
-        } catch (error) {
-          console.error("Failed to delete timetable from backend:", error);
-        }
-      }
-
-      // Handle local storage deletion (for locally saved timetables)
-      if (!deleted || !auth) {
-        const savedTimetables = JSON.parse(
-          localStorage.getItem("savedTimetables") || "[]"
+      // Remove from savedTimetables
+      const updatedSavedTimetables = savedTimetables.filter(
+        (t) => t.id !== folder.id
+      );
+      if (updatedSavedTimetables.length !== savedTimetables.length) {
+        localStorage.setItem(
+          "savedTimetables",
+          JSON.stringify(updatedSavedTimetables)
         );
-        const updatedTimetables = savedTimetables.filter(
-          (t) => t.id !== folder.id
-        );
-
-        if (updatedTimetables.length !== savedTimetables.length) {
-          localStorage.setItem(
-            "savedTimetables",
-            JSON.stringify(updatedTimetables)
-          );
-          dispatch({ type: "DELETE_EXAM_FOLDER", payload: folder.id });
-          deleted = true;
-        }
       }
 
-      if (deleted) {
-        alert("Timetable deleted successfully!");
-        refreshExamFolders();
-      } else {
-        alert("Failed to delete timetable. Please try again.");
+      // Remove from examFolders
+      const updatedExamFolders = examFolders.filter((f) => f.id !== folder.id);
+      if (updatedExamFolders.length !== examFolders.length) {
+        localStorage.setItem("examFolders", JSON.stringify(updatedExamFolders));
       }
+
+      // Update state
+      dispatch({ type: "DELETE_EXAM_FOLDER", payload: folder.id });
+      alert("Timetable deleted successfully!");
+      refreshExamFolders();
     }
   };
 
@@ -697,10 +547,21 @@ const TimetableFolder = ({ timetable: folder, onEdit, onDelete }) => {
     });
 
   const getTimetableMeta = () => {
-    if (!firstTimetable || !firstTimetable.periods) return "Meta unavailable";
-    const days = firstTimetable.days.length;
-    const periods = firstTimetable.numHours || firstTimetable.periods.length;
-    return `${days} days • ${periods} periods/day`;
+    if (!firstTimetable) return "Meta unavailable";
+
+    // Handle different data structures
+    if (firstTimetable.periods && firstTimetable.days) {
+      const days = firstTimetable.days.length;
+      const periods = firstTimetable.numHours || firstTimetable.periods.length;
+      return `${days} days • ${periods} periods/day`;
+    }
+
+    // Handle structure with config
+    if (firstTimetable.config) {
+      return `${firstTimetable.config.numDays} days • ${firstTimetable.config.periodsPerDay} periods/day`;
+    }
+
+    return "Meta unavailable";
   };
 
   return (
@@ -800,31 +661,80 @@ const TimetableFolder = ({ timetable: folder, onEdit, onDelete }) => {
       {isExpanded && firstTimetable && (
         <div className="timetable-folder-content">
           <div className="timetable-preview">
-            <table className="preview-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  {firstTimetable.days.map((day) => (
-                    <th key={day}>{day}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {firstTimetable.periods.slice(0, 4).map((period, pIndex) => (
-                  <tr key={pIndex}>
-                    <td>{period.time}</td>
+            {firstTimetable.periods && firstTimetable.days ? (
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
                     {firstTimetable.days.map((day) => (
-                      <td key={`${pIndex}-${day}`}>{period.subjects[day]}</td>
+                      <th key={day}>{day}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {firstTimetable.periods.length > 4 && (
+                </thead>
+                <tbody>
+                  {firstTimetable.periods.slice(0, 4).map((period, pIndex) => (
+                    <tr key={pIndex}>
+                      <td>{period.time}</td>
+                      {firstTimetable.days.map((day) => (
+                        <td key={`${pIndex}-${day}`}>{period.subjects[day]}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : firstTimetable.config && firstTimetable.data ? (
+              // Handle data structure with config
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    {Object.keys(firstTimetable.data)
+                      .slice(0, 5)
+                      .map((day) => (
+                        <th key={day}>{day}</th>
+                      ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {firstTimetable.data[Object.keys(firstTimetable.data)[0]]
+                    .slice(0, 4)
+                    .map((period, pIndex) => (
+                      <tr key={pIndex}>
+                        <td>
+                          {firstTimetable.times && firstTimetable.times[pIndex]
+                            ? firstTimetable.times[pIndex]
+                            : `Period ${pIndex + 1}`}
+                        </td>
+                        {Object.keys(firstTimetable.data)
+                          .slice(0, 5)
+                          .map((day) => (
+                            <td key={`${pIndex}-${day}`}>
+                              {firstTimetable.data[day][pIndex]}
+                            </td>
+                          ))}
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>Unable to display preview - data format not recognized</p>
+            )}
+            {firstTimetable.periods && firstTimetable.periods.length > 4 && (
               <p className="preview-more">
                 ... and {firstTimetable.periods.length - 4} more periods
               </p>
             )}
+            {firstTimetable.data &&
+              firstTimetable.data[Object.keys(firstTimetable.data)[0]] &&
+              firstTimetable.data[Object.keys(firstTimetable.data)[0]].length >
+                4 && (
+                <p className="preview-more">
+                  ... and{" "}
+                  {firstTimetable.data[Object.keys(firstTimetable.data)[0]]
+                    .length - 4}{" "}
+                  more periods
+                </p>
+              )}
           </div>
         </div>
       )}

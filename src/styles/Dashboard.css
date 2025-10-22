@@ -2396,7 +2396,7 @@
   min-width: 160px;
   text-align: left;
   font-size: 1em;
-  color: #1976d2;
+  color: #ffffff;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -2429,7 +2429,7 @@
   min-width: 48px;
   text-align: right;
   font-weight: 700;
-  color: #1976d2;
+  color: #ffffff;
   font-size: 1em;
   flex-shrink: 0;
 }
@@ -2570,5 +2570,342 @@
   .selfanalysis .feedback-container .add-goal-btn {
     font-size: 14px;
     padding: 10px 0;
+  }
+}
+
+/* ========== HIGH STREAK CARDS STYLES ========== */
+.high-streak-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 16px;
+}
+
+.high-streak-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  color: white;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.high-streak-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+}
+
+.streak-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 12px;
+}
+
+.streak-student-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  flex: 1;
+}
+
+.elite-badge {
+  background: #ffd700;
+  color: #764ba2;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.streak-card-body {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.streak-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.streak-label {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.streak-number {
+  font-size: 42px;
+  font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.streak-unit {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.progress-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-label {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.progress-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.progress-text {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ========== PERFORMANCE CARDS STYLES (Overall Performance) ========== */
+.performance-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  padding: 16px;
+}
+
+.performance-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 5px solid #1976d2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.performance-card:hover {
+  box-shadow: 0 8px 20px rgba(25, 118, 210, 0.15);
+  transform: translateY(-4px);
+}
+
+.overall-performance-card {
+  border-left-color: #1976d2;
+}
+
+.performance-card-header {
+  margin-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 12px;
+}
+
+.student-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1976d2;
+}
+
+.performance-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.performance-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1976d2;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.streak-badge {
+  background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: inline-block;
+  width: fit-content;
+  font-weight: 600;
+}
+
+/* ========== INCOMPLETE CARDS STYLES ========== */
+.incomplete-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+  padding: 16px;
+}
+
+.incomplete-card {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+  border-radius: 12px;
+  border: 2px dashed #e53935;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.incomplete-card:hover {
+  box-shadow: 0 8px 20px rgba(229, 57, 53, 0.15);
+  transform: translateY(-4px);
+}
+
+.incomplete-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(229, 57, 53, 0.2);
+}
+
+.incomplete-student-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #c62828;
+}
+
+.incomplete-badge {
+  background: #e53935;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.incomplete-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.incomplete-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  border-left: 3px solid #ff9800;
+}
+
+.incomplete-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.incomplete-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e53935;
+}
+
+.incomplete-card-footer {
+  background: rgba(229, 57, 53, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid #e53935;
+}
+
+.incomplete-note {
+  margin: 0;
+  font-size: 13px;
+  color: #c62828;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Responsive design for cards */
+@media (max-width: 768px) {
+  .high-streak-cards-container,
+  .performance-cards-container,
+  .incomplete-cards-container {
+    grid-template-columns: 1fr;
+  }
+
+  .high-streak-card {
+    padding: 16px;
+  }
+
+  .streak-card-body {
+    flex-direction: column;
+  }
+
+  .streak-number {
+    font-size: 36px;
+  }
+
+  .progress-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  .progress-text {
+    font-size: 20px;
+  }
+
+  .performance-card {
+    padding: 16px;
+  }
+
+  .incomplete-card {
+    padding: 16px;
   }
 }

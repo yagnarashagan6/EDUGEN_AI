@@ -261,6 +261,10 @@ REACT_APP_YT_API_KEY=your_youtube_api_key
 # AI API Configuration
 OPENROUTER_API_KEY=your_openrouter_api_key
 GOOGLE_AI_API_KEY=your_google_ai_api_key
+
+# Backend Configuration
+# Set to 'true' to use Render backend instead of localhost (recommended for development)
+REACT_APP_USE_RENDER_BACKEND=true
 ```
 
 ### 4. Run the Application
@@ -269,12 +273,14 @@ GOOGLE_AI_API_KEY=your_google_ai_api_key
 # Start the frontend development server
 npm start
 
-# In a separate terminal, start the backend server
+# In a separate terminal, start the backend server (optional if using Render backend)
 cd edugen-backend
 npm start
 ```
 
 The application will be available at `http://localhost:3000`
+
+**Note**: If `REACT_APP_USE_RENDER_BACKEND=true` is set in your `.env` file, the frontend will connect to the hosted Render backend instead of requiring a local backend server.
 
 ---
 
