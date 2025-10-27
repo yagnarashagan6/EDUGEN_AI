@@ -173,7 +173,108 @@ This methodology is backed by proven educational research:
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Project Architecture
+
+### Full Project Structure
+
+```
+EDUGEN_AI/
+├── .vscode/             # VS Code configuration
+├── build/               # Production build output
+├── edugen-backend/      # Node.js backend server
+│   ├── node_modules/    # Backend dependencies (excluded from repo)
+│   ├── package-lock.json # Backend lockfile
+│   ├── package.json     # Backend dependencies and scripts
+│   ├── render.yaml      # Render deployment configuration
+│   ├── server.js        # Main Express server
+│   └── vercel.json      # Vercel deployment configuration
+├── public/              # Static assets for React app
+│   ├── games/           # Embedded HTML5 games
+│   ├── edugen_ai.ico    # Favicon
+│   ├── edugen-ai-logo-192.png # App icon 192x192
+│   ├── edugen-ai-logo-512.png # App icon 512x512
+│   ├── edugen.jpg       # Background image
+│   ├── favicon.ico      # Favicon
+│   ├── index.html       # Main HTML template
+│   ├── logo192.png      # Logo 192x192
+│   ├── logo512.png      # Logo 512x512
+│   ├── manifest.json    # PWA manifest
+│   └── robots.txt       # Search engine crawling rules
+├── src/                 # React application source code
+│   ├── assets/          # Static assets
+│   ├── components/      # Reusable UI components
+│   │   ├── Chatbot.js
+│   │   ├── GoalItem.js
+│   │   ├── GuideModal.js
+│   │   ├── LandingPage.js
+│   │   ├── Leaderboard.js
+│   │   ├── MessageItem.js
+│   │   ├── Notes.js
+│   │   ├── NotesForm.js
+│   │   ├── Notification.js
+│   │   ├── OverdueTaskNotification.js
+│   │   ├── Quiz.js
+│   │   ├── Sidebar.js
+│   │   ├── StaffForm.js
+│   │   ├── StaffLogin.js
+│   │   ├── StudentForm.js
+│   │   ├── StudentLogin.js
+│   │   ├── StudentMonitor.js
+│   │   ├── TaskItem.js
+│   │   ├── Timetable.jsx
+│   │   └── Youtube.jsx
+│   ├── config/          # Configuration files
+│   │   └── api.js
+│   ├── pages/           # Main application pages
+│   │   ├── Profile.js
+│   │   ├── StaffDashboard.js
+│   │   └── StudentDashboard.js
+│   ├── services/        # API services
+│   ├── staff/           # Staff-specific components
+│   │   ├── StaffDashboardComponents.js
+│   │   ├── StaffDashboardUtils.js
+│   │   └── StaffDashboardViews.js
+│   ├── students/        # Student-specific components
+│   │   ├── StudentDashboardComponents.js
+│   │   ├── StudentDashboardUtils.js
+│   │   └── StudentDashboardViews.js
+│   ├── styles/          # CSS styling files
+│   │   ├── background.avif
+│   │   ├── background.png
+│   │   ├── Chat.css
+│   │   ├── ChatMobile.css
+│   │   ├── Dashboard.css
+│   │   ├── Form.css
+│   │   ├── GuideModal.css
+│   │   ├── LandingPage.css
+│   │   ├── Login.css
+│   │   ├── Notes.css
+│   │   ├── NotesForm.css
+│   │   ├── Profile.css
+│   │   ├── Quiz.css
+│   │   ├── Sidebar.css
+│   │   ├── StaffInteraction.css
+│   │   ├── StudentMonitor.css
+│   │   ├── Timetable.css
+│   │   ├── whatsapp.jpg
+│   │   └── Youtube.css
+│   ├── App.css
+│   ├── App.js
+│   ├── App.test.js
+│   ├── background.png
+│   ├── firebase.js
+│   ├── index.css
+│   ├── index.js
+│   ├── logo.svg
+│   ├── reportWebVitals.js
+│   └── setupTests.js
+├── .env                 # Environment variables
+├── .gitignore           # Git ignore rules
+├── package-lock.json    # Frontend lockfile
+├── package.json         # Frontend dependencies and scripts
+├── README.md            # Project documentation
+└── render.yaml          # Deployment configuration (root level)
+```
 
 ### Frontend Architecture
 
@@ -192,25 +293,26 @@ src/
 
 ### Backend Architecture
 
-```
+````
 edugen-backend/
 ├── server.js           # Main Express server
 ├── package.json        # Dependencies and scripts
-└── vercel.json         # Deployment configuration
-```
+├── render.yaml         # Render deployment configuration
+└── vercel.json         # Vercel deployment configuration
+```### Game Integration
 
-### Game Integration
+````
 
-```
 public/
-├── games/              # Embedded HTML5 games
-│   ├── Study-Timer.html     # Main study timer application
-│   ├── tic-tac-toe.html     # Aether Tactics strategy game
-│   ├── Memory-Match.html    # Aether Memory card game
-│   ├── Tricky-Cup.html      # 3D cup shuffling game
-│   └── logo/               # Game assets and icons
+├── games/ # Embedded HTML5 games
+│ ├── Study-Timer.html # Main study timer application
+│ ├── tic-tac-toe.html # Aether Tactics strategy game
+│ ├── Memory-Match.html # Aether Memory card game
+│ ├── Tricky-Cup.html # 3D cup shuffling game
+│ └── logo/ # Game assets and icons
 └── ...
-```
+
+````
 
 ---
 
@@ -228,7 +330,7 @@ public/
 ```bash
 git clone https://github.com/yagnarashagan6/EDUGEN_AI.git
 cd EDUGEN_AI
-```
+````
 
 ### 2. Install Dependencies
 
