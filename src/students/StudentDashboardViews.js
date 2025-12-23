@@ -5,7 +5,7 @@ import Quiz from "../components/Quiz";
 import Chatbot from "../components/Chatbot";
 import Notes from "../components/Notes";
 import TaskItem from "../components/TaskItem";
-import Youtube from "../components/Youtube";
+import EduTube from "../components/Youtube";
 import {
   ChatInterface,
   AssignmentSummaryCard,
@@ -886,10 +886,10 @@ export const YoutubeContainer = ({ activeContainer }) => {
             display: "inline-block",
           }}
         ></i>
-        YouTube Smart Search
+        EduTube Smart Search
       </div>
       <div className="container-body scrollable" ref={youtubeContainerRef}>
-        <Youtube containerBodyRef={youtubeContainerRef} />
+        <EduTube containerBodyRef={youtubeContainerRef} />
       </div>
     </div>
   );

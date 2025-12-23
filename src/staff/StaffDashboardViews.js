@@ -217,6 +217,8 @@ export const AssignmentsContainer = ({
   loading,
   deleteAssignment,
   currentUserId,
+  currentSubmission,
+  assignmentSubmissions = {},
 }) => {
   return (
     <div
@@ -241,7 +243,7 @@ export const AssignmentsContainer = ({
             type="url"
             value={newAssignmentLink}
             onChange={(e) => setNewAssignmentLink(e.target.value)}
-            placeholder="Google Drive Link (https://...)"
+            placeholder="Google Drive Link (Optional)"
             className="goal-input"
             aria-label="New assignment Google Drive link"
           />
@@ -324,6 +326,124 @@ export const AssignmentsContainer = ({
               </option>
             ))}
           </select>
+          {currentSubmission && (
+            <div
+              style={{
+                marginTop: "10px",
+                marginBottom: "10px",
+                padding: "10px",
+                background: "#f0f4f8",
+                borderRadius: "8px",
+                border: "1px solid #e1e8ed",
+              }}
+            >
+              <details open>
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                    color: "#1976d2",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Posted Assignment -{" "}
+                  {studentStats.find((s) => s.id === selectedStudentForMarking)
+                    ?.name || "Student"}
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "normal",
+                      color: "#666",
+                      marginLeft: "10px",
+                    }}
+                  >
+                    (
+                    {new Date(
+                      currentSubmission.submittedAt?.toDate
+                        ? currentSubmission.submittedAt.toDate()
+                        : currentSubmission.submittedAt
+                    ).toLocaleString()}
+                    )
+                  </span>
+                </summary>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    marginBottom: "5px",
+                    marginTop: "8px",
+                  }}
+                >
+                  <i
+                    className="fas fa-file-alt"
+                    style={{ color: "#1976d2" }}
+                  ></i>
+                  <strong>Student Submission:</strong>
+                </div>
+                <div style={{ marginLeft: "24px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <a
+                      href={`https://docs.google.com/viewer?url=${encodeURIComponent(
+                        currentSubmission.link
+                      )}&embedded=true`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "white",
+                        background: "#1976d2",
+                        padding: "6px 12px",
+                        borderRadius: "4px",
+                        textDecoration: "none",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      <i className="fas fa-eye"></i> View File
+                    </a>
+                    <a
+                      href={
+                        currentSubmission.downloadLink || currentSubmission.link
+                      }
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "white",
+                        background: "#4CAF50",
+                        padding: "6px 12px",
+                        borderRadius: "4px",
+                        textDecoration: "none",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      <i className="fas fa-download"></i> Download
+                    </a>
+                  </div>
+
+                  {currentSubmission.fileName && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#666",
+                        marginTop: "4px",
+                      }}
+                    >
+                      File: {currentSubmission.fileName}
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          )}
           <input
             type="text"
             value={assignmentMarks}
@@ -356,6 +476,11 @@ export const AssignmentsContainer = ({
               const isExpired =
                 assignment.deadline &&
                 new Date(assignment.deadline) < new Date();
+
+              // Count submissions for this assignment
+              const submissionCount = Object.keys(assignmentSubmissions).filter(
+                (key) => key.startsWith(`${assignment.id}_`)
+              ).length;
 
               return (
                 <div
@@ -402,9 +527,28 @@ export const AssignmentsContainer = ({
                         fontWeight: "600",
                         color: isExpired ? "#6c757d" : "#1976d2",
                         paddingRight: isExpired ? "80px" : "0",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
                       }}
                     >
                       {assignment.subject}
+                      {submissionCount > 0 && (
+                        <span
+                          style={{
+                            background: "#4CAF50",
+                            color: "white",
+                            padding: "4px 10px",
+                            borderRadius: "12px",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                          }}
+                          title={`${submissionCount} student(s) submitted`}
+                        >
+                          {submissionCount}{" "}
+                          {submissionCount === 1 ? "submission" : "submissions"}
+                        </span>
+                      )}
                     </h3>
                   </div>
 
@@ -503,65 +647,69 @@ export const AssignmentsContainer = ({
                       justifyContent: "flex-end",
                     }}
                   >
-                    {!isExpired ? (
-                      <button
-                        className="assignment-action-btn view-btn"
-                        onClick={() =>
-                          window.open(
-                            assignment.driveLink,
-                            "_blank",
-                            "noopener,noreferrer"
-                          )
-                        }
-                        aria-label={`Open assignment ${assignment.subject}`}
-                        style={{
-                          background: "#1976d2",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "8px 16px",
-                          fontSize: "14px",
-                          fontWeight: "500",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          transition: "background-color 0.2s ease",
-                          minWidth: window.innerWidth <= 768 ? "100%" : "auto",
-                          justifyContent: "center",
-                        }}
-                        onMouseOver={(e) =>
-                          (e.target.style.backgroundColor = "#1565c0")
-                        }
-                        onMouseOut={(e) =>
-                          (e.target.style.backgroundColor = "#1976d2")
-                        }
-                      >
-                        <i className="fas fa-external-link-alt"></i>
-                        Open Assignment
-                      </button>
-                    ) : (
-                      <div
-                        style={{
-                          background: "#e0e0e0",
-                          color: "#757575",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "8px 16px",
-                          fontSize: "14px",
-                          fontWeight: "500",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          minWidth: window.innerWidth <= 768 ? "100%" : "auto",
-                          justifyContent: "center",
-                        }}
-                        title="Assignment link unavailable - deadline expired"
-                      >
-                        <i className="fas fa-lock"></i>
-                        Link Expired
-                      </div>
-                    )}
+                    {assignment.driveLink ? (
+                      !isExpired ? (
+                        <button
+                          className="assignment-action-btn view-btn"
+                          onClick={() =>
+                            window.open(
+                              assignment.driveLink,
+                              "_blank",
+                              "noopener,noreferrer"
+                            )
+                          }
+                          aria-label={`Open assignment ${assignment.subject}`}
+                          style={{
+                            background: "#1976d2",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "8px 16px",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            transition: "background-color 0.2s ease",
+                            minWidth:
+                              window.innerWidth <= 768 ? "100%" : "auto",
+                            justifyContent: "center",
+                          }}
+                          onMouseOver={(e) =>
+                            (e.target.style.backgroundColor = "#1565c0")
+                          }
+                          onMouseOut={(e) =>
+                            (e.target.style.backgroundColor = "#1976d2")
+                          }
+                        >
+                          <i className="fas fa-external-link-alt"></i>
+                          Open Assignment
+                        </button>
+                      ) : (
+                        <div
+                          style={{
+                            background: "#e0e0e0",
+                            color: "#757575",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "8px 16px",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            minWidth:
+                              window.innerWidth <= 768 ? "100%" : "auto",
+                            justifyContent: "center",
+                          }}
+                          title="Assignment link unavailable - deadline expired"
+                        >
+                          <i className="fas fa-lock"></i>
+                          Link Expired
+                        </div>
+                      )
+                    ) : null}
 
                     {assignment.staffId === currentUserId && (
                       <button
@@ -596,6 +744,153 @@ export const AssignmentsContainer = ({
                       </button>
                     )}
                   </div>
+
+                  {/* Student Submissions Section */}
+                  {submissionCount > 0 && (
+                    <div
+                      style={{
+                        marginTop: "16px",
+                        padding: "12px",
+                        background: "#f8f9fa",
+                        borderRadius: "8px",
+                        border: "1px solid #e1e8ed",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          margin: "0 0 12px 0",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#37474f",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <i
+                          className="fas fa-file-upload"
+                          style={{ color: "#4CAF50" }}
+                        ></i>
+                        Student Submissions ({submissionCount})
+                      </h4>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                        }}
+                      >
+                        {Object.keys(assignmentSubmissions)
+                          .filter((key) => key.startsWith(`${assignment.id}_`))
+                          .map((key) => {
+                            const submission = assignmentSubmissions[key];
+                            const student = studentStats.find(
+                              (s) => s.id === submission.studentId
+                            );
+
+                            return (
+                              <div
+                                key={key}
+                                style={{
+                                  padding: "10px",
+                                  background: "white",
+                                  borderRadius: "6px",
+                                  border: "1px solid #e1e8ed",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  gap: "8px",
+                                }}
+                              >
+                                <div style={{ flex: 1, minWidth: "150px" }}>
+                                  <div
+                                    style={{
+                                      fontWeight: "500",
+                                      color: "#1976d2",
+                                      fontSize: "14px",
+                                    }}
+                                  >
+                                    {student?.name || "Unknown Student"}
+                                  </div>
+                                  <div
+                                    style={{ fontSize: "12px", color: "#666" }}
+                                  >
+                                    {submission.fileName || "Untitled"}
+                                  </div>
+                                  <div
+                                    style={{ fontSize: "11px", color: "#999" }}
+                                  >
+                                    Submitted:{" "}
+                                    {new Date(
+                                      submission.submittedAt
+                                    ).toLocaleDateString()}{" "}
+                                    at{" "}
+                                    {new Date(
+                                      submission.submittedAt
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </div>
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: "6px",
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <a
+                                    href={`https://docs.google.com/viewer?url=${encodeURIComponent(
+                                      submission.link
+                                    )}&embedded=true`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      padding: "6px 12px",
+                                      background: "#1976d2",
+                                      color: "white",
+                                      borderRadius: "4px",
+                                      fontSize: "12px",
+                                      textDecoration: "none",
+                                      fontWeight: "500",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <i className="fas fa-eye"></i> View
+                                  </a>
+                                  <a
+                                    href={
+                                      submission.downloadLink || submission.link
+                                    }
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      padding: "6px 12px",
+                                      background: "#4CAF50",
+                                      color: "white",
+                                      borderRadius: "4px",
+                                      fontSize: "12px",
+                                      textDecoration: "none",
+                                      fontWeight: "500",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <i className="fas fa-download"></i> Download
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

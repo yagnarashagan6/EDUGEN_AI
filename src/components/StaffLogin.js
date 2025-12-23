@@ -38,9 +38,30 @@ const StaffLogin = () => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
+          // Validate email for Google OAuth sign-in
+          if (!isEmailAllowed(user.email)) {
+            setError("Access denied. Your email is not authorized.");
+            await auth.signOut();
+            setIsLoading(false);
+            return;
+          }
+
           const docRef = doc(db, "staff", user.uid);
           const docSnap = await getDoc(docRef);
-          if (docSnap.exists() && docSnap.data().formFilled === true) {
+
+          // Create user record if it doesn't exist (for Google OAuth)
+          if (!docSnap.exists()) {
+            await setDoc(
+              docRef,
+              {
+                email: user.email,
+                displayName: user.displayName,
+                formFilled: false,
+              },
+              { merge: true }
+            );
+            navigate("/staff-form", { replace: true });
+          } else if (docSnap.data().formFilled === true) {
             navigate("/staff-dashboard", { replace: true });
           } else {
             navigate("/staff-form", { replace: true });
@@ -117,31 +138,10 @@ const StaffLogin = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const userCredential = await signInWithPopup(auth, googleProvider);
-      const user = userCredential.user;
-      if (!isEmailAllowed(user.email)) {
-        setError("Access denied. Your email is not authorized.");
-        await auth.signOut();
-        return;
-      }
-      const docRef = doc(db, "staff", user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().formFilled === true) {
-        navigate("/staff-dashboard", { replace: true });
-      } else {
-        if (!docSnap.exists()) {
-          await setDoc(
-            docRef,
-            {
-              email: user.email,
-              displayName: user.displayName || username,
-              formFilled: false,
-            },
-            { merge: true }
-          );
-        }
-        navigate("/staff-form", { replace: true });
-      }
+      // Supabase OAuth will redirect to Google and back
+      // The onAuthStateChanged listener in useEffect will handle the redirect
+      await signInWithPopup(auth, googleProvider);
+      // Note: The page will redirect, so code below won't execute
     } catch (err) {
       setError("Error during Google Sign-In: " + err.message);
       console.error("Google Sign-In error:", err);

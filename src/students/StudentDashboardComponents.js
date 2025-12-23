@@ -1,6 +1,6 @@
 // StudentDashboardComponents.js
 import React, { useState, useEffect, useCallback } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "../firebase"; // Assuming firebase.js is in this path
 
 export const ErrorBoundary = ({ children }) => {
@@ -400,24 +400,164 @@ export const AssignmentSummaryCard = ({ assignment }) => {
 export const AssignmentItem = ({ assignment }) => {
   const [marks, setMarks] = useState(null);
   const [marksLoading, setMarksLoading] = useState(true);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [submission, setSubmission] = useState(null);
 
   useEffect(() => {
-    const fetchMarks = async () => {
+    const fetchData = async () => {
       const user = auth.currentUser;
       if (!user) return;
+
+      // Fetch marks
       try {
         const marksRef = doc(db, "students", user.uid, "marks", assignment.id);
         const marksSnap = await getDoc(marksRef);
         if (marksSnap.exists()) {
           setMarks(marksSnap.data());
         }
-        setMarksLoading(false);
       } catch (err) {
+        console.warn(
+          "Could not fetch marks (permission or network):",
+          err.code
+        );
+      } finally {
         setMarksLoading(false);
       }
+
+      // Fetch submission
+      try {
+        const subRef = doc(
+          db,
+          "students",
+          user.uid,
+          "submissions",
+          assignment.id
+        );
+        const subSnap = await getDoc(subRef);
+        if (subSnap.exists()) {
+          setSubmission(subSnap.data());
+        }
+      } catch (err) {
+        console.warn(
+          "Could not fetch submission (permission or network):",
+          err.code
+        );
+      }
     };
-    fetchMarks();
+    fetchData();
   }, [assignment.id]);
+
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Determine resource type based on file MIME type
+    // Use 'auto' for PDFs to let Cloudinary handle them optimally
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+    const isPdf = fileExtension === "pdf" || file.type === "application/pdf";
+
+    let uploadEndpoint = "raw"; // Default for documents
+    if (file.type.startsWith("image/")) {
+      uploadEndpoint = "image";
+    } else if (file.type.startsWith("video/")) {
+      uploadEndpoint = "video";
+    } else if (isPdf) {
+      uploadEndpoint = "auto"; // Use auto for PDFs - Cloudinary handles them as images
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "edugen_ai");
+    formData.append("cloud_name", "de9ouuk13");
+
+    try {
+      console.log(`Starting upload to Cloudinary as ${uploadEndpoint}...`);
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/de9ouuk13/${uploadEndpoint}/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await response.json();
+      console.log("Cloudinary response:", data);
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Upload failed");
+      }
+
+      if (data.secure_url) {
+        const cleanUrl = data.secure_url;
+        const actualResourceType = data.resource_type || uploadEndpoint;
+
+        const submissionData = {
+          link: cleanUrl,
+          downloadLink: cleanUrl.replace("/upload/", "/upload/fl_attachment/"),
+          submittedAt: new Date().toISOString(),
+          fileName: file.name,
+          fileType: file.type,
+          resourceType: actualResourceType,
+          publicId: data.public_id,
+        };
+
+        // Save metadata to Firestore
+        try {
+          await setDoc(
+            doc(db, "students", user.uid, "submissions", assignment.id),
+            submissionData
+          );
+          setSubmission(submissionData);
+          setFile(null);
+          alert("Assignment uploaded successfully!");
+        } catch (firestoreError) {
+          console.error(
+            "Error saving submission to Firestore:",
+            firestoreError
+          );
+          alert(
+            "File uploaded to Cloudinary, but failed to save record to database. Please contact support."
+          );
+        }
+      } else {
+        alert("Upload failed: " + (data.error?.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert(
+        `Error uploading file: ${error.message}. Please check your internet connection or try again.`
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteSubmission = async () => {
+    if (!window.confirm("Are you sure you want to delete your submission?"))
+      return;
+
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      await deleteDoc(
+        doc(db, "students", user.uid, "submissions", assignment.id)
+      );
+      setSubmission(null);
+      alert("Submission deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting submission:", error);
+      alert("Failed to delete submission.");
+    }
+  };
 
   // Check if assignment has expired
   const isExpired =
@@ -470,7 +610,7 @@ export const AssignmentItem = ({ assignment }) => {
             color: isExpired ? "#6c757d" : "#1976d2",
           }}
         >
-          {!isExpired ? (
+          {!isExpired && assignment.driveLink ? (
             <a
               href={assignment.driveLink}
               target="_blank"
@@ -497,7 +637,9 @@ export const AssignmentItem = ({ assignment }) => {
               ></i>
             </a>
           ) : (
-            <span style={{ color: "#6c757d" }}>{assignment.subject}</span>
+            <span style={{ color: isExpired ? "#6c757d" : "#1976d2" }}>
+              {assignment.subject}
+            </span>
           )}
         </h3>
       </div>
@@ -559,6 +701,124 @@ export const AssignmentItem = ({ assignment }) => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Submission Section */}
+      <div
+        style={{
+          marginBottom: "16px",
+          padding: "12px",
+          background: "#f0f4f8",
+          borderRadius: "8px",
+          border: "1px solid #e1e8ed",
+        }}
+      >
+        <h4 style={{ margin: "0 0 8px 0", fontSize: "16px", color: "#37474f" }}>
+          Your Submission
+        </h4>
+        {submission ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <i
+              className="fas fa-check-circle"
+              style={{ color: "#4CAF50", fontSize: "18px" }}
+            ></i>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <a
+                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(
+                    submission.link
+                  )}&embedded=true`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "white",
+                    background: "#1976d2",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    fontWeight: "500",
+                    textDecoration: "none",
+                    fontSize: "14px",
+                  }}
+                >
+                  <i className="fas fa-eye"></i> View File
+                </a>
+                <a
+                  href={submission.downloadLink || submission.link}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "white",
+                    background: "#4CAF50",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    fontWeight: "500",
+                    textDecoration: "none",
+                    fontSize: "14px",
+                  }}
+                >
+                  <i className="fas fa-download"></i> Download
+                </a>
+              </div>
+              <div style={{ fontSize: "12px", color: "#666" }}>
+                Submitted on {new Date(submission.submittedAt).toLocaleString()}
+              </div>
+            </div>
+            {!isExpired && (
+              <button
+                onClick={handleDeleteSubmission}
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 12px",
+                  background: "#f44336",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                Delete Submission
+              </button>
+            )}
+          </div>
+        ) : !isExpired ? (
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <input
+              type="file"
+              onChange={handleFileChange}
+              style={{ fontSize: "14px" }}
+            />
+            <button
+              onClick={handleUpload}
+              disabled={!file || uploading}
+              style={{
+                padding: "6px 12px",
+                background: uploading ? "#ccc" : "#1976d2",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: uploading ? "not-allowed" : "pointer",
+                fontSize: "14px",
+              }}
+            >
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+          </div>
+        ) : (
+          <div style={{ color: "#d32f2f", fontSize: "14px" }}>
+            Submission closed.
+          </div>
+        )}
       </div>
 
       {/* Warning Message for Expired */}

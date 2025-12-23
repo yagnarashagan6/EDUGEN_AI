@@ -1143,6 +1143,11 @@
   display: block; /* Ensure proper display */
 }
 
+/* YouTube Container Specific Styles */
+#youtube-container .container-body:not(.form-active) {
+  padding: 0px;
+}
+
 /* News Controls */
 .news-controls {
   display: flex;

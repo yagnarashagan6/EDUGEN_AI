@@ -75,10 +75,11 @@ This methodology is backed by proven educational research:
 ### Backend & APIs
 
 - 🚀 **Node.js + Express** – Primary backend server
-- 🐍 **Python FastAPI** – Secondary backend for specialized AI tasks
+- 🐍 **Python FastAPI** – Secondary backend for talk mode
 - 🧠 **OpenRouter API** – Multi-model AI integration
 - 🤖 **Google Generative AI** – Advanced language models
 - 📄 **Document Processing** – PDF parsing and content extraction
+- 📰 **GNews API** – Real-time global news integration
 
 ### Database & Authentication
 
@@ -140,6 +141,14 @@ This methodology is backed by proven educational research:
 - **💬 Real-time Communication**: Direct student-staff interaction
 - **🎯 Goal Setting**: Personalized learning objectives and milestones
 - **📊 Learning Flow Tracking**: Monitor student progression through the 3-step learning process
+- **⚠️ Task Accountability**: Automated tracking of overdue tasks with mandatory reason submission
+
+### 📅 Organization & Productivity
+
+- **📅 Smart Timetable**: Comprehensive exam and class schedule management
+- **📰 Global News Feed**: Integrated educational and general news updates
+- **👋 Interactive Guides**: Role-specific onboarding tours for students and staff
+- **⚡ Smart Caching**: High-performance response caching for frequently accessed topics
 
 ### 🎥 Educational Content
 
@@ -173,7 +182,94 @@ This methodology is backed by proven educational research:
 
 ---
 
+## 📱 Sidebar Features & Navigation
+
+EduGen AI features a role-specific sidebar designed to streamline the workflow for both students and staff.
+
+### 👨‍🎓 Student Sidebar
+
+| Feature                  | Description                                 | Unique Value                                                       |
+| :----------------------- | :------------------------------------------ | :----------------------------------------------------------------- |
+| **📋 Tasks**             | View daily topics assigned by staff.        | Acts as the entry point for the 3-step learning flow.              |
+| **🎯 Goals**             | Set and track personal academic milestones. | Encourages self-directed learning beyond assigned work.            |
+| **📝 Assignments**       | Submit work and view grades/feedback.       | Streamlined submission process with status tracking.               |
+| **🔥 Streaks**           | Track daily learning consistency.           | Gamifies attendance to build consistent study habits.              |
+| **📰 News**              | Educational and global news updates.        | Keeps students informed without leaving the platform.              |
+| **📺 YouTube**           | Curated educational video content.          | Distraction-free video learning environment.                       |
+| **⏱️ Study Timer**       | Pomodoro timer with gamified breaks.        | **Unique:** Unlocks games only after study sessions are completed. |
+| **💬 Staff Interaction** | Direct chat with teachers.                  | Removes barriers to asking for help.                               |
+| **📊 Self Analysis**     | Personal performance metrics.               | Visualizes progress to boost confidence.                           |
+| **🗒️ Notes**             | Create and manage AI-assisted notes.        | Integrated note-taking prevents context switching.                 |
+
+### 👨‍🏫 Staff Sidebar
+
+| Feature                    | Description                           | Unique Value                                                                          |
+| :------------------------- | :------------------------------------ | :------------------------------------------------------------------------------------ |
+| **📋 Tasks**               | Post classroom topics for students.   | **Unique:** Posting a topic instantly triggers the AI learning flow for all students. |
+| **📝 Assignments**         | Review and grade student submissions. | Centralized dashboard for all class work.                                             |
+| **📈 Results**             | View detailed class performance.      | Identify struggling students early.                                                   |
+| **👀 Monitor**             | Track real-time student engagement.   | See who is active and who is falling behind.                                          |
+| **💬 Student Interaction** | Chat with individual students.        | Provide targeted support to specific students.                                        |
+| **📊 Quick Stats**         | At-a-glance class overview.           | Instant health check of the class performance.                                        |
+| **📅 Timetable Creator**   | Manage class and exam schedules.      | Keeps everyone aligned on important dates.                                            |
+
+### 🚀 How EduGen AI Differs from Traditional LMS
+
+Unlike standard Learning Management Systems (LMS) like Moodle or Blackboard which primarily function as **file repositories**, EduGen AI is an **active learning platform**:
+
+1.  **AI-Driven Workflow**: Instead of just downloading a PDF, students interact with an AI tutor that explains the specific topic posted by the staff.
+2.  **Engagement First**: Traditional LMS platforms are passive. EduGen AI uses **gamification (streaks, unlockable games)** to aggressively combat student apathy, specifically targeting "arrear students".
+3.  **Real-Time Feedback Loop**: The "Monitor" and "Interaction" features bridge the gap between physical classrooms and digital learning, offering immediate support rather than asynchronous delays.
+4.  **Dynamic Content**: Quizzes and notes are generated **on-demand** by AI based on the student's specific needs, not just static files uploaded by a teacher.
+
+---
+
 ## 🏗️ Project Architecture
+
+### 📐 System Architecture Overview
+
+EduGen AI follows a modern, event-driven architecture designed for real-time interaction and high availability.
+
+#### 1. **User Entry & Authentication**
+
+- **Landing Page**: The gateway to the platform.
+- **Auth Flow**: Users (Student/Staff) authenticate via **Firebase Auth** (Google OAuth or Email/Password).
+- **Role Routing**: Upon login, the system checks the user's role in **Firestore** and routes them to the appropriate Dashboard (Student or Staff).
+ve
+#### 2. **Frontend Layer (React PWA)**
+
+- **Student Dashboard**: Connects to real-time listeners for Tasks, Messages, and Progress.
+- **Staff Dashboard**: Connects to real-time listeners for Student Activity, Submissions, and Analytics.
+- **State Management**: Uses React Hooks and Context API to manage local state, while Firestore listeners handle global state sync.
+
+#### 3. **Backend Layer (Microservices Approach)**
+
+- **Node.js + Express (Primary)**:
+  - Handles API requests for Chat, Quiz Generation, and News.
+  - Implements **Rate Limiting** and **Caching** strategies.
+  - Acts as a secure gateway to AI providers.
+- **Python FastAPI (Secondary)**:
+  - Specialized service for "Talk Mode" and advanced audio processing tasks.
+- **Firebase Admin SDK**:
+  - Manages privileged operations like user management and complex database queries.
+
+#### 4. **Data & Storage Layer**
+
+- **Firestore (NoSQL Database)**:
+  - **Real-time Sync**: Changes in the Staff Dashboard (e.g., posting a task) are instantly reflected in the Student Dashboard via WebSocket-like listeners.
+  - **Collections**: Structured data for `users`, `tasks`, `assignments`, `chats`, `results`.
+- **Firebase Storage**: Stores user uploaded files (assignments, profile pictures) and generated assets.
+
+#### 5. **AI Integration Layer**
+
+- **OpenRouter API**: Aggregates access to top-tier LLMs (Google Gemma, etc.).
+- **Prompt Engineering**: The backend injects specific system prompts to ensure the AI behaves as a supportive tutor rather than just a search engine.
+- **Fallback System**: If the primary model fails, the system automatically retries with backup models to ensure 99.9% uptime.
+
+#### 6. **Gamification Logic Engine**
+
+- **Progress Calculation**: Real-time algorithms calculate streaks based on daily login + minimum study time.
+- **Unlock System**: The "Study Timer" module listens for session completion events to unlock specific games in the `public/games` directory.
 
 ### Full Project Structure
 
@@ -229,7 +325,6 @@ EDUGEN_AI/
 │   │   ├── Profile.js
 │   │   ├── StaffDashboard.js
 │   │   └── StudentDashboard.js
-│   ├── services/        # API services
 │   ├── staff/           # Staff-specific components
 │   │   ├── StaffDashboardComponents.js
 │   │   ├── StaffDashboardUtils.js
@@ -419,10 +514,11 @@ The application will be available at `http://localhost:3000`
 
 ### Chat API
 
-- **POST** `/api/chat` - Send messages to AI tutor
+- **POST** `/api/chat` - Send messages to AI tutor (with caching)
 - **POST** `/api/generate-quiz` - Generate quiz questions
 - **POST** `/api/speech-to-text` - Convert speech to text
 - **POST** `/api/text-to-speech` - Convert text to speech
+- **GET** `/api/news` - Fetch latest educational and global news
 
 ### User Management
 

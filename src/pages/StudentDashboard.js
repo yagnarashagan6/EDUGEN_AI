@@ -19,14 +19,7 @@ import {
   runTransaction,
   addDoc,
 } from "firebase/firestore";
-import { auth, db, storage } from "../firebase";
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from "firebase/storage";
-import { signOut } from "firebase/auth";
+import { auth, db } from "../firebase";
 import Sidebar from "../components/Sidebar";
 import GoalItem from "../components/GoalItem";
 import Quiz from "../components/Quiz";
@@ -40,7 +33,7 @@ import "../styles/Dashboard.css";
 import "../styles/Sidebar.css";
 import "../styles/Chat.css";
 import "../styles/Notes.css";
-import Youtube from "../components/Youtube";
+import EduTube from "../components/Youtube";
 
 // Import the refactored parts
 import {
@@ -1507,7 +1500,7 @@ const StudentDashboard = () => {
     }
     logStudentActivity("logout");
     try {
-      await signOut(auth);
+      await auth.signOut();
       navigate("/");
     } catch (err) {
       console.error("Error logging out:", err);

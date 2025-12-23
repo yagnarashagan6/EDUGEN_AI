@@ -1,38 +1,106 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase"; // Assuming firebase config is in src/firebase.js
+import { db } from "../firebase";
+import "../styles/Youtube.css";
 
-// --- HELPER COMPONENTS ---
-
-const VideoPlayer = ({ videoId, onClose }) => {
-  const playerRef = useRef(null);
-
-  useEffect(() => {
-    if (playerRef.current) {
-      playerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [videoId]);
-
+// --- INLINE VIDEO PLAYER COMPONENT ---
+const InlineVideoPlayer = ({
+  videoId,
+  onClose,
+  language,
+  setLanguage,
+  selectedCategory,
+  setSelectedCategory,
+  selectedChannelIds,
+  setSelectedChannelIds,
+  channels,
+  categoryList,
+  filteredChannels,
+  LANGUAGES,
+}) => {
   if (!videoId) return null;
 
   return (
-    <div className="yt-video-player-backdrop">
-      <div className="yt-video-player-container" ref={playerRef}>
-        <div className="yt-video-responsive-embed">
-          <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
-            title="YouTube video player"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          ></iframe>
+    <div className="yt-inline-player">
+      {/* Filters above video */}
+      <div className="yt-inline-filters">
+        <div className="yt-filter-item">
+          <label>
+            <i className="fas fa-globe"></i> Language
+          </label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <button
-          onClick={onClose}
-          className="yt-video-close-btn"
-          title="Close player"
-        >
-          <i className="fas fa-times"></i>
+        <div className="yt-filter-item">
+          <label>
+            <i className="fas fa-folder"></i> Category
+          </label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setSelectedChannelIds([]);
+            }}
+          >
+            {categoryList.map((c) => (
+              <option key={c} value={c}>
+                {c === "all" ? "All Categories" : c}
+              </option>
+            ))}
+          </select>
+        </div>
+        {filteredChannels.length > 0 && (
+          <div className="yt-filter-item yt-channels-section">
+            <label>
+              <i className="fas fa-tv"></i> Channels
+            </label>
+            <div className="yt-channel-pills">
+              {filteredChannels.map((channel) => (
+                <label key={channel.id} className="yt-channel-pill">
+                  <input
+                    type="checkbox"
+                    value={channel.id}
+                    checked={selectedChannelIds.includes(channel.id)}
+                    onChange={(e) => {
+                      const { value, checked } = e.target;
+                      setSelectedChannelIds((prev) =>
+                        checked
+                          ? [...prev, value]
+                          : prev.filter((id) => id !== value)
+                      );
+                    }}
+                  />
+                  <span>{channel.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Video */}
+      <div className="yt-inline-video-wrapper">
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        ></iframe>
+      </div>
+
+      {/* Close button below video */}
+      <div className="yt-inline-close-container">
+        <button onClick={onClose} className="yt-inline-close-btn">
+          <i className="fas fa-times"></i> Close
         </button>
       </div>
     </div>
@@ -49,7 +117,9 @@ const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
       <span className="yt-card-duration">{video.duration}</span>
     </div>
     <div className="yt-card-info">
-      <h3 className="yt-card-title">{video.title}</h3>
+      <h3 className="yt-card-title" title={video.title}>
+        {video.title}
+      </h3>
       <p className="yt-card-channel">{video.channel}</p>
       <div className="yt-card-actions">
         <button
@@ -58,8 +128,8 @@ const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
           disabled={isFavorite}
           title={isFavorite ? "Already in favorites" : "Add to favorites"}
         >
-          <i className={`fas ${isFavorite ? "fa-star" : "fa-star-o"}`}></i>
-          <span>{isFavorite ? "Added" : "Favorite"}</span>
+          <i className={`fas ${isFavorite ? "fa-check" : "fa-star"}`}></i>
+          <span>{isFavorite ? "Saved" : "Add to Favorites"}</span>
         </button>
       </div>
     </div>
@@ -68,7 +138,7 @@ const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
 
 // --- MAIN YOUTUBE COMPONENT ---
 
-export default function Youtube() {
+export default function EduTube() {
   // State management
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState("ta");
@@ -316,156 +386,184 @@ export default function Youtube() {
 
   if (!settingsLoaded) {
     return (
-      <div className="yt-loader">
-        <i className="fas fa-spinner fa-spin"></i>
-        <span>Loading Settings...</span>
+      <div className="yt-search-container">
+        <div className="yt-loader">
+          <i className="fas fa-spinner fa-spin"></i>
+          <span>Loading EduTube...</span>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="yt-search-container">
-      <VideoPlayer
-        videoId={playingVideoId}
-        onClose={() => setPlayingVideoId(null)}
-      />
-
+      {/* Header with Logo and Navigation */}
       <header className="yt-header">
         <div className="yt-logo">
           <i className="fab fa-youtube"></i>
-          <h1>EduTube Search</h1>
+          <h1>EduTube</h1>
         </div>
-        <div className="yt-view-toggle">
+        <nav className="yt-nav-toggle">
           <button
             className={activeView === "search" ? "active" : ""}
             onClick={() => setActiveView("search")}
           >
-            <i className="fas fa-search"></i> Search
+            <i className="fas fa-compass"></i>
+            <span>Explore</span>
           </button>
           <button
             className={activeView === "favorites" ? "active" : ""}
             onClick={() => setActiveView("favorites")}
           >
-            <i className="fas fa-star"></i> Favorites ({allFavorites.length})
+            <i className="fas fa-heart"></i>
+            <span>Saved ({allFavorites.length})</span>
           </button>
-        </div>
+        </nav>
       </header>
+
+      {/* Search Box - Always visible at top */}
+      <div className="yt-search-wrapper">
+        <form className="yt-search-form" onSubmit={handleSearch}>
+          <div className="yt-search-input-group">
+            <i className="fas fa-search"></i>
+            <input
+              type="text"
+              placeholder="Search educational videos..."
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              ref={inputRef}
+            />
+            {showSuggestions && history.length > 0 && (
+              <div className="yt-suggestions">
+                {history
+                  .filter((h) => h.toLowerCase().includes(topic.toLowerCase()))
+                  .map((item) => (
+                    <div
+                      key={item}
+                      className="yt-suggestion-item"
+                      onClick={() => setTopic(item)}
+                    >
+                      <i className="fas fa-history"></i>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+          <button type="submit" className="yt-search-btn" disabled={loading}>
+            {loading ? (
+              <i className="fas fa-spinner fa-spin"></i>
+            ) : (
+              <>
+                <i className="fas fa-search"></i>
+                <span>Search</span>
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Inline Video Player */}
+      {playingVideoId && (
+        <InlineVideoPlayer
+          videoId={playingVideoId}
+          onClose={() => setPlayingVideoId(null)}
+          language={language}
+          setLanguage={setLanguage}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          selectedChannelIds={selectedChannelIds}
+          setSelectedChannelIds={setSelectedChannelIds}
+          channels={channels}
+          categoryList={categoryList}
+          filteredChannels={filteredChannels}
+          LANGUAGES={LANGUAGES}
+        />
+      )}
 
       {activeView === "search" && (
         <div className="yt-search-view">
-          <form className="yt-search-form" onSubmit={handleSearch}>
-            <div className="yt-search-bar" ref={inputRef}>
-              <i className="fas fa-search yt-search-icon"></i>
-              <input
-                type="text"
-                placeholder="Enter a topic to search..."
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                required
-              />
-              {showSuggestions && history.length > 0 && (
-                <div className="yt-suggestions">
-                  {history
-                    .filter((h) =>
-                      h.toLowerCase().includes(topic.toLowerCase())
-                    )
-                    .map((item) => (
-                      <div
-                        key={item}
-                        className="yt-suggestion-item"
-                        onClick={() => {
-                          setTopic(item);
-                        }}
-                      >
-                        <i className="fas fa-history"></i> {item}
-                      </div>
+          {/* Filters - only show when not playing video */}
+          {!playingVideoId && (
+            <div className="yt-filters">
+              <div className="yt-filter-item">
+                <label>
+                  <i className="fas fa-globe"></i> Language
+                </label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="yt-filter-item">
+                <label>
+                  <i className="fas fa-folder"></i> Category
+                </label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setSelectedChannelIds([]);
+                  }}
+                >
+                  {categoryList.map((c) => (
+                    <option key={c} value={c}>
+                      {c === "all" ? "All Categories" : c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {filteredChannels.length > 0 && (
+                <div className="yt-filter-item yt-channels-section">
+                  <label>
+                    <i className="fas fa-tv"></i> Channels
+                  </label>
+                  <div className="yt-channel-pills">
+                    {filteredChannels.map((channel) => (
+                      <label key={channel.id} className="yt-channel-pill">
+                        <input
+                          type="checkbox"
+                          value={channel.id}
+                          checked={selectedChannelIds.includes(channel.id)}
+                          onChange={(e) => {
+                            const { value, checked } = e.target;
+                            setSelectedChannelIds((prev) =>
+                              checked
+                                ? [...prev, value]
+                                : prev.filter((id) => id !== value)
+                            );
+                          }}
+                        />
+                        <span>{channel.name}</span>
+                      </label>
                     ))}
+                  </div>
                 </div>
               )}
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="yt-search-button"
-            >
-              {loading ? <i className="fas fa-spinner fa-spin"></i> : "Search"}
-            </button>
-          </form>
+          )}
 
-          <div className="yt-filters">
-            <div className="yt-filter-group">
-              <label>
-                <i className="fas fa-language"></i> Language
-              </label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="yt-filter-group">
-              <label>
-                <i className="fas fa-list-alt"></i> Category
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                {categoryList.map((c) => (
-                  <option key={c} value={c}>
-                    {c === "all" ? "All Categories" : c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="yt-filter-group yt-channel-filter">
-              <label>
-                <i className="fas fa-tv"></i> Channels
-              </label>
-              <div className="yt-channel-selector">
-                {filteredChannels.length > 0 ? (
-                  filteredChannels.map((channel) => (
-                    <label key={channel.id} className="yt-channel-tag">
-                      <input
-                        type="checkbox"
-                        value={channel.id}
-                        checked={selectedChannelIds.includes(channel.id)}
-                        onChange={(e) => {
-                          const { value, checked } = e.target;
-                          setSelectedChannelIds((prev) =>
-                            checked
-                              ? [...prev, value]
-                              : prev.filter((id) => id !== value)
-                          );
-                        }}
-                      />
-                      <span>{channel.name}</span>
-                    </label>
-                  ))
-                ) : (
-                  <span className="yt-no-channels">
-                    No channels in this category
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
+          {/* Results */}
           <div className="yt-results-area">
             {loading && (
               <div className="yt-loader">
                 <i className="fas fa-spinner fa-spin"></i>
-                <span>Fetching Videos...</span>
+                <span>Searching for videos...</span>
               </div>
             )}
-            {error && <div className="yt-error-message">{error}</div>}
+            {error && (
+              <div className="yt-error-message">
+                <i className="fas fa-exclamation-circle"></i> {error}
+              </div>
+            )}
             {!loading && results.length > 0 && (
               <div className="yt-results-grid">
                 {results.map((video) => (
@@ -479,9 +577,18 @@ export default function Youtube() {
                 ))}
               </div>
             )}
-            {!loading && results.length === 0 && topic && (
+            {!loading && results.length === 0 && topic && !error && (
               <div className="yt-no-results">
-                No videos found for "{topic}". Try a different search.
+                <i className="fas fa-search"></i>
+                <p>
+                  No videos found for "{topic}". Try a different search term.
+                </p>
+              </div>
+            )}
+            {!loading && results.length === 0 && !topic && !error && (
+              <div className="yt-no-results">
+                <i className="fas fa-rocket"></i>
+                <p>Start by searching for educational content above.</p>
               </div>
             )}
           </div>
@@ -492,12 +599,17 @@ export default function Youtube() {
         <div className="yt-favorites-view">
           {allFavorites.length === 0 ? (
             <div className="yt-no-results">
-              You haven't added any favorite videos yet.
+              <i className="fas fa-heart"></i>
+              <p>
+                No saved videos yet. Start exploring and save your favorites!
+              </p>
             </div>
           ) : (
             favoriteCategories.map((category) => (
-              <div key={category} className="yt-favorite-category-section">
-                <h2 className="yt-category-title">{category}</h2>
+              <div key={category} className="yt-favorite-section">
+                <h2 className="yt-section-title">
+                  <i className="fas fa-bookmark"></i> {category}
+                </h2>
                 <div className="yt-results-grid">
                   {favorites[category].map((video) => (
                     <div className="yt-video-card" key={video.id}>
@@ -518,15 +630,16 @@ export default function Youtube() {
                         </span>
                       </div>
                       <div className="yt-card-info">
-                        <h3 className="yt-card-title">{video.title}</h3>
+                        <h3 className="yt-card-title" title={video.title}>
+                          {video.title}
+                        </h3>
                         <p className="yt-card-channel">{video.channel}</p>
                         <div className="yt-card-actions">
                           <button
                             onClick={() => removeFavorite(video)}
                             className="yt-card-fav-btn remove-fav"
-                            title="Remove from favorites"
                           >
-                            <i className="fas fa-trash"></i>
+                            <i className="fas fa-trash-alt"></i>
                             <span>Remove</span>
                           </button>
                         </div>

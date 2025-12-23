@@ -1,14 +1,5 @@
 import { initializeApp } from "firebase/app";
 import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  browserSessionPersistence,
-  setPersistence,
-} from "firebase/auth";
-import {
   getFirestore,
   doc,
   setDoc,
@@ -16,6 +7,15 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+
+// Import Supabase auth (replacing Firebase auth)
+import {
+  supabaseAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  googleProvider,
+} from "./supabase";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAu7IM06IkZliwAbRxloNV624Nq20AZ1lM",
@@ -28,19 +28,19 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
 
-// Set session-only persistence (not local)
-setPersistence(auth, browserSessionPersistence);
+// Use Supabase auth instead of Firebase auth
+export const auth = supabaseAuth;
 
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const googleProvider = new GoogleAuthProvider();
 
+// Re-export Supabase auth functions
 export {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  googleProvider,
   doc,
   setDoc,
   getDoc,

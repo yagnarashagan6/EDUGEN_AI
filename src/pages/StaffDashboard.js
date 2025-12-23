@@ -25,7 +25,6 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { signOut } from "firebase/auth";
 import Sidebar from "../components/Sidebar";
 import Chatbot from "../components/Chatbot";
 import TaskItem from "../components/TaskItem";
@@ -140,8 +139,48 @@ const StaffDashboard = () => {
   const [showAddChannelSection, setShowAddChannelSection] = useState(false);
   const [currentIcon, setCurrentIcon] = React.useState(0);
   const [iconDirection, setIconDirection] = React.useState(1);
+  const [currentSubmission, setCurrentSubmission] = useState(null);
+  const [assignmentSubmissions, setAssignmentSubmissions] = useState({});
 
   // --- Logic and Handler Functions ---
+
+  useEffect(() => {
+    if (!selectedStudentForMarking || !selectedAssignmentForMarking) {
+      setCurrentSubmission(null);
+      return;
+    }
+
+    const subRef = doc(
+      db,
+      "students",
+      selectedStudentForMarking,
+      "submissions",
+      selectedAssignmentForMarking
+    );
+
+    console.log(
+      `Listening for submission: students/${selectedStudentForMarking}/submissions/${selectedAssignmentForMarking}`
+    );
+
+    const unsubscribe = onSnapshot(
+      subRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          console.log("Submission found:", docSnap.data());
+          setCurrentSubmission(docSnap.data());
+        } else {
+          console.log("No submission found for this student/assignment.");
+          setCurrentSubmission(null);
+        }
+      },
+      (error) => {
+        console.error("Error listening to submission:", error);
+        setCurrentSubmission(null);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedStudentForMarking, selectedAssignmentForMarking]);
 
   const addNotification = useCallback((message, type = "info") => {
     setNotifications((prev) => [...prev, { id: Date.now(), message, type }]);
@@ -551,6 +590,56 @@ const StaffDashboard = () => {
     // return () => clearInterval(interval);
   }, [fetchAssignments]);
 
+  // Fetch all student submissions for all assignments
+  useEffect(() => {
+    if (
+      !auth.currentUser ||
+      assignments.length === 0 ||
+      studentStats.length === 0
+    )
+      return;
+
+    const unsubscribers = [];
+
+    assignments.forEach((assignment) => {
+      studentStats.forEach((student) => {
+        const subRef = doc(
+          db,
+          "students",
+          student.id,
+          "submissions",
+          assignment.id
+        );
+
+        const unsubscribe = onSnapshot(subRef, (docSnap) => {
+          const key = `${assignment.id}_${student.id}`;
+          if (docSnap.exists()) {
+            setAssignmentSubmissions((prev) => ({
+              ...prev,
+              [key]: {
+                ...docSnap.data(),
+                studentId: student.id,
+                assignmentId: assignment.id,
+              },
+            }));
+          } else {
+            setAssignmentSubmissions((prev) => {
+              const newState = { ...prev };
+              delete newState[key];
+              return newState;
+            });
+          }
+        });
+
+        unsubscribers.push(unsubscribe);
+      });
+    });
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
+  }, [assignments, studentStats]);
+
   const loadYoutubeSettings = useCallback(async () => {
     try {
       const settingsRef = doc(db, "settings", "youtube");
@@ -913,14 +1002,11 @@ const StaffDashboard = () => {
         addNotification("Staff profile incomplete or not found.", "error");
         return;
       }
-      if (!newAssignmentSubject.trim() || !newAssignmentLink.trim()) {
-        addNotification(
-          "Please enter assignment subject and Google Drive link.",
-          "warning"
-        );
+      if (!newAssignmentSubject.trim()) {
+        addNotification("Please enter assignment subject.", "warning");
         return;
       }
-      if (!isValidDriveLink(newAssignmentLink)) {
+      if (newAssignmentLink.trim() && !isValidDriveLink(newAssignmentLink)) {
         addNotification(
           "Please enter a valid Google Drive or Google Docs link.",
           "warning"
@@ -1063,7 +1149,7 @@ const StaffDashboard = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await auth.signOut();
       navigate("/");
     } catch (err) {
       console.error("Error logging out:", err);
@@ -1484,6 +1570,8 @@ const StaffDashboard = () => {
               loading={loading}
               deleteAssignment={deleteAssignment}
               currentUserId={auth.currentUser?.uid}
+              currentSubmission={currentSubmission}
+              assignmentSubmissions={assignmentSubmissions}
             />
 
             <ResultsContainer

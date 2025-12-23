@@ -25,9 +25,40 @@ const StudentLogin = () => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
+        // Validate email for Google OAuth sign-in
+        const emailMatch = user.email?.match(/^22aids(\d{3})@act\.edu\.in$/);
+        const isYaknarashagan = user.email === "yaknarashagan2@gmail.com";
+        let allowed = false;
+        if (emailMatch) {
+          const num = parseInt(emailMatch[1], 10);
+          allowed = num >= 1 && num <= 58;
+        }
+
+        // If email is not allowed and it's not from direct login (Google OAuth)
+        if (
+          !allowed &&
+          !isYaknarashagan &&
+          !user.email?.endsWith("@act.edu.in")
+        ) {
+          setError(
+            "Google sign-in is only allowed for 22aids001@act.edu.in to 22aids058@act.edu.in"
+          );
+          await auth.signOut();
+          return;
+        }
+
         const docRef = doc(db, "students", user.uid);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().formFilled) {
+
+        // Create user record if it doesn't exist (for Google OAuth)
+        if (!docSnap.exists()) {
+          await setDoc(docRef, {
+            email: user.email,
+            displayName: user.displayName,
+            formFilled: false,
+          });
+          navigate("/student-form");
+        } else if (docSnap.data().formFilled) {
           navigate("/student-dashboard");
         } else {
           navigate("/student-form");
@@ -89,40 +120,10 @@ const StudentLogin = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const userCredential = await signInWithPopup(auth, googleProvider);
-      const user = userCredential.user;
-
-      // Restrict Google sign-in to allowed student emails or yaknarashagan2@gmail.com
-      const emailMatch = user.email.match(/^22aids(\d{3})@act\.edu\.in$/);
-      const isYaknarashagan = user.email === "yaknarashagan2@gmail.com";
-      let allowed = false;
-      if (emailMatch) {
-        const num = parseInt(emailMatch[1], 10);
-        allowed = num >= 1 && num <= 58;
-      }
-      if (!allowed && !isYaknarashagan) {
-        setError(
-          "Google sign-in is only allowed for 22aids001@act.edu.in to 22aids058@act.edu.in"
-        );
-        await auth.signOut();
-        return;
-      }
-
-      const docRef = doc(db, "students", user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        await setDoc(docRef, {
-          email: user.email,
-          displayName: user.displayName,
-          formFilled: false,
-        });
-        navigate("/student-form");
-      } else if (docSnap.data().formFilled) {
-        navigate("/student-dashboard");
-      } else {
-        navigate("/student-form");
-      }
+      // Supabase OAuth will redirect to Google and back
+      // The onAuthStateChanged listener in useEffect will handle the redirect
+      await signInWithPopup(auth, googleProvider);
+      // Note: The page will redirect, so code below won't execute
     } catch (err) {
       setError("Error during Google Sign-In: " + err.message);
     }
