@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { auth } from "../firebase";
+import { supabaseAuth as auth } from "../supabase";
 
 const OverdueTaskNotification = ({ task, onSubmitReason, onClose }) => {
   const [reason, setReason] = useState("");

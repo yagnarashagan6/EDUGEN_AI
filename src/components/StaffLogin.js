@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  auth,
+  supabaseAuth as auth,
   googleProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
-  db,
-  doc,
-  setDoc,
-  getDoc,
-} from "../firebase";
+  fetchStaffData,
+  updateStaffData,
+} from "../supabase";
 import staffIcon from "../assets/staff.png";
 import "../styles/Login.css";
 
@@ -46,22 +44,16 @@ const StaffLogin = () => {
             return;
           }
 
-          const docRef = doc(db, "staff", user.uid);
-          const docSnap = await getDoc(docRef);
+          const staffData = await fetchStaffData(user.uid);
 
-          // Create user record if it doesn't exist (for Google OAuth)
-          if (!docSnap.exists()) {
-            await setDoc(
-              docRef,
-              {
-                email: user.email,
-                displayName: user.displayName,
-                formFilled: false,
-              },
-              { merge: true }
-            );
+          if (!staffData) {
+            await updateStaffData(user.uid, {
+              email: user.email,
+              displayName: user.displayName,
+              formFilled: false,
+            });
             navigate("/staff-form", { replace: true });
-          } else if (docSnap.data().formFilled === true) {
+          } else if (staffData.formFilled === true) {
             navigate("/staff-dashboard", { replace: true });
           } else {
             navigate("/staff-form", { replace: true });
@@ -92,14 +84,13 @@ const StaffLogin = () => {
         await auth.signOut();
         return;
       }
-      const docRef = doc(db, "staff", user.uid);
-      const docSnap = await getDoc(docRef);
+      const staffData = await fetchStaffData(user.uid);
       console.log(
-        "Login - Firestore data:",
-        docSnap.exists() ? docSnap.data() : "No data"
+        "Login - Supabase data:",
+        staffData ? staffData : "No data"
       );
 
-      if (docSnap.exists() && docSnap.data().formFilled === true) {
+      if (staffData && staffData.formFilled === true) {
         navigate("/staff-dashboard", { replace: true });
       } else {
         navigate("/staff-form", { replace: true });
@@ -124,11 +115,11 @@ const StaffLogin = () => {
         password
       );
       const user = userCredential.user;
-      await setDoc(
-        doc(db, "staff", user.uid),
-        { username, email, formFilled: false },
-        { merge: true }
-      );
+      await updateStaffData(user.uid, {
+        username,
+        email,
+        formFilled: false,
+      });
       navigate("/staff-form", { replace: true });
     } catch (err) {
       setError("Error during registration: " + err.message);

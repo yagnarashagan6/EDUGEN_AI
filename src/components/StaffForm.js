@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { auth, db, doc, setDoc } from "../firebase";
+import { supabaseAuth as auth } from "../supabase";
+import { updateStaffData } from "../supabase";
 import "../styles/Form.css";
 
 const StaffForm = () => {
@@ -76,8 +77,9 @@ const StaffForm = () => {
           };
 
           try {
-            await setDoc(doc(db, "staff", user.uid), staffData, {
-              merge: true,
+            await updateStaffData(user.uid, {
+              ...staffData,
+              formFilled: true,
             });
             console.log(
               "Staff form data saved successfully for UID:",
@@ -98,7 +100,10 @@ const StaffForm = () => {
           image: imageData,
           formFilled: true,
         };
-        await setDoc(doc(db, "staff", user.uid), staffData, { merge: true });
+        await updateStaffData(user.uid, {
+          ...staffData,
+          formFilled: true,
+        });
         console.log("Staff form data saved successfully for UID:", user.uid);
         navigate("/staff-dashboard", { replace: false });
       }

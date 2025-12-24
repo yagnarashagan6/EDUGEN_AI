@@ -2,15 +2,16 @@
 import React, { useState, useEffect } from "react";
 import NotesForm from "./NotesForm";
 import "../styles/Notes.css";
-import { db, auth } from "../firebase";
+import { supabaseAuth as auth } from "../supabase";
 import {
-  collection,
-  onSnapshot,
-  addDoc,
-  doc,
-  deleteDoc,
-  getDoc,
-} from "firebase/firestore";
+  fetchNotes,
+  addNote,
+  deleteNote,
+  subscribeToNotes,
+  fetchStudents,
+  subscribeToStudents,
+  fetchUserName,
+} from "../supabase";
 
 const Notes = ({ toggleContainer, studentName }) => {
   const currentUser = studentName || "Unknown";
@@ -31,65 +32,61 @@ const Notes = ({ toggleContainer, studentName }) => {
   const [userNames, setUserNames] = useState({});
 
   useEffect(() => {
-    // Fetch students from Firebase
-    const unsubscribeStudents = onSnapshot(
-      collection(db, "students"),
-      (snapshot) => {
-        try {
-          const studentsData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            name: doc.data().name || "Unknown",
-          }));
-          setStudents(studentsData);
-        } catch (error) {
-          console.error("Error fetching students:", error);
-          setError("Failed to load students. Please try again.");
-        }
-      },
-      (error) => {
-        console.error("Error in students snapshot listener:", error);
+    // Fetch students from Supabase
+    const loadStudents = async () => {
+      try {
+        const studentsData = await fetchStudents();
+        setStudents(studentsData);
+      } catch (error) {
+        console.error("Error fetching students:", error);
         setError("Failed to load students. Please try again.");
       }
-    );
+    };
 
-    const unsubscribeNotes = onSnapshot(
-      collection(db, "notes"),
-      (snapshot) => {
-        try {
-          const notesData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          // Filter notes based on sharedWith (all or includes current user's ID)
-          const filtered = notesData.filter(
-            (note) =>
-              note.sharedWith.includes("all") ||
-              note.sharedWith.includes(auth.currentUser?.uid)
-          );
-          setNotes(filtered);
-          setFilteredNotes(filtered);
-          setLoading(false);
+    // Fetch notes from Supabase
+    const loadNotes = async () => {
+      try {
+        const notesData = await fetchNotes();
+        setNotes(notesData);
+        setFilteredNotes(notesData);
+        setLoading(false);
 
-          const uniqueSubjects = [
-            ...new Set(filtered.map((note) => note.subject)),
-          ];
-          setSubjects(
-            uniqueSubjects.length > 0
-              ? uniqueSubjects
-              : ["human_resource", "it", "agriculture"]
-          );
-        } catch (error) {
-          console.error("Error fetching notes:", error);
-          setError("Failed to load notes. Please try again.");
-          setLoading(false);
-        }
-      },
-      (error) => {
-        console.error("Error in notes snapshot listener:", error);
+        const uniqueSubjects = [
+          ...new Set(notesData.map((note) => note.subject)),
+        ];
+        setSubjects(
+          uniqueSubjects.length > 0
+            ? uniqueSubjects
+            : ["human_resource", "it", "agriculture"]
+        );
+      } catch (error) {
+        console.error("Error fetching notes:", error);
         setError("Failed to load notes. Please try again.");
         setLoading(false);
       }
-    );
+    };
+
+    loadStudents();
+    loadNotes();
+
+    // Subscribe to real-time updates
+    const unsubscribeStudents = subscribeToStudents((studentsData) => {
+      setStudents(studentsData);
+    });
+
+    const unsubscribeNotes = subscribeToNotes((notesData) => {
+      setNotes(notesData);
+      setFilteredNotes(notesData);
+
+      const uniqueSubjects = [
+        ...new Set(notesData.map((note) => note.subject)),
+      ];
+      setSubjects(
+        uniqueSubjects.length > 0
+          ? uniqueSubjects
+          : ["human_resource", "it", "agriculture"]
+      );
+    });
 
     return () => {
       unsubscribeStudents();
@@ -100,15 +97,13 @@ const Notes = ({ toggleContainer, studentName }) => {
   useEffect(() => {
     const fetchUserNames = async () => {
       const uniqueUserIds = [
-        ...new Set(notes.map((note) => note.userId).filter(Boolean)),
+        ...new Set(notes.map((note) => note.user_id).filter(Boolean)),
       ];
       const namesMap = {};
       for (const userId of uniqueUserIds) {
         try {
-          const userDoc = await getDoc(doc(db, "students", userId));
-          if (userDoc.exists()) {
-            namesMap[userId] = userDoc.data().name || "Unknown";
-          }
+          const name = await fetchUserName(userId);
+          namesMap[userId] = name;
         } catch (e) {
           namesMap[userId] = "Unknown";
         }
@@ -144,11 +139,9 @@ const Notes = ({ toggleContainer, studentName }) => {
   const handleNoteSubmit = async (newNotes) => {
     try {
       for (const note of newNotes) {
-        await addDoc(collection(db, "notes"), {
+        await addNote({
           ...note,
           name: note.name || currentUser,
-          userId: auth.currentUser?.uid || "unknown",
-          timestamp: new Date().toISOString(),
         });
       }
       setShowForm(false);
@@ -162,7 +155,7 @@ const Notes = ({ toggleContainer, studentName }) => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      await deleteDoc(doc(db, "notes", id));
+      await deleteNote(id);
       setError("");
     } catch (error) {
       console.error("Error deleting note:", error);
@@ -292,7 +285,7 @@ const Notes = ({ toggleContainer, studentName }) => {
                         <p className="note-sender" style={{ margin: 0 }}>
                           by:{" "}
                           <span className="note-sender-highlight">
-                            {userNames[note.userId] || note.name || "Unknown"}
+                            {userNames[note.user_id] || note.name || "Unknown"}
                           </span>
                         </p>
                         <p
@@ -315,7 +308,7 @@ const Notes = ({ toggleContainer, studentName }) => {
                         </p>
                       </div>
 
-                      {note.userId === auth.currentUser?.uid && (
+                      {note.user_id === auth.currentUser?.uid && (
                         <button
                           onClick={() => handleDelete(note.id)}
                           className="close-btn"

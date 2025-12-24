@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { supabaseAuth as auth } from "../supabase";
+import { fetchStudentData, fetchStaffData } from "../supabase";
 import "../styles/Profile.css";
 
 const Profile = () => {
@@ -25,21 +25,24 @@ const Profile = () => {
       }
 
       setRole(passedRole);
-      const collectionName = passedRole === "student" ? "students" : "staff";
-      const docRef = doc(db, collectionName, user.uid);
-      const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        setUserData(docSnap.data());
-      } else {
-        navigate(`/${passedRole}-login`);
+      try {
+        const data = passedRole === "student"
+          ? await fetchStudentData(user.uid)
+          : await fetchStaffData(user.uid);
+
+        if (data) {
+          setUserData(data);
+        } else {
+          navigate(`/${passedRole}-login`);
+        }
+      } catch (err) {
+        console.error("Error fetching profile data:", err);
+        navigate("/");
       }
     };
 
-    fetchUserData().catch((err) => {
-      console.error("Error fetching profile data:", err);
-      navigate("/");
-    });
+    fetchUserData();
   }, [navigate, location]);
 
   const goBack = () => navigate(`/${role}-dashboard`);

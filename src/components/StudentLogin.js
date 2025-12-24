@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  auth,
+  supabaseAuth as auth,
   googleProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
-  db,
-  doc,
-  setDoc,
-  getDoc,
-} from "../firebase";
+  fetchStudentData,
+  updateStudentData,
+} from "../supabase";
 import studentIcon from "../assets/student.png";
 import "../styles/Login.css";
 
@@ -47,18 +45,16 @@ const StudentLogin = () => {
           return;
         }
 
-        const docRef = doc(db, "students", user.uid);
-        const docSnap = await getDoc(docRef);
+        const studentData = await fetchStudentData(user.uid);
 
-        // Create user record if it doesn't exist (for Google OAuth)
-        if (!docSnap.exists()) {
-          await setDoc(docRef, {
+        if (!studentData) {
+          await updateStudentData(user.uid, {
             email: user.email,
             displayName: user.displayName,
             formFilled: false,
           });
           navigate("/student-form");
-        } else if (docSnap.data().formFilled) {
+        } else if (studentData.formFilled || studentData.form_filled) {
           navigate("/student-dashboard");
         } else {
           navigate("/student-form");
@@ -95,10 +91,9 @@ const StudentLogin = () => {
       );
       const user = userCredential.user;
 
-      const docRef = doc(db, "students", user.uid);
-      const docSnap = await getDoc(docRef);
+      const studentData = await fetchStudentData(user.uid);
 
-      if (docSnap.exists() && docSnap.data().formFilled) {
+      if (studentData && studentData.formFilled) {
         navigate("/student-dashboard");
       } else {
         navigate("/student-form");

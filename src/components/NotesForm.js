@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import "../styles/NotesForm.css";
-import { storage, auth } from "../firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { supabaseAuth as auth } from "../supabase";
+import { uploadFile } from "../supabase";
 
 const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
   const [formData, setFormData] = useState({
@@ -96,9 +96,8 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
     setUploading(true);
 
     try {
-      const storageRef = ref(storage, `notes/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      // Upload to Supabase Storage
+      const downloadURL = await uploadFile(file, "notes");
 
       setFormData((prev) => ({
         ...prev,
@@ -262,9 +261,8 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
               <span className="dropdown-text">
                 {formData.sharedWith.includes("all")
                   ? "All Students"
-                  : `${formData.sharedWith.length} student${
-                      formData.sharedWith.length > 1 ? "s" : ""
-                    } selected`}
+                  : `${formData.sharedWith.length} student${formData.sharedWith.length > 1 ? "s" : ""
+                  } selected`}
               </span>
               <span className={`dropdown-arrow ${dropdownOpen ? "open" : ""}`}>
                 ▼
@@ -273,9 +271,8 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
             {dropdownOpen && (
               <div className="dropdown-list">
                 <div
-                  className={`dropdown-item ${
-                    formData.sharedWith.includes("all") ? "selected" : ""
-                  }`}
+                  className={`dropdown-item ${formData.sharedWith.includes("all") ? "selected" : ""
+                    }`}
                   onClick={() => handleSharedWithChange("all")}
                 >
                   <input
@@ -293,11 +290,10 @@ const NotesForm = ({ onSubmit, onCancel, subjects, studentName, students }) => {
                   .map((student) => (
                     <div
                       key={student.id}
-                      className={`dropdown-item ${
-                        formData.sharedWith.includes(student.id)
-                          ? "selected"
-                          : ""
-                      }`}
+                      className={`dropdown-item ${formData.sharedWith.includes(student.id)
+                        ? "selected"
+                        : ""
+                        }`}
                       onClick={() => handleSharedWithChange(student.id)}
                     >
                       <input

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../firebase"; // Add missing auth import
+import { supabaseAuth as auth } from "../supabase";
 import "../styles/Sidebar.css";
 import "../styles/Dashboard.css";
 
@@ -68,12 +68,12 @@ const Sidebar = ({
     // Only show chatbot option on mobile
     ...(isMobile
       ? [
-          {
-            id: "chatbot-container",
-            icon: "fas fa-comment",
-            label: "Chatbot",
-          },
-        ]
+        {
+          id: "chatbot-container",
+          icon: "fas fa-comment",
+          label: "Chatbot",
+        },
+      ]
       : []),
     { id: "notes-container", icon: "fas fa-sticky-note", label: "Notes" },
     { id: "settings-container", icon: "fas fa-cog", label: "Settings" },
@@ -111,12 +111,12 @@ const Sidebar = ({
     // Only show chatbot option on mobile
     ...(isMobile
       ? [
-          {
-            id: "chatbot-container",
-            icon: "fas fa-comment",
-            label: "Chatbot",
-          },
-        ]
+        {
+          id: "chatbot-container",
+          icon: "fas fa-comment",
+          label: "Chatbot",
+        },
+      ]
       : []),
     { id: "settings-container", icon: "fas fa-cog", label: "Settings" },
   ];
@@ -251,9 +251,8 @@ const Sidebar = ({
                 toggleSidebar(); // Close sidebar on mobile after selection
               }
             }}
-            className={`sidebar-menu-item ${
-              activeContainer === item.id ? "active-option" : ""
-            }`}
+            className={`sidebar-menu-item ${activeContainer === item.id ? "active-option" : ""
+              }`}
             title={window.innerWidth > 768 ? item.label : ""}
           >
             <i className={item.icon}></i>

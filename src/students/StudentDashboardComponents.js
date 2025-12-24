@@ -1,7 +1,6 @@
 // StudentDashboardComponents.js
 import React, { useState, useEffect, useCallback } from "react";
-import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "../firebase"; // Assuming firebase.js is in this path
+import { supabaseAuth as auth } from "../supabase";
 
 export const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
@@ -73,9 +72,8 @@ export const ChatInterface = ({
                   .map((staff) => (
                     <div
                       key={staff.id}
-                      className={`contact-item ${
-                        selectedStaffId === staff.id ? "active" : ""
-                      }`}
+                      className={`contact-item ${selectedStaffId === staff.id ? "active" : ""
+                        }`}
                       onClick={() => selectStaff(staff)}
                     >
                       <div className="contact-info">
@@ -120,9 +118,8 @@ export const ChatInterface = ({
                       {groupedMessages[dateKey].map((msg, index) => (
                         <div
                           key={`${msg.timestamp}-${index}`}
-                          className={`message-bubble ${
-                            msg.sender === "student" ? "sent" : "received"
-                          }`}
+                          className={`message-bubble ${msg.sender === "student" ? "sent" : "received"
+                            }`}
                           onClick={() => {
                             if (
                               msg.sender === "student" &&
@@ -693,10 +690,10 @@ export const AssignmentItem = ({ assignment }) => {
               <strong>Posted:</strong>{" "}
               {assignment.postedAt
                 ? new Date(assignment.postedAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
                 : "N/A"}
             </div>
           </div>
@@ -867,8 +864,8 @@ export const AssignmentItem = ({ assignment }) => {
           {marksLoading
             ? "Loading marks..."
             : marks && marks.marks !== undefined
-            ? `Marks: ${marks.marks}`
-            : "Marks: Not assigned yet"}
+              ? `Marks: ${marks.marks}`
+              : "Marks: Not assigned yet"}
         </div>
       </div>
     </div>

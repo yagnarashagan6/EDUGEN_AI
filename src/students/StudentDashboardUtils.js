@@ -1,26 +1,10 @@
 // StudentDashboardUtils.js
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "../firebase"; // Assuming firebase.js is in this path
+import { saveTaskCompletion } from "../supabase";
 
 // --- UTILITY FUNCTIONS ---
 
-export const saveTaskCompletion = async (task) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) return;
-    const taskId =
-      task?.id || task?.content?.toLowerCase().replace(/\s+/g, "_");
-    // Firestore rule: /students/{studentId}/task_status/{taskId}
-    const taskStatusRef = doc(db, "students", user.uid, "task_status", taskId);
-    await setDoc(taskStatusRef, {
-      completed: true,
-      topic: task.content,
-      completedAt: new Date(),
-    });
-  } catch (err) {
-    console.error("❌ Error saving task completion:", err);
-  }
-};
+// Re-export saveTaskCompletion from supabase
+export { saveTaskCompletion };
 
 export const generateQuizWithFallback = async (requestBody) => {
   const primaryUrl =

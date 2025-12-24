@@ -8,23 +8,27 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
+import { supabaseAuth as auth } from "../supabase";
 import {
-  onSnapshot,
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  getDocs,
-  addDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  limit,
-  Timestamp,
-  getDocsFromServer,
-  updateDoc,
-} from "firebase/firestore";
-import { auth, db } from "../firebase";
+  fetchStaffData,
+  updateStaffData,
+  updateStaffStats,
+  fetchAllStudents,
+  fetchTasks,
+  saveTasks,
+  fetchTaskStatuses,
+  fetchAssignments,
+  subscribeToAssignments,
+  addAssignment,
+  deleteAssignment,
+  fetchSubmission,
+  saveMarks,
+  fetchSettings,
+  saveSettings,
+  calculateAndStoreOverallPerformance,
+  resetAllStreaksToZero,
+  deleteUnknownStudents,
+} from "../supabase";
 import Sidebar from "../components/Sidebar";
 import Chatbot from "../components/Chatbot";
 import TaskItem from "../components/TaskItem";
@@ -52,9 +56,6 @@ import {
   CHANNELS,
   CATEGORY_LIST,
   loadingIcons,
-  resetAllStreaksToZero,
-  deleteUnknownStudents,
-  calculateAndStoreOverallPerformance,
 } from "../staff/StaffDashboardUtils";
 import {
   DefaultContent,
@@ -950,9 +951,8 @@ const StaffDashboard = () => {
           "notifications"
         );
         await addDoc(studentNotifRef, {
-          message: `New message from staff: ${text.substring(0, 50)}${
-            text.length > 50 ? "..." : ""
-          }`,
+          message: `New message from staff: ${text.substring(0, 50)}${text.length > 50 ? "..." : ""
+            }`,
           type: "message",
           staffId: staffUserId,
           timestamp: Timestamp.now(),

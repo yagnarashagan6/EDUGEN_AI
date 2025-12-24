@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { auth, db, doc, setDoc } from "../firebase";
+import { supabaseAuth as auth } from "../supabase";
+import { updateStudentData } from "../supabase";
 import "../styles/Form.css";
 
 const StudentForm = () => {
@@ -69,8 +70,9 @@ const StudentForm = () => {
           };
 
           try {
-            await setDoc(doc(db, "students", user.uid), studentData, {
-              merge: true,
+            await updateStudentData(user.uid, {
+              ...studentData,
+              formFilled: true,
             });
             console.log(
               "Student form data saved successfully, formFilled set to true for UID:",
@@ -91,8 +93,9 @@ const StudentForm = () => {
           image: imageData,
           formFilled: true,
         };
-        await setDoc(doc(db, "students", user.uid), studentData, {
-          merge: true,
+        await updateStudentData(user.uid, {
+          ...studentData,
+          formFilled: true,
         });
         console.log(
           "Student form data saved successfully, formFilled set to true for UID:",

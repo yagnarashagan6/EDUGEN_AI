@@ -21,13 +21,13 @@ export const supabaseAuth = {
     supabase.auth.getSession().then(({ data: { session } }) => {
       this.currentUser = session?.user
         ? {
-            uid: session.user.id,
-            email: session.user.email,
-            displayName:
-              session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name ||
-              session.user.email?.split("@")[0],
-          }
+          uid: session.user.id,
+          email: session.user.email,
+          displayName:
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            session.user.email?.split("@")[0],
+        }
         : null;
       callback(this.currentUser);
     });
@@ -38,13 +38,13 @@ export const supabaseAuth = {
     } = supabase.auth.onAuthStateChange((event, session) => {
       this.currentUser = session?.user
         ? {
-            uid: session.user.id,
-            email: session.user.email,
-            displayName:
-              session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name ||
-              session.user.email?.split("@")[0],
-          }
+          uid: session.user.id,
+          email: session.user.email,
+          displayName:
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            session.user.email?.split("@")[0],
+        }
         : null;
       callback(this.currentUser);
     });
@@ -134,8 +134,1827 @@ export const signInWithPopup = async (authInstance, provider) => {
 
   // For OAuth, the redirect will happen and onAuthStateChange will handle the rest
   // Return a promise that never resolves (the page will redirect)
-  return new Promise(() => {});
+  return new Promise(() => { });
 };
 
 // Google provider placeholder (not used directly with Supabase, kept for API compatibility)
 export const googleProvider = { providerId: "google.com" };
+
+// ============================================
+// NOTES FUNCTIONS
+// ============================================
+
+/**
+ * Fetch all notes accessible to the current user
+ * @returns {Promise<Array>} Array of notes
+ */
+export const fetchNotes = async () => {
+  try {
+    const currentUser = supabaseAuth.currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user");
+    }
+
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .order("timestamp", { ascending: false });
+
+    if (error) throw error;
+
+    // Filter notes based on sharedWith (all or includes current user's ID)
+    const filtered = data.filter(
+      (note) =>
+        note.shared_with?.includes("all") ||
+        note.shared_with?.includes(currentUser.uid)
+    );
+
+    return filtered;
+  } catch (error) {
+    console.error("Error fetching notes:", error);
+    throw error;
+  }
+};
+
+/**
+ * Add a new note
+ * @param {Object} noteData - Note data to add
+ * @returns {Promise<Object>} Created note
+ */
+export const addNote = async (noteData) => {
+  try {
+    const currentUser = supabaseAuth.currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user");
+    }
+
+    const noteToInsert = {
+      title: noteData.title,
+      description: noteData.description,
+      url: noteData.url,
+      type: noteData.type,
+      subject: noteData.subject,
+      shared_with: noteData.sharedWith || ["all"],
+      user_id: currentUser.uid,
+      name: noteData.name || currentUser.displayName,
+      timestamp: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("notes")
+      .insert([noteToInsert])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error("Error adding note:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a note by ID
+ * @param {string} noteId - ID of the note to delete
+ * @returns {Promise<void>}
+ */
+export const deleteNote = async (noteId) => {
+  try {
+    const { error } = await supabase.from("notes").delete().eq("id", noteId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting note:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time notes updates
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToNotes = (callback) => {
+  const currentUser = supabaseAuth.currentUser;
+  if (!currentUser) {
+    console.warn("No authenticated user for notes subscription");
+    return () => { };
+  }
+
+  const channel = supabase
+    .channel("notes-changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "notes",
+      },
+      async (payload) => {
+        // Fetch all notes and filter
+        const notes = await fetchNotes();
+        callback(notes);
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Fetch all students
+ * @returns {Promise<Array>} Array of students
+ */
+export const fetchStudents = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, name")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    return data.map((student) => ({
+      id: student.id,
+      name: student.name || "Unknown",
+    }));
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time students updates
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToStudents = (callback) => {
+  const channel = supabase
+    .channel("students-changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "students",
+      },
+      async (payload) => {
+        // Fetch all students
+        const students = await fetchStudents();
+        callback(students);
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Fetch user name by user ID
+ * @param {string} userId - User ID
+ * @returns {Promise<string>} User name
+ */
+export const fetchUserName = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from("students")
+      .select("name")
+      .eq("id", userId)
+      .single();
+
+    if (error) throw error;
+
+    return data?.name || "Unknown";
+  } catch (error) {
+    console.error("Error fetching user name:", error);
+    return "Unknown";
+  }
+};
+
+// ============================================
+// MESSAGES/CHAT FUNCTIONS
+// ============================================
+
+/**
+ * Send a message to a private chat between staff and student
+ * @param {string} text - Message text
+ * @param {string} selectedUserId - ID of the other user (staff or student)
+ * @param {string} userRole - Current user's role ('staff' or 'student')
+ * @returns {Promise<void>}
+ */
+export const sendMessage = async (text, selectedUserId, userRole) => {
+  if (!text || !selectedUserId) return;
+
+  const currentUser = supabaseAuth.currentUser;
+  if (!currentUser) {
+    throw new Error("No authenticated user");
+  }
+
+  const userId = currentUser.uid;
+  const isStaff = userRole === "staff";
+
+  // Always format chatId as staffId_studentId
+  const chatId = isStaff
+    ? `${userId}_${selectedUserId}`
+    : `${selectedUserId}_${userId}`;
+
+  const newMessage = {
+    text,
+    sender: isStaff ? "staff" : "student",
+    timestamp: new Date().toISOString(),
+    read: false,
+  };
+
+  try {
+    // Fetch existing chat
+    const { data: existingChat, error: fetchError } = await supabase
+      .from("messages")
+      .select("messages")
+      .eq("chat_id", chatId)
+      .single();
+
+    let messages = [];
+    if (existingChat && !fetchError) {
+      messages = existingChat.messages || [];
+    }
+
+    // Add new message
+    messages.push(newMessage);
+
+    // Upsert (insert or update)
+    const { error: upsertError } = await supabase
+      .from("messages")
+      .upsert(
+        {
+          chat_id: chatId,
+          messages: messages,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "chat_id" }
+      );
+
+    if (upsertError) throw upsertError;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time messages in a private chat
+ * @param {string} selectedUserId - ID of the other user
+ * @param {string} userRole - Current user's role ('staff' or 'student')
+ * @param {Function} setMessages - Callback to update messages
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToMessages = (selectedUserId, userRole, setMessages) => {
+  const currentUser = supabaseAuth.currentUser;
+  if (!currentUser) {
+    console.warn("No authenticated user for messages subscription");
+    setMessages([]);
+    return () => { };
+  }
+
+  const userId = currentUser.uid;
+  const isStaff = userRole === "staff";
+
+  // Always format chatId as staffId_studentId
+  const chatId = isStaff
+    ? `${userId}_${selectedUserId}`
+    : `${selectedUserId}_${userId}`;
+
+  // Initial fetch
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("messages")
+        .eq("chat_id", chatId)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 is "not found" - that's okay
+        throw error;
+      }
+
+      setMessages(data?.messages || []);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setMessages([]);
+    }
+  };
+
+  fetchMessages();
+
+  // Subscribe to changes
+  const channel = supabase
+    .channel(`messages-${chatId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "messages",
+        filter: `chat_id=eq.${chatId}`,
+      },
+      (payload) => {
+        if (payload.new && payload.new.messages) {
+          setMessages(payload.new.messages);
+        } else if (payload.eventType === "DELETE") {
+          setMessages([]);
+        }
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Mark messages as read in a private chat
+ * @param {string} selectedUserId - ID of the other user
+ * @param {string} userRole - Current user's role ('staff' or 'student')
+ * @returns {Promise<void>}
+ */
+export const markMessagesAsRead = async (selectedUserId, userRole) => {
+  const currentUser = supabaseAuth.currentUser;
+  if (!currentUser) {
+    throw new Error("No authenticated user");
+  }
+
+  const userId = currentUser.uid;
+  const isStaff = userRole === "staff";
+
+  // Always format chatId as staffId_studentId
+  const chatId = isStaff
+    ? `${userId}_${selectedUserId}`
+    : `${selectedUserId}_${userId}`;
+
+  try {
+    // Fetch existing chat
+    const { data: existingChat, error: fetchError } = await supabase
+      .from("messages")
+      .select("messages")
+      .eq("chat_id", chatId)
+      .single();
+
+    if (fetchError || !existingChat) {
+      console.warn("No messages to mark as read");
+      return;
+    }
+
+    const messages = existingChat.messages || [];
+
+    // Mark messages from the other user as read
+    const updatedMessages = messages.map((msg) =>
+      msg.sender !== (isStaff ? "staff" : "student") && !msg.read
+        ? { ...msg, read: true }
+        : msg
+    );
+
+    // Update in database
+    const { error: updateError } = await supabase
+      .from("messages")
+      .update({
+        messages: updatedMessages,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("chat_id", chatId);
+
+    if (updateError) throw updateError;
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    throw error;
+  }
+};
+
+// ============================================
+// TASKS AND TASK STATUS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch all shared tasks
+ * @returns {Promise<Array>} Array of tasks
+ */
+export const fetchTasks = async () => {
+  try {
+    // Tasks are stored in a single document with ID '00000000-0000-0000-0000-000000000001'
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("tasks")
+      .eq("id", "00000000-0000-0000-0000-000000000001")
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 is "not found" - that's okay
+      throw error;
+    }
+
+    return data?.tasks || [];
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    return [];
+  }
+};
+
+/**
+ * Save/update all shared tasks
+ * @param {Array} tasks - Array of task objects
+ * @returns {Promise<void>}
+ */
+export const saveTasks = async (tasks) => {
+  try {
+    const { error } = await supabase
+      .from("tasks")
+      .upsert(
+        {
+          id: "00000000-0000-0000-0000-000000000001",
+          tasks: tasks,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error saving tasks:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time tasks updates
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToTasks = (callback) => {
+  const channel = supabase
+    .channel("tasks-changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "tasks",
+        filter: "id=eq.00000000-0000-0000-0000-000000000001",
+      },
+      async (payload) => {
+        if (payload.new && payload.new.tasks) {
+          callback(payload.new.tasks);
+        } else {
+          const tasks = await fetchTasks();
+          callback(tasks);
+        }
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Save task completion status for a student
+ * @param {Object} task - Task object with id or content
+ * @returns {Promise<void>}
+ */
+export const saveTaskCompletion = async (task) => {
+  try {
+    const currentUser = supabaseAuth.currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user");
+    }
+
+    const taskId =
+      task?.id || task?.content?.toLowerCase().replace(/\s+/g, "_");
+
+    const { error } = await supabase.from("task_status").upsert(
+      {
+        student_id: currentUser.uid,
+        task_id: taskId,
+        completed: true,
+        topic: task.content,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id,task_id" }
+    );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error saving task completion:", error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch task completion statuses for a student
+ * @param {string} studentId - Student ID (optional, defaults to current user)
+ * @returns {Promise<Object>} Object with taskId as key and status as value
+ */
+export const fetchTaskStatuses = async (studentId = null) => {
+  try {
+    const userId = studentId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    const { data, error } = await supabase
+      .from("task_status")
+      .select("*")
+      .eq("student_id", userId);
+
+    if (error) throw error;
+
+    // Convert array to object with task_id as key
+    const taskStatuses = {};
+    data.forEach((status) => {
+      taskStatuses[status.task_id] = {
+        completed: status.completed,
+        topic: status.topic,
+        completedAt: status.completed_at,
+      };
+    });
+
+    return taskStatuses;
+  } catch (error) {
+    console.error("Error fetching task statuses:", error);
+    return {};
+  }
+};
+
+/**
+ * Subscribe to real-time task status updates for a student
+ * @param {string} studentId - Student ID
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToTaskStatuses = (studentId, callback) => {
+  const userId = studentId || supabaseAuth.currentUser?.uid;
+  if (!userId) {
+    console.warn("No user ID for task status subscription");
+    return () => { };
+  }
+
+  // Initial fetch
+  fetchTaskStatuses(userId).then(callback);
+
+  const channel = supabase
+    .channel(`task-status-${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "task_status",
+        filter: `student_id=eq.${userId}`,
+      },
+      async (payload) => {
+        // Refetch all statuses
+        const statuses = await fetchTaskStatuses(userId);
+        callback(statuses);
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Delete a task status
+ * @param {string} taskId - Task ID
+ * @param {string} studentId - Student ID (optional, defaults to current user)
+ * @returns {Promise<void>}
+ */
+export const deleteTaskStatus = async (taskId, studentId = null) => {
+  try {
+    const userId = studentId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    const { error } = await supabase
+      .from("task_status")
+      .delete()
+      .eq("student_id", userId)
+      .eq("task_id", taskId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting task status:", error);
+    throw error;
+  }
+};
+
+// ============================================
+// STORAGE FUNCTIONS
+// ============================================
+
+/**
+ * Upload a file to Supabase Storage
+ * @param {File} file - File to upload
+ * @param {string} folder - Folder name (e.g., 'notes', 'assignments')
+ * @returns {Promise<string>} Public URL of uploaded file
+ */
+export const uploadFile = async (file, folder = "notes") => {
+  try {
+    const currentUser = supabaseAuth.currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user");
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileName = `${folder}/${timestamp}_${file.name}`;
+
+    // Upload file to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from("files") // bucket name
+      .upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("files").getPublicUrl(fileName);
+
+    return publicUrl;
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a file from Supabase Storage
+ * @param {string} fileUrl - Public URL of the file
+ * @returns {Promise<void>}
+ */
+export const deleteFile = async (fileUrl) => {
+  try {
+    // Extract file path from URL
+    const urlParts = fileUrl.split("/files/");
+    if (urlParts.length < 2) {
+      throw new Error("Invalid file URL");
+    }
+    const filePath = urlParts[1];
+
+    const { error } = await supabase.storage.from("files").remove([filePath]);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    throw error;
+  }
+};
+
+// ============================================
+// STUDENT PROFILE FUNCTIONS
+// ============================================
+
+/**
+ * Fetch student data by ID
+ * @param {string} studentId - Student ID (optional, defaults to current user)
+ * @returns {Promise<Object>} Student data
+ */
+export const fetchStudentData = async (studentId = null) => {
+  try {
+    const userId = studentId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 is "not found"
+      throw error;
+    }
+
+    return data || null;
+  } catch (error) {
+    console.error("Error fetching student data:", error);
+    return null;
+  }
+};
+
+/**
+ * Update student data
+ * @param {string} studentId - Student ID (optional, defaults to current user)
+ * @param {Object} data - Data to update
+ * @returns {Promise<void>}
+ */
+export const updateStudentData = async (studentId = null, data) => {
+  try {
+    const userId = studentId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    // Convert field names to snake_case
+    const updateData = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.displayName !== undefined) updateData.display_name = data.displayName;
+    if (data.dob !== undefined) updateData.dob = data.dob;
+    if (data.streak !== undefined) updateData.streak = data.streak;
+    if (data.progress !== undefined) updateData.progress = data.progress;
+    if (data.quizCount !== undefined) updateData.quiz_count = data.quizCount;
+    if (data.lastLogin !== undefined) updateData.last_login = data.lastLogin;
+    if (data.photoURL !== undefined) updateData.photo_url = data.photoURL;
+    if (data.image !== undefined) updateData.image = data.image;
+    if (data.totalTimeSpentInMs !== undefined)
+      updateData.total_time_spent_ms = data.totalTimeSpentInMs;
+    if (data.dailySessions !== undefined)
+      updateData.daily_sessions = data.dailySessions;
+    if (data.formFilled !== undefined) updateData.form_filled = data.formFilled;
+    if (data.regNumber !== undefined) updateData.reg_number = data.regNumber;
+    if (data.rollNumber !== undefined) updateData.roll_number = data.rollNumber;
+    if (data.department !== undefined) updateData.department = data.department;
+    if (data.gender !== undefined) updateData.gender = data.gender;
+    if (data.bloodGroup !== undefined) updateData.blood_group = data.bloodGroup;
+    if (data.studentContact !== undefined) updateData.student_contact = data.studentContact;
+
+    updateData.updated_at = new Date().toISOString();
+
+    console.log("Updating student data:", { id: userId, ...updateData });
+
+    const { data: result, error } = await supabase
+      .from("students")
+      .update(updateData)
+      .eq("id", userId)
+      .select();
+
+    if (error) {
+      console.error("Supabase error details:", error);
+      throw error;
+    }
+
+    console.log("Student data updated successfully:", result);
+    return result;
+  } catch (error) {
+    console.error("Error updating student data:", error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch all students
+ * @returns {Promise<Array>} Array of students
+ */
+export const fetchAllStudents = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    // Convert snake_case to camelCase for compatibility
+    return data.map((student) => ({
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      dob: student.dob,
+      streak: student.streak,
+      progress: student.progress,
+      quizCount: student.quiz_count,
+      lastLogin: student.last_login,
+      photoURL: student.photo_url,
+      totalTimeSpentInMs: student.total_time_spent_ms,
+      dailySessions: student.daily_sessions,
+    }));
+  } catch (error) {
+    console.error("Error fetching all students:", error);
+    return [];
+  }
+};
+
+// ============================================
+// STAFF PROFILE FUNCTIONS
+// ============================================
+
+/**
+ * Fetch staff data by ID
+ * @param {string} staffId - Staff ID (optional, defaults to current user)
+ * @returns {Promise<Object>} Staff data
+ */
+export const fetchStaffData = async (staffId = null) => {
+  try {
+    const userId = staffId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    const { data, error } = await supabase
+      .from("staff")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    // Convert snake_case to camelCase
+    if (data) {
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        formFilled: data.form_filled,
+        stats: data.stats,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching staff data:", error);
+    return null;
+  }
+};
+
+/**
+ * Update staff stats
+ * @param {string} staffId - Staff ID
+ * @param {Object} stats - Stats object to update
+ * @returns {Promise<void>}
+ */
+export const updateStaffStats = async (staffId, stats) => {
+  try {
+    const { error } = await supabase
+      .from("staff")
+      .upsert(
+        {
+          id: staffId,
+          stats: stats,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error updating staff stats:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update staff data
+ * @param {string} staffId - Staff ID
+ * @param {Object} data - Data to update
+ * @returns {Promise<void>}
+ */
+export const updateStaffData = async (staffId, data) => {
+  try {
+    const updateData = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.displayName !== undefined) updateData.display_name = data.displayName;
+    if (data.username !== undefined) updateData.username = data.username;
+    if (data.staffId !== undefined) updateData.staff_id = data.staffId;
+    if (data.department !== undefined) updateData.department = data.department;
+    if (data.subject !== undefined) updateData.subject = data.subject;
+    if (data.dob !== undefined) updateData.dob = data.dob;
+    if (data.gender !== undefined) updateData.gender = data.gender;
+    if (data.contactNumber !== undefined) updateData.contact_number = data.contactNumber;
+    if (data.image !== undefined) updateData.image = data.image;
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.formFilled !== undefined)
+      updateData.form_filled = data.formFilled;
+    if (data.stats !== undefined) updateData.stats = data.stats;
+
+    updateData.updated_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("staff")
+      .upsert({ id: staffId, ...updateData }, { onConflict: "id" });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error updating staff data:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to all staff members
+ * @param {Function} callback - Callback function
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToStaff = (callback) => {
+  const channel = supabase
+    .channel("staff-all")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "staff",
+      },
+      () => {
+        // Fetch all staff when any change occurs
+        fetchAllStaff().then(callback);
+      }
+    )
+    .subscribe();
+
+  // Fetch initial data
+  fetchAllStaff().then(callback);
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+/**
+ * Fetch all staff members
+ * @returns {Promise<Array>} Array of staff
+ */
+const fetchAllStaff = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("staff")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+
+    // Convert snake_case to camelCase
+    return (data || []).map((staff) => ({
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      displayName: staff.display_name,
+      photoURL: staff.photo_url || "/default-staff.png",
+      role: staff.role,
+      department: staff.department,
+      subject: staff.subject,
+      stats: staff.stats,
+    }));
+  } catch (error) {
+    console.error("Error fetching all staff:", error);
+    return [];
+  }
+};
+
+
+// ============================================
+// GOALS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch goals for a student
+ * @param {string} studentId - Student ID (optional, defaults to current user)
+ * @returns {Promise<Array>} Array of goals
+ */
+export const fetchGoals = async (studentId = null) => {
+  try {
+    const userId = studentId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    const { data, error } = await supabase
+      .from("goals")
+      .select("goals")
+      .eq("student_id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 is "not found"
+      throw error;
+    }
+
+    return data?.goals || [];
+  } catch (error) {
+    console.error("Error fetching goals:", error);
+    return [];
+  }
+};
+
+/**
+ * Save goals for a student
+ * @param {string} studentId - Student ID (optional, defaults to current user)
+ * @param {Array} goals - Array of goal objects
+ * @returns {Promise<void>}
+ */
+export const saveGoals = async (studentId = null, goals) => {
+  try {
+    const userId = studentId || supabaseAuth.currentUser?.uid;
+    if (!userId) {
+      throw new Error("No user ID provided");
+    }
+
+    const { error } = await supabase.from("goals").upsert(
+      {
+        student_id: userId,
+        goals: goals,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id" }
+    );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error saving goals:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time goals updates for a student
+ * @param {string} studentId - Student ID
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToGoals = (studentId, callback) => {
+  const userId = studentId || supabaseAuth.currentUser?.uid;
+  if (!userId) {
+    console.warn("No user ID for goals subscription");
+    return () => { };
+  }
+
+  // Initial fetch
+  fetchGoals(userId).then(callback);
+
+  const channel = supabase
+    .channel(`goals-${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "goals",
+        filter: `student_id=eq.${userId}`,
+      },
+      async (payload) => {
+        if (payload.new && payload.new.goals) {
+          callback(payload.new.goals);
+        } else {
+          const goals = await fetchGoals(userId);
+          callback(goals);
+        }
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+
+
+// ============================================
+// ASSIGNMENTS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch all assignments
+ * @param {string} staffId - Optional staff ID to filter by
+ * @returns {Promise<Array>} Array of assignments
+ */
+export const fetchAssignments = async (staffId = null) => {
+  try {
+    let query = supabase
+      .from("assignments")
+      .select("*")
+      .order("posted_at", { ascending: false });
+
+    if (staffId) {
+      query = query.eq("staff_id", staffId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Convert snake_case to camelCase
+    return data.map((assignment) => ({
+      id: assignment.id,
+      subject: assignment.subject,
+      driveLink: assignment.drive_link,
+      deadline: assignment.deadline,
+      postedAt: assignment.posted_at,
+      staffId: assignment.staff_id,
+    }));
+  } catch (error) {
+    console.error("Error fetching assignments:", error);
+    return [];
+  }
+};
+
+/**
+ * Add a new assignment
+ * @param {Object} assignmentData - Assignment data
+ * @returns {Promise<Object>} Created assignment
+ */
+export const addAssignment = async (assignmentData) => {
+  try {
+    const { data, error } = await supabase
+      .from("assignments")
+      .insert([
+        {
+          subject: assignmentData.subject,
+          drive_link: assignmentData.driveLink,
+          deadline: assignmentData.deadline,
+          posted_at: assignmentData.postedAt || new Date().toISOString(),
+          staff_id: assignmentData.staffId,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      subject: data.subject,
+      driveLink: data.drive_link,
+      deadline: data.deadline,
+      postedAt: data.posted_at,
+      staffId: data.staff_id,
+    };
+  } catch (error) {
+    console.error("Error adding assignment:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete an assignment
+ * @param {string} assignmentId - Assignment ID
+ * @returns {Promise<void>}
+ */
+export const deleteAssignment = async (assignmentId) => {
+  try {
+    const { error } = await supabase
+      .from("assignments")
+      .delete()
+      .eq("id", assignmentId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting assignment:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time assignments updates
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToAssignments = (callback) => {
+  // Initial fetch
+  fetchAssignments().then(callback);
+
+  const channel = supabase
+    .channel("assignments-changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "assignments",
+      },
+      async (payload) => {
+        const assignments = await fetchAssignments();
+        callback(assignments);
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// ============================================
+// SUBMISSIONS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch submission for a student and assignment
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @returns {Promise<Object|null>} Submission data or null
+ */
+export const fetchSubmission = async (studentId, assignmentId) => {
+  try {
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("assignment_id", assignmentId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    if (!data) return null;
+
+    // Convert snake_case to camelCase
+    return {
+      id: data.id,
+      studentId: data.student_id,
+      assignmentId: data.assignment_id,
+      link: data.link,
+      downloadLink: data.download_link,
+      submittedAt: data.submitted_at,
+      fileName: data.file_name,
+      fileType: data.file_type,
+      resourceType: data.resource_type,
+      publicId: data.public_id,
+    };
+  } catch (error) {
+    console.error("Error fetching submission:", error);
+    return null;
+  }
+};
+
+/**
+ * Save submission for a student and assignment
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @param {Object} submissionData - Submission data
+ * @returns {Promise<void>}
+ */
+export const saveSubmission = async (studentId, assignmentId, submissionData) => {
+  try {
+    const { error } = await supabase.from("submissions").upsert(
+      {
+        student_id: studentId,
+        assignment_id: assignmentId,
+        link: submissionData.link,
+        download_link: submissionData.downloadLink,
+        submitted_at: submissionData.submittedAt || new Date().toISOString(),
+        file_name: submissionData.fileName,
+        file_type: submissionData.fileType,
+        resource_type: submissionData.resourceType,
+        public_id: submissionData.publicId,
+      },
+      { onConflict: "student_id,assignment_id" }
+    );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error saving submission:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete submission for a student and assignment
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @returns {Promise<void>}
+ */
+export const deleteSubmission = async (studentId, assignmentId) => {
+  try {
+    const { error } = await supabase
+      .from("submissions")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("assignment_id", assignmentId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting submission:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time submission updates
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToSubmission = (studentId, assignmentId, callback) => {
+  // Initial fetch
+  fetchSubmission(studentId, assignmentId).then(callback);
+
+  const channel = supabase
+    .channel(`submission-${studentId}-${assignmentId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "submissions",
+        filter: `student_id=eq.${studentId},assignment_id=eq.${assignmentId}`,
+      },
+      async (payload) => {
+        const submission = await fetchSubmission(studentId, assignmentId);
+        callback(submission);
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// ============================================
+// MARKS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch marks for a student and assignment
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @returns {Promise<Object|null>} Marks data or null
+ */
+export const fetchMarks = async (studentId, assignmentId) => {
+  try {
+    const { data, error } = await supabase
+      .from("marks")
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("assignment_id", assignmentId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    return data || null;
+  } catch (error) {
+    console.error("Error fetching marks:", error);
+    return null;
+  }
+};
+
+/**
+ * Save marks for a student and assignment
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @param {Object} marksData - Marks data (marks, feedback)
+ * @returns {Promise<void>}
+ */
+export const saveMarks = async (studentId, assignmentId, marksData) => {
+  try {
+    const { error } = await supabase.from("marks").upsert(
+      {
+        student_id: studentId,
+        assignment_id: assignmentId,
+        marks: marksData.marks,
+        feedback: marksData.feedback,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id,assignment_id" }
+    );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error saving marks:", error);
+    throw error;
+  }
+};
+
+
+
+
+// ============================================
+// LEADERBOARD FUNCTIONS
+// ============================================
+
+/**
+ * Fetch leaderboard data
+ * @param {number} limit - Optional limit for top N students
+ * @returns {Promise<Array>} Array of leaderboard entries
+ */
+export const fetchLeaderboard = async (limit = null) => {
+  try {
+    let query = supabase
+      .from("leaderboard")
+      .select("*")
+      .order("progress", { ascending: false })
+      .order("streak", { ascending: false });
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching leaderboard:", error);
+    return [];
+  }
+};
+
+/**
+ * Update leaderboard entry for a student
+ * @param {string} studentId - Student ID
+ * @param {string} name - Student name
+ * @param {number} streak - Student streak
+ * @param {number} progress - Student progress
+ * @returns {Promise<void>}
+ */
+export const updateLeaderboard = async (studentId, name, streak, progress) => {
+  try {
+    const { error } = await supabase.from("leaderboard").upsert(
+      {
+        student_id: studentId,
+        name: name,
+        streak: streak,
+        progress: progress,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id" }
+    );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error updating leaderboard:", error);
+    throw error;
+  }
+};
+
+// ============================================
+// SETTINGS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch settings by key
+ * @param {string} settingKey - Setting key (e.g., 'youtube')
+ * @returns {Promise<Object|null>} Setting value or null
+ */
+export const fetchSettings = async (settingKey) => {
+  try {
+    const { data, error } = await supabase
+      .from("settings")
+      .select("setting_value")
+      .eq("setting_key", settingKey)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+
+    return data?.setting_value || null;
+  } catch (error) {
+    console.error("Error fetching settings:", error);
+    return null;
+  }
+};
+
+/**
+ * Save settings
+ * @param {string} settingKey - Setting key (e.g., 'youtube')
+ * @param {Object} settingValue - Setting value object
+ * @param {string} updatedBy - User ID who updated the setting
+ * @returns {Promise<void>}
+ */
+export const saveSettings = async (settingKey, settingValue, updatedBy = null) => {
+  try {
+    const userId = updatedBy || supabaseAuth.currentUser?.uid;
+
+    const { error } = await supabase.from("settings").upsert(
+      {
+        setting_key: settingKey,
+        setting_value: settingValue,
+        updated_by: userId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "setting_key" }
+    );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error saving settings:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to settings changes
+ * @param {string} settingKey - Setting key to subscribe to
+ * @param {Function} callback - Callback function
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToSettings = (settingKey, callback) => {
+  const channel = supabase
+    .channel(`settings-${settingKey}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "settings",
+        filter: `setting_key=eq.${settingKey}`,
+      },
+      (payload) => {
+        callback(payload.new?.setting_value || null);
+      }
+    )
+    .subscribe();
+
+  // Also fetch initial value
+  fetchSettings(settingKey).then((value) => {
+    callback(value);
+  });
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// ============================================
+// CIRCULARS FUNCTIONS
+// ============================================
+
+/**
+ * Fetch all circulars
+ * @returns {Promise<Array>} Array of circulars
+ */
+export const fetchCirculars = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("circulars")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching circulars:", error);
+    return [];
+  }
+};
+
+/**
+ * Add a new circular
+ * @param {Object} circularData - Circular data
+ * @returns {Promise<Object>} Created circular
+ */
+export const addCircular = async (circularData) => {
+  try {
+    const { data, error } = await supabase
+      .from("circulars")
+      .insert([
+        {
+          title: circularData.title,
+          content: circularData.content,
+          circular_data: circularData.circularData || circularData,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error("Error adding circular:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a circular
+ * @param {string} circularId - Circular ID
+ * @returns {Promise<void>}
+ */
+export const deleteCircular = async (circularId) => {
+  try {
+    const { error } = await supabase
+      .from("circulars")
+      .delete()
+      .eq("id", circularId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting circular:", error);
+    throw error;
+  }
+};
+
+
+
+
+// ============================================
+// STAFF UTILITY FUNCTIONS
+// ============================================
+
+/**
+ * Reset all student streaks to zero
+ * @returns {Promise<Object>} Result object with success status and count
+ */
+export const resetAllStreaksToZero = async () => {
+  try {
+    const { data: students, error } = await supabase
+      .from("students")
+      .select("id");
+
+    if (error) throw error;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayDateString = today.toISOString().split("T")[0];
+
+    let resetCount = 0;
+
+    for (const student of students) {
+      const { error: updateError } = await supabase
+        .from("students")
+        .update({
+          streak: 0,
+          last_login: new Date().toISOString(),
+          daily_sessions: {
+            [todayDateString]: false,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", student.id);
+
+      if (!updateError) resetCount++;
+    }
+
+    return {
+      success: true,
+      message: `Reset streaks for ${resetCount} students`,
+      resetCount,
+    };
+  } catch (error) {
+    console.error("Error resetting streaks:", error);
+    throw new Error("Failed to reset streaks: " + error.message);
+  }
+};
+
+/**
+ * Delete all students with "Unknown" name
+ * @returns {Promise<Object>} Result object with success status and count
+ */
+export const deleteUnknownStudents = async () => {
+  try {
+    const { data: students, error } = await supabase
+      .from("students")
+      .select("id, name");
+
+    if (error) throw error;
+
+    const unknownStudentIds = students
+      .filter(
+        (student) =>
+          student.name === "Unknown" ||
+          !student.name ||
+          student.name.trim() === ""
+      )
+      .map((student) => student.id);
+
+    let deleteCount = 0;
+
+    for (const studentId of unknownStudentIds) {
+      const { error: deleteError } = await supabase
+        .from("students")
+        .delete()
+        .eq("id", studentId);
+
+      if (!deleteError) deleteCount++;
+    }
+
+    return {
+      success: true,
+      message: `Deleted ${deleteCount} unknown students`,
+      deleteCount,
+    };
+  } catch (error) {
+    console.error("Error deleting unknown students:", error);
+    throw new Error("Failed to delete unknown students: " + error.message);
+  }
+};
+
+/**
+ * Calculate and store overall performance for a staff member
+ * @param {Array} allStudents - Array of all students
+ * @param {string} staffId - Staff ID
+ * @param {Array} allTasks - Array of all tasks
+ * @returns {Promise<number>} Overall percentage
+ */
+export const calculateAndStoreOverallPerformance = async (
+  allStudents,
+  staffId,
+  allTasks
+) => {
+  try {
+    // Filter tasks posted by this staff
+    const staffTasks = allTasks.filter((task) => task.staffId === staffId);
+
+    // If no tasks posted by this staff
+    if (!staffTasks || staffTasks.length === 0) {
+      await updateStaffStats(staffId, {
+        overallPercentage: 0,
+        totalStudents: allStudents.length,
+        activeStudents: 0,
+        lastUpdated: new Date().toISOString(),
+        totalProgressPoints: 0,
+        maxPossiblePoints: 0,
+      });
+      return 0;
+    }
+
+    // If no students
+    if (!allStudents || allStudents.length === 0) {
+      await updateStaffStats(staffId, {
+        overallPercentage: 0,
+        totalStudents: 0,
+        activeStudents: 0,
+        lastUpdated: new Date().toISOString(),
+        totalProgressPoints: 0,
+        maxPossiblePoints: 0,
+      });
+      return 0;
+    }
+
+    let totalProgressPoints = 0;
+    let activeStudents = 0;
+    const maxPossiblePoints = allStudents.length * staffTasks.length;
+
+    // Calculate progress for each student
+    for (const student of allStudents) {
+      const taskStatuses = await fetchTaskStatuses(student.id);
+      let studentProgress = 0;
+
+      for (const task of staffTasks) {
+        const taskId =
+          task.id || task.content?.toLowerCase().replace(/\s+/g, "_");
+        if (taskStatuses[taskId]?.completed) {
+          studentProgress++;
+        }
+      }
+
+      totalProgressPoints += studentProgress;
+      if (studentProgress > 0) {
+        activeStudents++;
+      }
+    }
+
+    const overallPercentage =
+      maxPossiblePoints > 0
+        ? Math.round((totalProgressPoints / maxPossiblePoints) * 100)
+        : 0;
+
+    // Store stats
+    await updateStaffStats(staffId, {
+      overallPercentage,
+      totalStudents: allStudents.length,
+      activeStudents,
+      lastUpdated: new Date().toISOString(),
+      totalProgressPoints,
+      maxPossiblePoints,
+    });
+
+    return overallPercentage;
+  } catch (error) {
+    console.error("Error calculating overall performance:", error);
+    throw error;
+  }
+};
+
+
+
+
+
+

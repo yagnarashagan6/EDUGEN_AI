@@ -3,38 +3,31 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import admin from "firebase-admin";
-import { initializeApp, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
-// =============== FIREBASE ADMIN SDK INITIALIZATION ===============
-let db;
+// =============== SUPABASE INITIALIZATION ===============
+let supabase = null;
+let cachingEnabled = false;
+
 try {
-  // Prevent re-initialization in serverless/hot-reload environments
-  if (!admin.apps.length) {
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      throw new Error(
-        "FIREBASE_SERVICE_ACCOUNT_KEY environment variable not set."
-      );
-    }
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
-    console.log("✅ Firebase Admin SDK initialized successfully.");
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    cachingEnabled = true;
+    console.log("✅ Supabase initialized - caching enabled");
   } else {
-    console.log("ℹ️ Firebase Admin SDK already initialized.");
+    console.log("ℹ️ Supabase not configured - caching disabled (server will work normally)");
   }
-  db = getFirestore();
 } catch (error) {
-  console.error("❌ Firebase Admin initialization failed:", error.message);
-  // Exit if Firebase Admin fails to initialize, as it's critical for caching.
-  // process.exit(1);
+  console.warn("⚠️ Supabase initialization failed - caching disabled:", error.message);
+  cachingEnabled = false;
 }
-// Export db if needed in other backend files
-export { db };
+
+export { supabase, cachingEnabled };
 // =================================================================
 
 const app = express();
@@ -131,8 +124,8 @@ app.get("/api/news", async (req, res) => {
               article.image && article.image !== "null" && article.image !== ""
                 ? article.image
                 : `https://picsum.photos/400/220?random=${Math.floor(
-                    Math.random() * 1000
-                  )}`,
+                  Math.random() * 1000
+                )}`,
           }));
           allArticles = [...allArticles, ...processedArticles];
         }
@@ -211,36 +204,51 @@ app.post("/api/chat", async (req, res) => {
 
     const studentQuestion = message.trim().toLowerCase();
 
-    // 1. Fetch staff-posted topics from Firestore
+    // 1. Fetch staff-posted topics from Supabase (only if Supabase is enabled)
     let isStaffTopic = false;
-    try {
-      const tasksDocRef = db.collection("tasks").doc("shared");
-      const tasksDoc = await tasksDocRef.get();
-      if (tasksDoc.exists) {
-        const staffTasks = tasksDoc.data().tasks || [];
-        const staffTopics = staffTasks.map((task) =>
-          task.content.toLowerCase()
-        );
-        isStaffTopic = staffTopics.includes(studentQuestion);
+    if (cachingEnabled && supabase) {
+      try {
+        const { data: tasksData, error } = await supabase
+          .from('tasks')
+          .select('tasks')
+          .eq('id', 'shared')
+          .single();
+
+        if (!error && tasksData) {
+          const staffTasks = tasksData.tasks || [];
+          const staffTopics = staffTasks.map((task) =>
+            task.content.toLowerCase()
+          );
+          isStaffTopic = staffTopics.includes(studentQuestion);
+        }
+      } catch (dbError) {
+        console.error("Error fetching staff topics from Supabase:", dbError);
+        // Proceed without caching if Supabase read fails
       }
-    } catch (dbError) {
-      console.error("Error fetching staff topics from Firestore:", dbError);
-      // Proceed without caching if Firestore read fails
     }
 
-    // 2. Caching logic for staff-posted topics
-    if (isStaffTopic) {
-      const cacheKey = studentQuestion.replace(/[^a-zA-Z0-9]/g, "_"); // Sanitize topic for doc ID
-      const cacheRef = db.collection("cached_responses").doc(cacheKey);
+    // 2. Caching logic for staff-posted topics (only if Supabase is enabled)
+    if (cachingEnabled && supabase && isStaffTopic) {
+      const cacheKey = studentQuestion.replace(/[^a-zA-Z0-9]/g, "_"); // Sanitize topic for cache key
 
-      const cachedDoc = await cacheRef.get();
+      try {
+        const { data: cachedData, error } = await supabase
+          .from('cached_responses')
+          .select('response')
+          .eq('topic', studentQuestion)
+          .single();
 
-      if (cachedDoc.exists) {
-        console.log("✅ Cache HIT for topic:", studentQuestion);
-        return res.status(200).json({ response: cachedDoc.data().response });
+        if (!error && cachedData) {
+          console.log("✅ Cache HIT for topic:", studentQuestion);
+          return res.status(200).json({ response: cachedData.response });
+        }
+
+        console.log("⚠️ Cache MISS for topic:", studentQuestion);
+      } catch (cacheError) {
+        console.warn("Cache read failed:", cacheError.message);
       }
-
-      console.log("⚠️ Cache MISS for topic:", studentQuestion);
+    } else if (!cachingEnabled) {
+      console.log("💬 Caching disabled, fetching fresh response.");
     } else {
       console.log("💬 Not a staff topic, fetching fresh response.");
     }
@@ -292,16 +300,20 @@ Student's question: ${message}`;
     const reply =
       data.choices?.[0]?.message?.content || "I couldn't generate a response.";
 
-    // 4. If it was a staff topic, save the new response to the cache
-    if (isStaffTopic) {
-      const cacheKey = studentQuestion.replace(/[^a-zA-Z0-9]/g, "_");
-      const cacheRef = db.collection("cached_responses").doc(cacheKey);
+    // 4. If it was a staff topic, save the new response to the cache (only if Supabase is enabled)
+    if (cachingEnabled && supabase && isStaffTopic) {
       try {
-        await cacheRef.set({
-          response: reply,
-          topic: studentQuestion,
-          createdAt: new Date().toISOString(),
-        });
+        const { error } = await supabase
+          .from('cached_responses')
+          .upsert({
+            topic: studentQuestion,
+            response: reply,
+            created_at: new Date().toISOString(),
+          }, {
+            onConflict: 'topic'
+          });
+
+        if (error) throw error;
         console.log("💾 Cached new response for topic:", studentQuestion);
       } catch (dbError) {
         console.error("Error saving response to cache:", dbError);

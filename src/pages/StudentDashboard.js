@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // StudentDashboard.js
 import React, {
   useState,
@@ -7,19 +8,26 @@ import React, {
   useRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabaseAuth as auth } from "../supabase";
 import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  getDocs,
-  deleteDoc,
-  onSnapshot,
-  runTransaction,
-  addDoc,
-} from "firebase/firestore";
-import { auth, db } from "../firebase";
+  fetchTasks,
+  fetchTaskStatuses,
+  fetchStudentData,
+  updateStudentData,
+  fetchAllStudents,
+  fetchGoals,
+  saveGoals,
+  fetchAssignments,
+  subscribeToAssignments,
+  fetchCirculars,
+  fetchMarks,
+  fetchSubmission,
+  saveSubmission,
+  deleteSubmission,
+  updateLeaderboard,
+  subscribeToStaff,
+  fetchLeaderboard,
+} from "../supabase";
 import Sidebar from "../components/Sidebar";
 import GoalItem from "../components/GoalItem";
 import Quiz from "../components/Quiz";
@@ -219,10 +227,9 @@ const StudentDashboard = () => {
         //   `Progress calculation: ${completedTaskCount}/${allTasks.length} = ${newProgress}%`
         // );
 
-        // Update Firestore
+        // Update Supabase
         setProgress(newProgress);
-        const userRef = doc(db, "students", user.uid);
-        await updateDoc(userRef, {
+        await updateStudentData(user.uid, {
           progress: newProgress,
           quizCount: currentQuizCount, // Also update quiz count
         });
@@ -429,8 +436,8 @@ const StudentDashboard = () => {
     const handleResize = () =>
       setIsChatbotOpen(
         window.innerWidth > 768 &&
-          activeContainer !== "chatbot-container" &&
-          !inQuiz
+        activeContainer !== "chatbot-container" &&
+        !inQuiz
       );
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -453,8 +460,7 @@ const StudentDashboard = () => {
         try {
           setProgress(0);
           setQuizCount(0);
-          const userRef = doc(db, "students", user.uid);
-          await updateDoc(userRef, {
+          await updateStudentData(user.uid, {
             progress: 0,
             quizCount: 0,
             lastProgressReset: new Date().toISOString(),
@@ -502,16 +508,12 @@ const StudentDashboard = () => {
   }, [updateTotalTimeSpentInFirestore]);
 
   // --- OPTIMIZATION ---
-  // This function fetches tasks once, instead of listening.
-  const fetchTasks = useCallback(async () => {
+  // This function fetches tasks from Supabase
+  const loadTasks = useCallback(async () => {
     // console.log("Fetching tasks...");
     setLoading((prev) => ({ ...prev, tasks: true }));
     try {
-      const tasksRef = doc(db, "tasks", "shared");
-      const tasksSnap = await getDoc(tasksRef); // Use getDoc (1 read)
-      const fetchedTasks = tasksSnap.exists()
-        ? tasksSnap.data().tasks || []
-        : [];
+      const fetchedTasks = await fetchTasks();
       // console.log("Fetched tasks:", fetchedTasks);
       setTasks(fetchedTasks);
       return fetchedTasks;
@@ -525,18 +527,13 @@ const StudentDashboard = () => {
   }, []);
 
   // --- OPTIMIZATION ---
-  // This function fetches task completion statuses once, instead of listening.
-  const fetchTaskStatuses = useCallback(async () => {
+  // This function fetches task completion statuses from Supabase
+  const loadTaskStatuses = useCallback(async () => {
     const user = auth.currentUser;
     if (!user) return {};
     // console.log("Fetching task statuses for user:", user.uid);
     try {
-      const taskStatusRef = collection(db, "students", user.uid, "task_status");
-      const taskStatusSnap = await getDocs(taskStatusRef); // Use getDocs
-      const taskStatuses = {};
-      taskStatusSnap.docs.forEach((doc) => {
-        taskStatuses[doc.id] = doc.data();
-      });
+      const taskStatuses = await fetchTaskStatuses(user.uid);
       // console.log("Fetched task statuses:", taskStatuses);
       setTaskProgress(taskStatuses);
       return taskStatuses;
@@ -577,27 +574,25 @@ const StudentDashboard = () => {
 
       try {
         setLoading((prev) => ({ ...prev, dashboard: true }));
-        const docRef = doc(db, "students", user.uid);
-        const docSnap = await getDoc(docRef);
+        const fetchedUserData = await fetchStudentData(user.uid);
 
-        let fetchedUserData = null;
         let calculatedStreak = 0;
-        if (docSnap.exists()) {
+        if (fetchedUserData) {
           // ... (streak logic)
-          fetchedUserData = {
-            ...docSnap.data(),
-            photoURL: docSnap.data().photoURL || "/default-student.png",
+          const userData = {
+            ...fetchedUserData,
+            photoURL: fetchedUserData.photoURL || fetchedUserData.photo_url || "/default-student.png",
           };
-          // console.log("Loaded userData from Firestore:", fetchedUserData);
-          setUserData(fetchedUserData);
-          setProgress(fetchedUserData.progress || 0);
-          setQuizCount(fetchedUserData.quizCount || 0);
-          setTotalTimeSpentInMs(fetchedUserData.totalTimeSpentInMs || 0);
+          // console.log("Loaded userData from Supabase:", userData);
+          setUserData(userData);
+          setProgress(userData.progress || 0);
+          setQuizCount(userData.quizCount || userData.quiz_count || 0);
+          setTotalTimeSpentInMs(userData.totalTimeSpentInMs || userData.total_time_spent_ms || 0);
 
           logStudentActivity("login");
           // ... (rest of streak logic)
-          const lastLogin = fetchedUserData.lastLogin
-            ? new Date(fetchedUserData.lastLogin)
+          const lastLogin = userData.lastLogin || userData.last_login
+            ? new Date(userData.lastLogin || userData.last_login)
             : null;
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -642,11 +637,11 @@ const StudentDashboard = () => {
 
         // --- OPTIMIZATION ---
         // Call the new fetchTasks function instead of using onSnapshot.
-        const loadedTasks = await fetchTasks();
+        const loadedTasks = await loadTasks();
 
         // --- OPTIMIZATION ---
         // Call the new fetchTaskStatuses function to load completion status.
-        const loadedTaskStatuses = await fetchTaskStatuses();
+        const loadedTaskStatuses = await loadTaskStatuses();
         // console.log(
         //   "Loaded task statuses (from checkAuthAndFetchData):",
         //   loadedTaskStatuses
@@ -685,13 +680,11 @@ const StudentDashboard = () => {
 
         // --- OPTIMIZATION ---
         // Set up an interval to refresh tasks every 10 minutes.
-        const taskInterval = setInterval(fetchTasks, 600000); // 10 minutes
+        const taskInterval = setInterval(loadTasks, 600000); // 10 minutes
 
         let loadedGoals = [];
         try {
-          const goalsRef = doc(db, "students", user.uid, "goals", "list");
-          const goalsSnap = await getDoc(goalsRef); // Use getDoc (1 read)
-          loadedGoals = goalsSnap.exists() ? goalsSnap.data().goals || [] : [];
+          loadedGoals = await fetchGoals(user.uid);
           setGoals(loadedGoals);
           setLoading((prev) => ({ ...prev, goals: false }));
         } catch (goalError) {
@@ -699,22 +692,12 @@ const StudentDashboard = () => {
           setLoading((prev) => ({ ...prev, goals: false }));
         }
 
-        const studentsRef = collection(db, "students");
-        const studentsSnap = await getDocs(studentsRef); // Use getDocs (N reads)
-        const students = studentsSnap.docs.map((sDoc) => ({
-          id: sDoc.id,
-          name: sDoc.data().name || "Unknown",
-          streak: sDoc.data().streak || 0,
-          progress: sDoc.data().progress || 0,
-        }));
-        setLeaderboard(students);
-        setLeaderboard((prev) =>
-          prev.map((student) =>
-            student.id === user.uid
-              ? { ...student, streak: calculatedStreak }
-              : student
-          )
-        );
+        const students = await fetchLeaderboard();
+        setLeaderboard(students.map((student) =>
+          student.id === user.uid
+            ? { ...student, streak: calculatedStreak }
+            : student
+        ));
         setLoading((prev) => ({ ...prev, students: false }));
 
         // --- OPTIMIZATION ---
@@ -727,48 +710,27 @@ const StudentDashboard = () => {
           calculatedStreak,
           fetchedUserData
         );
-        const assignmentsUnsubscribe = onSnapshot(
-          collection(db, "assignments"),
-          (snapshot) => {
-            // ... (setAssignments logic)
-            try {
-              setAssignmentsLoading(true);
-              const fetchedAssignments = snapshot.docs.map((aDoc) => ({
-                id: aDoc.id,
-                ...aDoc.data(),
-                postedAt: aDoc.data().postedAt?.toDate
-                  ? aDoc.data().postedAt.toDate()
-                  : new Date(),
-                deadline: aDoc.data().deadline?.toDate
-                  ? aDoc.data().deadline.toDate()
-                  : null,
-              }));
-              setAssignments(fetchedAssignments);
-              const sortedAssignments = [...fetchedAssignments].sort(
-                (a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0)
-              );
-              setTopAssignments(sortedAssignments.slice(0, 2));
-              setAssignmentsLoading(false);
-              setLoading((prev) => ({ ...prev, assignments: false })); // Add this line
-            } catch (err) {
-              /* ... error handling ... */
-              setLoading((prev) => ({ ...prev, assignments: false })); // Add this line
-            }
-          },
-          (err) => {
+        const assignmentsUnsubscribe = subscribeToAssignments((fetchedAssignments) => {
+          try {
+            setAssignmentsLoading(true);
+            setAssignments(fetchedAssignments);
+            const sortedAssignments = [...fetchedAssignments].sort(
+              (a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0)
+            );
+            setTopAssignments(sortedAssignments.slice(0, 2));
+            setAssignmentsLoading(false);
+            setLoading((prev) => ({ ...prev, assignments: false }));
+          } catch (err) {
             /* ... error handling ... */
-            setLoading((prev) => ({ ...prev, assignments: false })); // Add this line
+            setLoading((prev) => ({ ...prev, assignments: false }));
           }
-        );
+        });
 
-        // Set assignments loading to false after setting up listener (in case collection is empty)
+        // Set assignments loading to false after setting up listener
         setLoading((prev) => ({ ...prev, assignments: false }));
 
-        const circularsRef = collection(db, "circulars");
-        const circularsSnap = await getDocs(circularsRef); // Use getDocs
-        setCirculars(
-          circularsSnap.docs.map((cDoc) => ({ id: cDoc.id, ...cDoc.data() }))
-        );
+        const fetchedCirculars = await fetchCirculars();
+        setCirculars(fetchedCirculars);
 
         clearTimeout(loadingTimeout); // Clear timeout on successful load
         setLoading((prev) => ({ ...prev, dashboard: false }));
@@ -779,7 +741,8 @@ const StudentDashboard = () => {
           assignmentsUnsubscribe();
           if (sessionStartTimeRef.current) {
             const sessionDurationMs = new Date() - sessionStartTimeRef.current;
-            updateTotalTimeSpentInFirestore(sessionDurationMs);
+            // TODO: Replace with Supabase function
+            // updateTotalTimeSpentInFirestore(sessionDurationMs);
           }
         };
       } catch (err) {
@@ -830,28 +793,16 @@ const StudentDashboard = () => {
   }, [pendingStreakUpdate, newStreakValue, userData, progress]); // updateLeaderboard removed
 
   useEffect(() => {
-    const staffRef = collection(db, "staff");
-    // This listener is fine. Staff list is small and changes infrequently.
-    const unsubscribe = onSnapshot(
-      staffRef,
-      (snapshot) => {
-        try {
-          const staffData = snapshot.docs.map((sDoc) => ({
-            id: sDoc.id,
-            ...sDoc.data(),
-            photoURL: sDoc.data().photoURL || "/default-staff.png",
-          }));
-          setStaffList(staffData);
-        } catch (err) {
-          console.error("Error fetching staff list:", err);
-          setError("Failed to load staff list.");
-        }
-      },
-      (err) => {
-        console.error("Error in staff snapshot:", err);
+    // Subscribe to staff list changes
+    const unsubscribe = subscribeToStaff((staffData) => {
+      try {
+        setStaffList(staffData);
+      } catch (err) {
+        console.error("Error processing staff list:", err);
         setError("Failed to load staff list.");
       }
-    );
+    });
+
     return () => unsubscribe();
   }, []);
 
@@ -897,43 +848,6 @@ const StudentDashboard = () => {
     );
     return () => unsubscribe();
   }, [selectedStaffId]);
-
-  const updateLeaderboard = async (
-    uid,
-    name,
-    currentStreak,
-    currentProgress
-  ) => {
-    try {
-      const leaderboardRef = doc(db, "leaderboard", "class");
-      // Get current students
-      const docSnap = await getDoc(leaderboardRef);
-      let students = [];
-      if (docSnap.exists()) {
-        students = docSnap.data().students || [];
-      }
-      const existingIndex = students.findIndex((s) => s.id === uid);
-      if (existingIndex !== -1) {
-        students[existingIndex] = {
-          id: uid,
-          name,
-          streak: currentStreak,
-          progress: currentProgress,
-        };
-      } else {
-        students.push({
-          id: uid,
-          name,
-          streak: currentStreak,
-          progress: currentProgress,
-        });
-      }
-      // Use setDoc with merge to avoid preconditions
-      await setDoc(leaderboardRef, { students }, { merge: true });
-    } catch (error) {
-      console.warn("Error updating leaderboard:", error.message);
-    }
-  };
 
   const calculateSelfAnalysis = useCallback(() => {
     const user = auth.currentUser;
@@ -1593,9 +1507,8 @@ const StudentDashboard = () => {
             {
               sender: "student",
               senderId: user.uid,
-              text: `Overdue Task Reason - "${task.content}" (${
-                task.subject || "No Subject"
-              }): ${reason}`,
+              text: `Overdue Task Reason - "${task.content}" (${task.subject || "No Subject"
+                }): ${reason}`,
               timestamp: new Date().toISOString(),
               read: false,
             },
@@ -1713,9 +1626,8 @@ const StudentDashboard = () => {
           activeContainer={activeContainer}
         />
         <div
-          className={`main-content ${sidebarVisible ? "sidebar-active" : ""} ${
-            inQuiz ? "quiz-active" : ""
-          }`}
+          className={`main-content ${sidebarVisible ? "sidebar-active" : ""} ${inQuiz ? "quiz-active" : ""
+            }`}
         >
           <div className="header">{mobileHamburger}</div>
           {error && <div className="error-message">{error}</div>}

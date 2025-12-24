@@ -47,75 +47,9 @@ export {
   onSnapshot,
 };
 
-// Send a message to a private chat between a staff and student
-export const sendMessage = async (text, selectedUserId, userRole) => {
-  if (!text || !selectedUserId) return;
-
-  const userId = auth.currentUser.uid;
-  const isStaff = userRole === "staff";
-  // Always format chatId as staffId_studentId
-  const chatId = isStaff
-    ? `${userId}_${selectedUserId}`
-    : `${selectedUserId}_${userId}`;
-
-  const newMessage = {
-    text,
-    sender: isStaff ? "staff" : "student",
-    timestamp: new Date().toISOString(),
-    read: false,
-  };
-
-  const chatRef = doc(db, "messages", chatId);
-  const chatSnap = await getDoc(chatRef);
-  const messages = chatSnap.exists() ? chatSnap.data().messages || [] : [];
-  await setDoc(chatRef, { messages: [...messages, newMessage] });
-};
-
-// Listen to messages in a private chat
-export const listenToMessages = (selectedUserId, userRole, setMessages) => {
-  const userId = auth.currentUser.uid;
-  const isStaff = userRole === "staff";
-  // Always format chatId as staffId_studentId
-  const chatId = isStaff
-    ? `${userId}_${selectedUserId}`
-    : `${selectedUserId}_${userId}`;
-
-  const chatRef = doc(db, "messages", chatId);
-  const unsubscribe = onSnapshot(
-    chatRef,
-    (docSnap) => {
-      if (docSnap.exists()) {
-        setMessages(docSnap.data().messages || []);
-      } else {
-        setMessages([]);
-      }
-    },
-    (err) => {
-      console.error("Error listening to messages:", err);
-    }
-  );
-
-  return unsubscribe;
-};
-
-// Mark messages as read in a private chat
-export const markMessagesAsRead = async (selectedUserId, userRole) => {
-  const userId = auth.currentUser.uid;
-  const isStaff = userRole === "staff";
-  // Always format chatId as staffId_studentId
-  const chatId = isStaff
-    ? `${userId}_${selectedUserId}`
-    : `${selectedUserId}_${userId}`;
-
-  const chatRef = doc(db, "messages", chatId);
-  const chatSnap = await getDoc(chatRef);
-  if (chatSnap.exists()) {
-    const messages = chatSnap.data().messages || [];
-    const updatedMessages = messages.map((msg) =>
-      msg.sender !== (isStaff ? "staff" : "student") && !msg.read
-        ? { ...msg, read: true }
-        : msg
-    );
-    await setDoc(chatRef, { messages: updatedMessages });
-  }
-};
+// Re-export Supabase message functions
+export {
+  sendMessage,
+  subscribeToMessages as listenToMessages,
+  markMessagesAsRead,
+} from "./supabase";

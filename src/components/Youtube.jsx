@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { subscribeToSettings } from "../supabase";
 import "../styles/Youtube.css";
 
 // --- INLINE VIDEO PLAYER COMPONENT ---
@@ -187,25 +186,15 @@ export default function EduTube() {
   }, [favorites]);
 
   useEffect(() => {
-    const settingsRef = doc(db, "settings", "youtube");
-    const unsubscribe = onSnapshot(
-      settingsRef,
-      (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setLanguage(data.defaultLanguage || "ta");
-          setSelectedCategory(data.defaultCategory || "all");
-          setSelectedChannelIds(data.defaultChannelIds || []);
-          setChannels(data.channels || []);
-        }
-        setSettingsLoaded(true);
-      },
-      (err) => {
-        console.error("Failed to load YouTube settings:", err);
-        setError("Could not load channel settings.");
-        setSettingsLoaded(true);
+    const unsubscribe = subscribeToSettings("youtube", (data) => {
+      if (data) {
+        setLanguage(data.defaultLanguage || "ta");
+        setSelectedCategory(data.defaultCategory || "all");
+        setSelectedChannelIds(data.defaultChannelIds || []);
+        setChannels(data.channels || []);
       }
-    );
+      setSettingsLoaded(true);
+    });
 
     return () => unsubscribe();
   }, []);
