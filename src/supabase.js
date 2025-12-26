@@ -443,8 +443,8 @@ export const subscribeToMessages = (selectedUserId, userRole, setMessages) => {
 
   console.log("🔔 Setting up message subscription:", { staffId, studentId, userRole });
 
-  // Subscribe to changes
-  const subscription = supabase
+  // Subscribe to changes on the messages table
+  const channel = supabase
     .channel(`messages:${staffId}_${studentId}`)
     .on(
       "postgres_changes",
@@ -452,17 +452,28 @@ export const subscribeToMessages = (selectedUserId, userRole, setMessages) => {
         event: "*",
         schema: "public",
         table: "messages",
-        filter: `staff_id=eq.${staffId},student_id=eq.${studentId}`,
+        filter: `id=eq.${staffId}_${studentId}`,
       },
-      (payload) => {
+      async (payload) => {
         console.log("📨 Real-time message update received:", payload);
-        if (payload.new && payload.new.messages) {
-          console.log("✅ Setting messages:", payload.new.messages);
-          setMessages(payload.new.messages);
+
+        // Fetch the latest messages whenever there's a change
+        const { data, error } = await supabase
+          .from("messages")
+          .select("messages")
+          .eq("staff_id", staffId)
+          .eq("student_id", studentId)
+          .maybeSingle();
+
+        if (!error && data) {
+          console.log("✅ Setting messages from real-time update:", data.messages);
+          setMessages(data.messages || []);
         }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log("📡 Subscription status:", status);
+    });
 
   // Fetch initial messages
   console.log("📥 Fetching initial messages...");
@@ -498,7 +509,7 @@ export const subscribeToMessages = (selectedUserId, userRole, setMessages) => {
 
   return () => {
     console.log("🔕 Unsubscribing from messages");
-    subscription.unsubscribe();
+    supabase.removeChannel(channel);
   };
 };
 
