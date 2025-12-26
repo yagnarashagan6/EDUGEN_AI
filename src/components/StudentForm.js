@@ -78,7 +78,7 @@ const StudentForm = () => {
               "Student form data saved successfully, formFilled set to true for UID:",
               user.uid
             );
-            navigate("/student-dashboard", { replace: false });
+            navigate("/student-dashboard", { replace: true, state: { refresh: Date.now() } });
           } catch (err) {
             setError("Error saving data: " + err.message);
             console.error("Error saving student form data:", err);
@@ -101,7 +101,7 @@ const StudentForm = () => {
           "Student form data saved successfully, formFilled set to true for UID:",
           user.uid
         );
-        navigate("/student-dashboard", { replace: false });
+        navigate("/student-dashboard", { replace: true, state: { refresh: Date.now() } });
       }
     } catch (err) {
       setError("Error processing form: " + err.message);

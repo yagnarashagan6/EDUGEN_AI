@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
 import { supabaseAuth as auth } from "../supabase";
 import {
@@ -81,6 +81,7 @@ import {
 // --- Main Component ---
 const StaffDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // --- State Definitions ---
   const [userData, setUserData] = useState(null);

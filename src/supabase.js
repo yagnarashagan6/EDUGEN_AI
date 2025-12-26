@@ -887,6 +887,18 @@ export const fetchStudentData = async (studentId = null) => {
       throw error;
     }
 
+    // Convert snake_case fields to camelCase for frontend compatibility
+    if (data) {
+      return {
+        ...data,
+        regNumber: data.reg_number || data.regNumber,
+        rollNumber: data.roll_number || data.rollNumber,
+        bloodGroup: data.blood_group || data.bloodGroup,
+        studentContact: data.student_contact || data.studentContact,
+        photoURL: data.photo_url || data.photoURL || data.image,
+      };
+    }
+
     return data || null;
   } catch (error) {
     console.error("Error fetching student data:", error);
@@ -1013,15 +1025,14 @@ export const fetchStaffData = async (staffId = null) => {
       throw error;
     }
 
-    // Convert snake_case to camelCase
+    // Convert snake_case to camelCase for frontend compatibility
     if (data) {
       return {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        formFilled: data.form_filled,
-        stats: data.stats,
+        ...data,
+        staffId: data.staff_id || data.staffId,
+        contactNumber: data.contact_number || data.contactNumber,
+        formFilled: data.form_filled || data.formFilled,
+        photoURL: data.photo_url || data.photoURL || data.image,
       };
     }
 

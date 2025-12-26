@@ -85,7 +85,7 @@ const StaffForm = () => {
               "Staff form data saved successfully for UID:",
               user.uid
             );
-            navigate("/staff-dashboard", { replace: false });
+            navigate("/staff-dashboard", { replace: true, state: { refresh: Date.now() } });
           } catch (err) {
             setError("Error saving data: " + err.message);
             console.error("Error saving staff form data:", err);
@@ -105,7 +105,7 @@ const StaffForm = () => {
           formFilled: true,
         });
         console.log("Staff form data saved successfully for UID:", user.uid);
-        navigate("/staff-dashboard", { replace: false });
+        navigate("/staff-dashboard", { replace: true, state: { refresh: Date.now() } });
       }
     } catch (err) {
       setError("Error processing form: " + err.message);
