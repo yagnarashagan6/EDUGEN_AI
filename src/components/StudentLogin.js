@@ -41,7 +41,12 @@ const StudentLogin = () => {
           setError(
             "Google sign-in is only allowed for 22aids001@act.edu.in to 22aids058@act.edu.in"
           );
-          await auth.signOut();
+          try {
+            await auth.signOut();
+          } catch (signOutError) {
+            // Ignore signOut errors (session might not exist)
+            console.log("SignOut error (ignored):", signOutError.message);
+          }
           return;
         }
 
@@ -66,6 +71,8 @@ const StudentLogin = () => {
 
   // Helper function to validate allowed usernames
   const isAllowedUsername = (username) => {
+    // Allow specific email
+    if (username === "kappiyan22@gmail.com") return true;
     if (username === "yaknarashagan2") return true;
     const match = username.match(/^22aids(\d{3})$/);
     if (!match) return false;
@@ -108,8 +115,12 @@ const StudentLogin = () => {
     setError(
       "Google sign-in is only allowed for 22aids001@act.edu.in to 22aids058@act.edu.in"
     );
-    // Optionally sign out if needed (not required for registration, but for consistency):
-    await auth.signOut?.();
+    try {
+      await auth.signOut?.();
+    } catch (signOutError) {
+      // Ignore signOut errors
+      console.log("SignOut error (ignored):", signOutError.message);
+    }
     return;
   };
 

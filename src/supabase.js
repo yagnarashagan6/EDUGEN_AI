@@ -362,29 +362,36 @@ export const sendMessage = async (text, selectedUserId, userRole) => {
   const userId = currentUser.uid;
   const isStaff = userRole === "staff";
 
-  // Always format chatId as staffId_studentId
-  const chatId = isStaff
-    ? `${userId}_${selectedUserId}`
-    : `${selectedUserId}_${userId}`;
+  // Determine staff_id and student_id
+  const staffId = isStaff ? userId : selectedUserId;
+  const studentId = isStaff ? selectedUserId : userId;
+
+  // Create unique ID for this conversation
+  const conversationId = `${staffId}_${studentId}`;
 
   const newMessage = {
     text,
     sender: isStaff ? "staff" : "student",
+    senderId: userId,
     timestamp: new Date().toISOString(),
     read: false,
   };
 
   try {
-    // Fetch existing chat
+    // Fetch existing messages
     const { data: existingChat, error: fetchError } = await supabase
       .from("messages")
-      .select("messages")
-      .eq("chat_id", chatId)
+      .select("messages, id")
+      .eq("staff_id", staffId)
+      .eq("student_id", studentId)
       .single();
 
     let messages = [];
+    let recordId = conversationId;
+
     if (existingChat && !fetchError) {
       messages = existingChat.messages || [];
+      recordId = existingChat.id;
     }
 
     // Add new message
@@ -395,11 +402,13 @@ export const sendMessage = async (text, selectedUserId, userRole) => {
       .from("messages")
       .upsert(
         {
-          chat_id: chatId,
+          id: recordId,
+          staff_id: staffId,
+          student_id: studentId,
           messages: messages,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "chat_id" }
+        { onConflict: "id" }
       );
 
     if (upsertError) throw upsertError;
@@ -408,6 +417,7 @@ export const sendMessage = async (text, selectedUserId, userRole) => {
     throw error;
   }
 };
+
 
 /**
  * Subscribe to real-time messages in a private chat
@@ -427,58 +437,68 @@ export const subscribeToMessages = (selectedUserId, userRole, setMessages) => {
   const userId = currentUser.uid;
   const isStaff = userRole === "staff";
 
-  // Always format chatId as staffId_studentId
-  const chatId = isStaff
-    ? `${userId}_${selectedUserId}`
-    : `${selectedUserId}_${userId}`;
+  // Determine staff_id and student_id
+  const staffId = isStaff ? userId : selectedUserId;
+  const studentId = isStaff ? selectedUserId : userId;
 
-  // Initial fetch
-  const fetchMessages = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("messages")
-        .eq("chat_id", chatId)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        // PGRST116 is "not found" - that's okay
-        throw error;
-      }
-
-      setMessages(data?.messages || []);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      setMessages([]);
-    }
-  };
-
-  fetchMessages();
+  console.log("🔔 Setting up message subscription:", { staffId, studentId, userRole });
 
   // Subscribe to changes
-  const channel = supabase
-    .channel(`messages-${chatId}`)
+  const subscription = supabase
+    .channel(`messages:${staffId}_${studentId}`)
     .on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
         table: "messages",
-        filter: `chat_id=eq.${chatId}`,
+        filter: `staff_id=eq.${staffId},student_id=eq.${studentId}`,
       },
       (payload) => {
+        console.log("📨 Real-time message update received:", payload);
         if (payload.new && payload.new.messages) {
+          console.log("✅ Setting messages:", payload.new.messages);
           setMessages(payload.new.messages);
-        } else if (payload.eventType === "DELETE") {
-          setMessages([]);
         }
       }
     )
     .subscribe();
 
-  // Return unsubscribe function
+  // Fetch initial messages
+  console.log("📥 Fetching initial messages...");
+  console.log("🔍 Query params:", {
+    staff_id: staffId,
+    student_id: studentId,
+    currentUserId: userId,
+    selectedUserId,
+    userRole
+  });
+
+  supabase
+    .from("messages")
+    .select("*") // Select all columns to see what's there
+    .eq("staff_id", staffId)
+    .eq("student_id", studentId)
+    .maybeSingle() // Use maybeSingle() to handle case when no messages exist yet
+    .then(({ data, error }) => {
+      console.log("📬 Initial messages fetch result:", { data, error });
+      if (data && !error) {
+        console.log("✅ Setting initial messages:", data.messages);
+        setMessages(data.messages || []);
+      } else {
+        console.log("ℹ️ No messages found, setting empty array");
+        console.log("💡 Try checking database with these IDs:", { staffId, studentId });
+        setMessages([]);
+      }
+    })
+    .catch((err) => {
+      console.error("❌ Error fetching messages:", err);
+      setMessages([]);
+    });
+
   return () => {
-    supabase.removeChannel(channel);
+    console.log("🔕 Unsubscribing from messages");
+    subscription.unsubscribe();
   };
 };
 
@@ -497,17 +517,17 @@ export const markMessagesAsRead = async (selectedUserId, userRole) => {
   const userId = currentUser.uid;
   const isStaff = userRole === "staff";
 
-  // Always format chatId as staffId_studentId
-  const chatId = isStaff
-    ? `${userId}_${selectedUserId}`
-    : `${selectedUserId}_${userId}`;
+  // Determine staff_id and student_id
+  const staffId = isStaff ? userId : selectedUserId;
+  const studentId = isStaff ? selectedUserId : userId;
 
   try {
     // Fetch existing chat
     const { data: existingChat, error: fetchError } = await supabase
       .from("messages")
-      .select("messages")
-      .eq("chat_id", chatId)
+      .select("messages, id")
+      .eq("staff_id", staffId)
+      .eq("student_id", studentId)
       .single();
 
     if (fetchError || !existingChat) {
@@ -531,7 +551,7 @@ export const markMessagesAsRead = async (selectedUserId, userRole) => {
         messages: updatedMessages,
         updated_at: new Date().toISOString(),
       })
-      .eq("chat_id", chatId);
+      .eq("id", existingChat.id);
 
     if (updateError) throw updateError;
   } catch (error) {
@@ -1054,9 +1074,28 @@ export const updateStaffData = async (staffId, data) => {
 
     updateData.updated_at = new Date().toISOString();
 
-    const { error } = await supabase
+    // Check if staff exists
+    const { data: existingStaff } = await supabase
       .from("staff")
-      .upsert({ id: staffId, ...updateData }, { onConflict: "id" });
+      .select("id")
+      .eq("id", staffId)
+      .single();
+
+    let error;
+    if (existingStaff) {
+      // Update existing staff
+      const result = await supabase
+        .from("staff")
+        .update(updateData)
+        .eq("id", staffId);
+      error = result.error;
+    } else {
+      // Insert new staff
+      const result = await supabase
+        .from("staff")
+        .insert({ id: staffId, ...updateData });
+      error = result.error;
+    }
 
     if (error) throw error;
   } catch (error) {
@@ -1066,29 +1105,60 @@ export const updateStaffData = async (staffId, data) => {
 };
 
 /**
- * Subscribe to all staff members
- * @param {Function} callback - Callback function
+ * Subscribe to a single staff member or all staff members
+ * @param {string|Function} staffIdOrCallback - Staff ID or callback function
+ * @param {Function} callback - Callback function (if staffId is provided)
  * @returns {Function} Unsubscribe function
  */
-export const subscribeToStaff = (callback) => {
+export const subscribeToStaff = (staffIdOrCallback, callback) => {
+  // If only one argument, subscribe to all staff
+  if (typeof staffIdOrCallback === 'function') {
+    const cb = staffIdOrCallback;
+    const channel = supabase
+      .channel("staff-all")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "staff",
+        },
+        () => {
+          // Fetch all staff when any change occurs
+          fetchAllStaff().then(cb);
+        }
+      )
+      .subscribe();
+
+    // Fetch initial data
+    fetchAllStaff().then(cb);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }
+
+  // Subscribe to a single staff member
+  const staffId = staffIdOrCallback;
   const channel = supabase
-    .channel("staff-all")
+    .channel(`staff-${staffId}`)
     .on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
         table: "staff",
+        filter: `id=eq.${staffId}`,
       },
       () => {
-        // Fetch all staff when any change occurs
-        fetchAllStaff().then(callback);
+        // Fetch staff data when change occurs
+        fetchStaffData(staffId).then(callback);
       }
     )
     .subscribe();
 
   // Fetch initial data
-  fetchAllStaff().then(callback);
+  fetchStaffData(staffId).then(callback);
 
   return () => {
     supabase.removeChannel(channel);
@@ -1331,6 +1401,37 @@ export const deleteAssignment = async (assignmentId) => {
 };
 
 /**
+ * Fetch a student's submission for a specific assignment
+ * @param {string} studentId - Student ID
+ * @param {string} assignmentId - Assignment ID
+ * @returns {Promise<Object|null>} Submission data or null if not found
+ */
+export const fetchSubmission = async (studentId, assignmentId) => {
+  try {
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("assignment_id", assignmentId)
+      .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 error when no rows
+
+    // maybeSingle() returns null if no rows found, which is fine
+    if (error) {
+      // Only throw if it's a real error, not "no rows"
+      if (error.code !== "PGRST116") {
+        throw error;
+      }
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching submission:", error);
+    return null; // Return null instead of throwing to avoid breaking the UI
+  }
+};
+
+/**
  * Subscribe to real-time assignments updates
  * @param {Function} callback - Callback function to handle updates
  * @returns {Function} Unsubscribe function
@@ -1366,42 +1467,6 @@ export const subscribeToAssignments = (callback) => {
 // ============================================
 
 /**
- * Fetch submission for a student and assignment
- * @param {string} studentId - Student ID
- * @param {string} assignmentId - Assignment ID
- * @returns {Promise<Object|null>} Submission data or null
- */
-export const fetchSubmission = async (studentId, assignmentId) => {
-  try {
-    const { data, error } = await supabase
-      .from("submissions")
-      .select("*")
-      .eq("student_id", studentId)
-      .eq("assignment_id", assignmentId)
-      .single();
-
-    if (error && error.code !== "PGRST116") {
-      throw error;
-    }
-
-    if (!data) return null;
-
-    // Convert snake_case to camelCase
-    return {
-      id: data.id,
-      studentId: data.student_id,
-      assignmentId: data.assignment_id,
-      link: data.link,
-      downloadLink: data.download_link,
-      submittedAt: data.submitted_at,
-      fileName: data.file_name,
-      fileType: data.file_type,
-      resourceType: data.resource_type,
-      publicId: data.public_id,
-    };
-  } catch (error) {
-    console.error("Error fetching submission:", error);
-    return null;
   }
 };
 
@@ -1952,8 +2017,6 @@ export const calculateAndStoreOverallPerformance = async (
     throw error;
   }
 };
-
-
 
 
 

@@ -1,6 +1,6 @@
 // StudentDashboardComponents.js
 import React, { useState, useEffect, useCallback } from "react";
-import { supabaseAuth as auth } from "../supabase";
+import { supabaseAuth as auth, fetchMarks, fetchSubmission, saveSubmission, deleteSubmission } from "../supabase";
 
 export const ErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = useState(false);
@@ -180,21 +180,21 @@ export const AssignmentSummaryCard = ({ assignment }) => {
   const [marksLoading, setMarksLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMarks = async () => {
+    const loadMarks = async () => {
       const user = auth.currentUser;
       if (!user) return;
       try {
-        const marksRef = doc(db, "students", user.uid, "marks", assignment.id);
-        const marksSnap = await getDoc(marksRef);
-        if (marksSnap.exists()) {
-          setMarks(marksSnap.data());
+        const marksData = await fetchMarks(user.uid, assignment.id);
+        if (marksData) {
+          setMarks(marksData);
         }
         setMarksLoading(false);
       } catch (err) {
+        console.error("Error fetching marks:", err);
         setMarksLoading(false);
       }
     };
-    fetchMarks();
+    loadMarks();
   }, [assignment.id]);
 
   // Check if assignment has expired
@@ -408,38 +408,24 @@ export const AssignmentItem = ({ assignment }) => {
 
       // Fetch marks
       try {
-        const marksRef = doc(db, "students", user.uid, "marks", assignment.id);
-        const marksSnap = await getDoc(marksRef);
-        if (marksSnap.exists()) {
-          setMarks(marksSnap.data());
+        const marksData = await fetchMarks(user.uid, assignment.id);
+        if (marksData) {
+          setMarks(marksData);
         }
       } catch (err) {
-        console.warn(
-          "Could not fetch marks (permission or network):",
-          err.code
-        );
+        console.warn("Could not fetch marks:", err);
       } finally {
         setMarksLoading(false);
       }
 
       // Fetch submission
       try {
-        const subRef = doc(
-          db,
-          "students",
-          user.uid,
-          "submissions",
-          assignment.id
-        );
-        const subSnap = await getDoc(subRef);
-        if (subSnap.exists()) {
-          setSubmission(subSnap.data());
+        const submissionData = await fetchSubmission(user.uid, assignment.id);
+        if (submissionData) {
+          setSubmission(submissionData);
         }
       } catch (err) {
-        console.warn(
-          "Could not fetch submission (permission or network):",
-          err.code
-        );
+        console.warn("Could not fetch submission:", err);
       }
     };
     fetchData();
@@ -506,19 +492,16 @@ export const AssignmentItem = ({ assignment }) => {
           publicId: data.public_id,
         };
 
-        // Save metadata to Firestore
+        // Save metadata to Supabase
         try {
-          await setDoc(
-            doc(db, "students", user.uid, "submissions", assignment.id),
-            submissionData
-          );
+          await saveSubmission(user.uid, assignment.id, submissionData);
           setSubmission(submissionData);
           setFile(null);
           alert("Assignment uploaded successfully!");
-        } catch (firestoreError) {
+        } catch (supabaseError) {
           console.error(
-            "Error saving submission to Firestore:",
-            firestoreError
+            "Error saving submission to Supabase:",
+            supabaseError
           );
           alert(
             "File uploaded to Cloudinary, but failed to save record to database. Please contact support."
@@ -545,9 +528,7 @@ export const AssignmentItem = ({ assignment }) => {
     if (!user) return;
 
     try {
-      await deleteDoc(
-        doc(db, "students", user.uid, "submissions", assignment.id)
-      );
+      await deleteSubmission(user.uid, assignment.id);
       setSubmission(null);
       alert("Submission deleted successfully.");
     } catch (error) {

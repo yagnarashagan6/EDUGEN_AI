@@ -28,6 +28,7 @@ const StaffLogin = () => {
     "pandiselvi.aids@act.edu.in",
     "gayathiri.aids@act.edu.in",
     "vinotha.aids@act.edu.in",
+    "kappiyan22@gmail.com",
   ];
 
   const isEmailAllowed = (email) => allowedEmails.includes(email);
@@ -53,7 +54,7 @@ const StaffLogin = () => {
               formFilled: false,
             });
             navigate("/staff-form", { replace: true });
-          } else if (staffData.formFilled === true) {
+          } else if (staffData.formFilled === true || staffData.form_filled === true) {
             navigate("/staff-dashboard", { replace: true });
           } else {
             navigate("/staff-form", { replace: true });

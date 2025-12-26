@@ -20,23 +20,20 @@ import {
   fetchAssignments,
   subscribeToAssignments,
   fetchCirculars,
-  fetchMarks,
-  fetchSubmission,
-  saveSubmission,
-  deleteSubmission,
+
   updateLeaderboard,
   subscribeToStaff,
   fetchLeaderboard,
+  subscribeToMessages,
+  sendMessage,
 } from "../supabase";
 import Sidebar from "../components/Sidebar";
-import GoalItem from "../components/GoalItem";
-import Quiz from "../components/Quiz";
+
 import Notification from "../components/Notification";
 import OverdueTaskNotification from "../components/OverdueTaskNotification";
 import Chatbot from "../components/Chatbot";
 import GuideModal from "../components/GuideModal";
-import Notes from "../components/Notes";
-import TaskItem from "../components/TaskItem";
+
 import "../styles/Dashboard.css";
 import "../styles/Sidebar.css";
 import "../styles/Chat.css";
@@ -46,10 +43,7 @@ import EduTube from "../components/Youtube";
 // Import the refactored parts
 import {
   ErrorBoundary,
-  ChatInterface,
-  AssignmentSummaryCard,
-  AssignmentItem,
-  Leaderboard,
+
 } from "../students/StudentDashboardComponents";
 
 import {
@@ -98,7 +92,7 @@ const StudentDashboard = () => {
   const [assignments, setAssignments] = useState([]);
   const [topAssignments, setTopAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(true);
-  const [assignmentsError, setAssignmentsError] = useState(null);
+  const [assignmentsError] = useState(null);
   const [selfAnalysis, setSelfAnalysis] = useState({
     learningRate: 0,
     communicationSkill: 0,
@@ -124,7 +118,7 @@ const StudentDashboard = () => {
     useState(null);
   const [pendingStreakUpdate, setPendingStreakUpdate] = useState(false);
   const [newStreakValue, setNewStreakValue] = useState(0);
-  const [pendingQuizTask, setPendingQuizTask] = useState(null);
+
   const [showQuizSetup, setShowQuizSetup] = useState(false);
   const [quizNumQuestions, setQuizNumQuestions] = useState(3);
 
@@ -813,39 +807,10 @@ const StudentDashboard = () => {
     }
     const userId = auth.currentUser?.uid;
     if (!userId) return;
-    const chatId = [selectedStaffId, userId].sort().join("_");
-    const messagesRef = doc(db, "messages", chatId);
-    // This listener is also fine. It's only active when a chat is open,
-    // and it only listens to one document.
-    const unsubscribe = onSnapshot(
-      messagesRef,
-      async (docSnap) => {
-        // ... (message fetching logic)
-        if (docSnap.exists()) {
-          const currentMessages = docSnap.data().messages || [];
-          setMessages(currentMessages);
-          const updatedMessages = currentMessages.map((msg) =>
-            msg.sender === "staff" && !msg.read ? { ...msg, read: true } : msg
-          );
-          if (
-            updatedMessages.some(
-              (msg, i) => msg.read !== currentMessages[i].read
-            )
-          ) {
-            await setDoc(
-              messagesRef,
-              { messages: updatedMessages },
-              { merge: true }
-            );
-          }
-        } else {
-          setMessages([]);
-        }
-      },
-      (err) => {
-        /* ... error handling ... */
-      }
-    );
+
+    const unsubscribe = subscribeToMessages(selectedStaffId, userId, (messages) => {
+      setMessages(messages);
+    });
     return () => unsubscribe();
   }, [selectedStaffId]);
 
@@ -1360,24 +1325,7 @@ const StudentDashboard = () => {
       const text = input?.value.trim();
       if (!text) return;
 
-      const chatId = [selectedStaffId, user.uid].sort().join("_");
-      const newMessage = {
-        text,
-        sender: "student",
-        senderId: user.uid,
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      const messagesRef = doc(db, "messages", chatId);
-      const messagesSnap = await getDoc(messagesRef);
-      const existingMessages = messagesSnap.exists()
-        ? messagesSnap.data().messages || []
-        : [];
-      await setDoc(
-        messagesRef,
-        { messages: [...existingMessages, newMessage] },
-        { merge: true }
-      );
+      await sendMessage(text, selectedStaffId, "student");
       if (input) input.value = "";
     } catch (err) {
       console.error("Error sending message:", err);

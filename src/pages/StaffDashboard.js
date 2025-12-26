@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // StaffDashboard.js
 import React, {
   useState,
@@ -11,6 +12,7 @@ import PropTypes from "prop-types";
 import { supabaseAuth as auth } from "../supabase";
 import {
   fetchStaffData,
+  fetchStudentData,
   updateStaffData,
   updateStaffStats,
   fetchAllStudents,
@@ -28,6 +30,10 @@ import {
   calculateAndStoreOverallPerformance,
   resetAllStreaksToZero,
   deleteUnknownStudents,
+  subscribeToStaff,
+  sendMessage,
+  markMessagesAsRead,
+  subscribeToMessages,
 } from "../supabase";
 import Sidebar from "../components/Sidebar";
 import Chatbot from "../components/Chatbot";
@@ -151,36 +157,35 @@ const StaffDashboard = () => {
       return;
     }
 
-    const subRef = doc(
-      db,
-      "students",
-      selectedStudentForMarking,
-      "submissions",
-      selectedAssignmentForMarking
-    );
-
     console.log(
-      `Listening for submission: students/${selectedStudentForMarking}/submissions/${selectedAssignmentForMarking}`
+      `Fetching submission: students/${selectedStudentForMarking}/submissions/${selectedAssignmentForMarking}`
     );
 
-    const unsubscribe = onSnapshot(
-      subRef,
-      (docSnap) => {
-        if (docSnap.exists()) {
-          console.log("Submission found:", docSnap.data());
-          setCurrentSubmission(docSnap.data());
+    // Fetch submission using Supabase
+    const fetchCurrentSubmission = async () => {
+      try {
+        const submission = await fetchSubmission(
+          selectedStudentForMarking,
+          selectedAssignmentForMarking
+        );
+        if (submission) {
+          console.log("Submission found:", submission);
+          setCurrentSubmission(submission);
         } else {
           console.log("No submission found for this student/assignment.");
           setCurrentSubmission(null);
         }
-      },
-      (error) => {
-        console.error("Error listening to submission:", error);
+      } catch (error) {
+        console.error("Error fetching submission:", error);
         setCurrentSubmission(null);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchCurrentSubmission();
+
+    return () => {
+      // No cleanup needed for one-time fetch
+    };
   }, [selectedStudentForMarking, selectedAssignmentForMarking]);
 
   const addNotification = useCallback((message, type = "info") => {
@@ -195,27 +200,20 @@ const StaffDashboard = () => {
     async (idsToFetch, currentStaffId) => {
       const newNamesMap = {};
       const allIds = [...new Set(idsToFetch)];
-      const promises = allIds.map((id) => getDoc(doc(db, "students", id)));
 
       try {
-        const docSnaps = await Promise.all(promises);
-        docSnaps.forEach((docSnap, index) => {
+        const promises = allIds.map((id) => fetchStudentData(id));
+        const students = await Promise.all(promises);
+
+        students.forEach((student, index) => {
           const id = allIds[index];
-          if (docSnap.exists()) {
-            newNamesMap[id] = docSnap.data().name || "Anonymous";
+          if (student) {
+            newNamesMap[id] = student.name || "Anonymous";
           } else {
             newNamesMap[id] = "Anonymous";
           }
         });
 
-        if (currentStaffId && !userNames[currentStaffId]) {
-          const staffDoc = await getDoc(doc(db, "staff", currentStaffId));
-          if (staffDoc.exists()) {
-            newNamesMap[currentStaffId] = staffDoc.data().name || "Staff";
-          } else {
-            newNamesMap[currentStaffId] = "Staff";
-          }
-        }
         setUserNames((prevNames) => ({ ...prevNames, ...newNamesMap }));
       } catch (e) {
         console.error("Error fetching user names:", e);
@@ -225,26 +223,14 @@ const StaffDashboard = () => {
     [addNotification] // Removed userNames from dependencies
   );
 
-  const countUnreadMessages = useCallback(async () => {
+
+  const loadUnreadMessages = useCallback(async () => {
     try {
       const staffUserId = auth.currentUser?.uid;
       if (!staffUserId) return;
-      const unreadCounts = {};
-      for (const student of studentStats) {
-        const chatId = [staffUserId, student.id].sort().join("_");
-        const messagesRef = doc(db, "messages", chatId);
-        const messagesSnap = await getDoc(messagesRef); // Use getDoc
-        if (messagesSnap.exists()) {
-          const messages = messagesSnap.data().messages || [];
-          const unreadCount = messages.filter(
-            (msg) => msg.sender === "student" && !msg.read
-          ).length;
-          if (unreadCount > 0) {
-            unreadCounts[student.id] = unreadCount;
-          }
-        }
-      }
-      setUnreadMessageCounts(unreadCounts);
+
+      // For now, set empty unread counts - messaging will be implemented later
+      setUnreadMessageCounts({});
     } catch (error) {
       console.error("Error counting unread messages:", error);
     }
@@ -265,9 +251,8 @@ const StaffDashboard = () => {
           navigate("/staff-login");
           return;
         }
-        const staffDocRef = doc(db, "staff", user.uid);
-        const staffDocSnap = await getDoc(staffDocRef);
-        if (!staffDocSnap.exists()) {
+        const staffData = await fetchStaffData(user.uid);
+        if (!staffData) {
           addNotification(
             "Staff profile not found. Redirecting to form.",
             "error"
@@ -275,11 +260,11 @@ const StaffDashboard = () => {
           navigate("/staff-form");
           return;
         }
-        if (!staffDocSnap.data().formFilled) {
+        if (!staffData.formFilled && !staffData.form_filled) {
           navigate("/staff-form");
           return;
         }
-        setUserData(staffDocSnap.data());
+        setUserData(staffData);
         try {
           const cachedStudents = localStorage.getItem(
             "staffDashboard_students"
@@ -301,32 +286,19 @@ const StaffDashboard = () => {
         } catch (cacheError) {
           console.warn("Cache loading failed:", cacheError);
         }
-        const studentsRef = collection(db, "students");
-        const studentsSnap = await getDocs(studentsRef); // Use getDocs
-        const allStudents = [];
-        studentsSnap.forEach((studentDoc) => {
-          const studentData = studentDoc.data();
-          if (
-            studentData.name &&
-            studentData.name.trim() !== "" &&
-            studentData.name !== "Unknown"
-          ) {
-            allStudents.push({
-              id: studentDoc.id,
-              name: studentData.name,
-              streak: studentData.streak || 0,
-              progress: studentData.progress || 0,
-              dob: studentData.dob || null,
-              ...studentData,
-            });
-          }
-        });
+        const allStudents = await fetchAllStudents();
+        const filteredStudents = allStudents.filter(
+          (student) =>
+            student.name &&
+            student.name.trim() !== "" &&
+            student.name !== "Unknown"
+        );
         setStudentStats(
-          allStudents.sort((a, b) => (b.progress || 0) - (a.progress || 0))
+          filteredStudents.sort((a, b) => (b.progress || 0) - (a.progress || 0))
         );
         setQuickStats((prev) => ({
           ...prev,
-          totalStudents: allStudents.length,
+          totalStudents: filteredStudents.length,
         }));
         // Removed localStorage caching to avoid quota exceeded errors
         setLoading((prev) => ({ ...prev, students: false }));
@@ -383,28 +355,15 @@ const StaffDashboard = () => {
   useEffect(() => {
     const refreshStudentStats = async () => {
       try {
-        const studentsRef = collection(db, "students");
-        const studentsSnap = await getDocs(studentsRef); // Use getDocs
-        const allStudents = [];
-        studentsSnap.forEach((studentDoc) => {
-          const studentData = studentDoc.data();
-          if (
-            studentData.name &&
-            studentData.name.trim() !== "" &&
-            studentData.name !== "Unknown"
-          ) {
-            allStudents.push({
-              id: studentDoc.id,
-              name: studentData.name,
-              streak: studentData.streak || 0,
-              progress: studentData.progress || 0,
-              dob: studentData.dob || null,
-              ...studentData,
-            });
-          }
-        });
+        const allStudents = await fetchAllStudents();
+        const filteredStudents = allStudents.filter(
+          (student) =>
+            student.name &&
+            student.name.trim() !== "" &&
+            student.name !== "Unknown"
+        );
         setStudentStats(
-          allStudents.sort((a, b) => (b.progress || 0) - (a.progress || 0))
+          filteredStudents.sort((a, b) => (b.progress || 0) - (a.progress || 0))
         );
 
         // --- OPTIMIZATION ---
@@ -428,10 +387,9 @@ const StaffDashboard = () => {
 
     const fetchOverallStats = async () => {
       try {
-        const overallStatsRef = doc(db, "staff", user.uid);
-        const overallStatsSnap = await getDoc(overallStatsRef);
-        if (overallStatsSnap.exists()) {
-          const data = overallStatsSnap.data();
+        const staffData = await fetchStaffData(user.uid);
+        if (staffData) {
+          const data = staffData;
           const stats = data.stats || {};
           setQuickStats((prev) => ({
             ...prev,
@@ -445,9 +403,9 @@ const StaffDashboard = () => {
     };
     fetchOverallStats();
     // Listen to current user's staff document
-    const unsub = onSnapshot(doc(db, "staff", user.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+    const unsub = subscribeToStaff(user.uid, (staffData) => {
+      if (staffData) {
+        const data = staffData;
         const stats = data.stats || {};
         setQuickStats((prev) => ({
           ...prev,
@@ -470,16 +428,16 @@ const StaffDashboard = () => {
         setLoading((prev) => ({ ...prev, tasks: false }));
         return;
       }
-      const tasksRef = doc(db, "tasks", "shared");
-      const tasksSnap = await getDoc(tasksRef); // Use getDoc
-      if (!tasksSnap.exists()) {
+
+      const allTasks = await fetchTasks();
+      if (!allTasks || allTasks.length === 0) {
         setTasks([]);
         setLoading((prev) => ({ ...prev, tasks: false }));
         return;
       }
-      const allTasks = tasksSnap.data().tasks || [];
+
       const staffTasks = allTasks
-        .filter((task) => task.staffId === currentStaffId)
+        .filter((task) => task.staffId === currentStaffId || task.staff_id === currentStaffId)
         .map((task) => ({
           ...task,
           date:
@@ -511,20 +469,14 @@ const StaffDashboard = () => {
     // Use Promise.all for parallel fetches
     const promises = studentStats.map(async (student) => {
       try {
-        const statusColRef = collection(
-          db,
-          "students",
-          student.id,
-          "task_status"
-        );
-        const snap = await getDocs(statusColRef); // Use getDocs, not onSnapshot
+        const studentTaskStatuses = await fetchTaskStatuses(student.id);
         const map = {};
-        snap.forEach((d) => {
-          map[d.id] = d.data();
+        studentTaskStatuses.forEach((status) => {
+          map[status.task_id] = status;
         });
         allStatuses[student.id] = map;
       } catch (e) {
-        console.warn("Failed to load task status for", student.id);
+        console.warn("Failed to load task status for", student.id, e);
         allStatuses[student.id] = {}; // Ensure student key exists
       }
     });
@@ -547,7 +499,7 @@ const StaffDashboard = () => {
   }, [studentStats, loading.students, loading.tasks]);
   */
 
-  const fetchAssignments = useCallback(async () => {
+  const loadAssignmentsData = useCallback(async () => {
     setLoading((prev) => ({ ...prev, assignments: true }));
     const user = auth.currentUser;
     if (!user) {
@@ -556,40 +508,32 @@ const StaffDashboard = () => {
       return;
     }
     try {
-      const q = query(
-        collection(db, "assignments"),
-        orderBy("postedAt", "desc")
+      const allAssignments = await fetchAssignments();
+      // Check if allAssignments is valid
+      if (!allAssignments || !Array.isArray(allAssignments)) {
+        console.warn("fetchAssignments returned invalid data:", allAssignments);
+        setAssignments([]);
+        setLoading((prev) => ({ ...prev, assignments: false }));
+        return;
+      }
+      const staffAssignments = allAssignments.filter(
+        (assignment) => assignment.staff_id === user.uid || assignment.staffId === user.uid
       );
-      const snapshot = await getDocs(q); // Use getDocs
-      const staffAssignments = snapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          postedAt: doc.data().postedAt?.toDate
-            ? doc.data().postedAt.toDate()
-            : new Date(),
-          deadline: doc.data().deadline?.toDate
-            ? doc.data().deadline.toDate()
-            : null,
-        }))
-        .filter((assignment) => assignment.staffId === user.uid);
       setAssignments(staffAssignments);
       setLoading((prev) => ({ ...prev, assignments: false }));
     } catch (err) {
       console.error("Error fetching assignments:", err);
       addNotification("Failed to load assignments: " + err.message, "error");
+      setAssignments([]);
       setLoading((prev) => ({ ...prev, assignments: false }));
     }
   }, [addNotification]);
 
   useEffect(() => {
-    fetchAssignments();
-    // --- OPTIMIZATION ---
-    // Remove automatic interval refresh. Staff can reopen the
-    // container to refresh the data if needed, or we can add a button.
-    // const interval = setInterval(fetchAssignments, 60000);
-    // return () => clearInterval(interval);
-  }, [fetchAssignments]);
+    if (userData) {
+      loadAssignmentsData();
+    }
+  }, [userData, loadAssignmentsData]);
 
   // Fetch all student submissions for all assignments
   useEffect(() => {
@@ -602,56 +546,53 @@ const StaffDashboard = () => {
 
     const unsubscribers = [];
 
-    assignments.forEach((assignment) => {
-      studentStats.forEach((student) => {
-        const subRef = doc(
-          db,
-          "students",
-          student.id,
-          "submissions",
-          assignment.id
-        );
-
-        const unsubscribe = onSnapshot(subRef, (docSnap) => {
-          const key = `${assignment.id}_${student.id}`;
-          if (docSnap.exists()) {
-            setAssignmentSubmissions((prev) => ({
-              ...prev,
-              [key]: {
-                ...docSnap.data(),
-                studentId: student.id,
-                assignmentId: assignment.id,
-              },
-            }));
-          } else {
-            setAssignmentSubmissions((prev) => {
-              const newState = { ...prev };
-              delete newState[key];
-              return newState;
-            });
+    // Fetch all submissions instead of subscribing
+    const fetchAllSubmissions = async () => {
+      for (const assignment of assignments) {
+        for (const student of studentStats) {
+          try {
+            const submission = await fetchSubmission(student.id, assignment.id);
+            const key = `${assignment.id}_${student.id}`;
+            if (submission) {
+              setAssignmentSubmissions((prev) => ({
+                ...prev,
+                [key]: {
+                  ...submission,
+                  studentId: student.id,
+                  assignmentId: assignment.id,
+                },
+              }));
+            } else {
+              setAssignmentSubmissions((prev) => {
+                const newState = { ...prev };
+                delete newState[key];
+                return newState;
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching submission for ${student.id}:`, error);
           }
-        });
+        }
+      }
+    };
 
-        unsubscribers.push(unsubscribe);
-      });
-    });
+    fetchAllSubmissions();
 
     return () => {
       unsubscribers.forEach((unsub) => unsub());
     };
   }, [assignments, studentStats]);
 
+
   const loadYoutubeSettings = useCallback(async () => {
     try {
-      const settingsRef = doc(db, "settings", "youtube");
-      const settingsSnap = await getDoc(settingsRef); // Use getDoc
-      if (settingsSnap.exists()) {
-        const data = settingsSnap.data();
+      const settings = await fetchSettings('youtube');
+      if (settings) {
         setYoutubeSettings({
-          defaultLanguage: data.defaultLanguage || "ta",
-          defaultCategory: data.defaultCategory || "all",
-          defaultChannelIds: data.defaultChannelIds || [],
-          channels: data.channels || CHANNELS,
+          defaultLanguage: settings.defaultLanguage || "ta",
+          defaultCategory: settings.defaultCategory || "all",
+          defaultChannelIds: settings.defaultChannelIds || [],
+          channels: settings.channels || CHANNELS,
         });
       }
     } catch (error) {
@@ -664,17 +605,21 @@ const StaffDashboard = () => {
     async (settings) => {
       setYoutubeSettingsLoading(true);
       try {
-        const settingsRef = doc(db, "settings", "youtube");
-        await setDoc(settingsRef, {
+        await saveSettings("youtube", {
           ...settings,
           updatedBy: auth.currentUser?.uid,
-          updatedAt: Timestamp.now(),
+          updated_by: auth.currentUser?.uid,
+          updatedAt: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
         setYoutubeSettings(settings);
         addNotification("YouTube settings updated successfully", "success");
       } catch (error) {
         console.error("Error saving YouTube settings:", error);
-        addNotification("Failed to save YouTube settings", "error");
+        addNotification(
+          "Failed to save YouTube settings: " + error.message,
+          "error"
+        );
       } finally {
         setYoutubeSettingsLoading(false);
       }
@@ -846,69 +791,28 @@ const StaffDashboard = () => {
     }
     const staffUserId = auth.currentUser?.uid;
     if (!staffUserId) return;
-    const chatId = [staffUserId, selectedStudentId].sort().join("_");
-    const messagesRef = doc(db, "messages", chatId);
 
-    // This listener is fine. It's for an active 1-on-1 chat.
-    const unsubscribe = onSnapshot(
-      messagesRef,
-      async (docSnap) => {
-        try {
-          if (docSnap.exists()) {
-            const currentMessages = docSnap.data().messages || [];
-            setMessages(currentMessages);
-            const unreadStudentMessages = currentMessages.filter(
-              (msg) => msg.sender === "student" && !msg.read
-            );
-            if (unreadStudentMessages.length > 0) {
-              const updatedMessages = currentMessages.map((msg) =>
-                msg.sender === "student" && !msg.read
-                  ? { ...msg, read: true }
-                  : msg
-              );
-              await setDoc(
-                messagesRef,
-                { messages: updatedMessages },
-                { merge: true }
-              );
-              countUnreadMessages();
-            }
-            const senderIds = currentMessages
-              .map((msg) => msg.senderId)
-              .filter((id) => id && !userNames[id]);
-            if (senderIds.length > 0) {
-              fetchUserNames(senderIds, staffUserId);
-            }
-          } else {
-            setMessages([]);
-          }
-        } catch (err) {
-          console.error("Error processing message snapshot:", err);
-          addNotification("Failed to load messages.", "error");
-        }
-      },
-      (err) => {
-        console.error("Error subscribing to messages:", err);
-        addNotification("Failed to load messages: " + err.message, "error");
-      }
+    // Use Supabase subscribeToMessages
+    const unsubscribe = subscribeToMessages(
+      selectedStudentId,
+      "staff",
+      setMessages
     );
+
     return () => unsubscribe();
   }, [
     selectedStudentId,
-    addNotification,
-    fetchUserNames,
-    userNames,
-    countUnreadMessages,
   ]);
+
 
   useEffect(() => {
     if (studentStats.length === 0) return;
-    countUnreadMessages();
-    const interval = setInterval(countUnreadMessages, 300000); // 5 minutes
+    loadUnreadMessages();
+    const interval = setInterval(loadUnreadMessages, 300000); // 5 minutes
     return () => clearInterval(interval);
-  }, [studentStats, countUnreadMessages]);
+  }, [studentStats, loadUnreadMessages]);
 
-  const sendMessage = useCallback(async () => {
+  const sendStaffMessage = useCallback(async () => {
     try {
       const input = document.getElementById("staff-message-input");
       const text = input?.value.trim();
@@ -924,42 +828,10 @@ const StaffDashboard = () => {
         addNotification("User not authenticated to send message.", "error");
         return;
       }
-      const chatId = [staffUserId, selectedStudentId].sort().join("_");
-      const newMessage = {
-        text,
-        sender: "staff",
-        senderId: staffUserId,
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      const messagesRef = doc(db, "messages", chatId);
-      const messagesSnap = await getDoc(messagesRef);
-      const existingMessages = messagesSnap.exists()
-        ? messagesSnap.data().messages || []
-        : [];
-      await setDoc(
-        messagesRef,
-        { messages: [...existingMessages, newMessage] },
-        { merge: true }
-      );
+
+      await sendMessage(text, selectedStudentId, "staff");
       if (input) input.value = "";
-      try {
-        const studentNotifRef = collection(
-          db,
-          "students",
-          selectedStudentId,
-          "notifications"
-        );
-        await addDoc(studentNotifRef, {
-          message: `New message from staff: ${text.substring(0, 50)}${text.length > 50 ? "..." : ""
-            }`,
-          type: "message",
-          staffId: staffUserId,
-          timestamp: Timestamp.now(),
-        });
-      } catch (notifError) {
-        console.warn("Failed to send notification to student:", notifError);
-      }
+      addNotification("Message sent successfully!", "success");
     } catch (err) {
       console.error("Error sending message:", err);
       addNotification("Failed to send message: " + err.message, "error");
@@ -968,23 +840,11 @@ const StaffDashboard = () => {
 
   const deleteMessage = useCallback(
     async (originalIndex) => {
-      try {
-        if (!selectedStudentId) return;
-        const staffUserId = auth.currentUser?.uid;
-        if (!staffUserId) {
-          addNotification("User not authenticated to delete message.", "error");
-          return;
-        }
-        const chatId = [staffUserId, selectedStudentId].sort().join("_");
-        const updatedMessages = messages.filter((_, i) => i !== originalIndex);
-        const messagesRef = doc(db, "messages", chatId);
-        await setDoc(messagesRef, { messages: updatedMessages });
-      } catch (err) {
-        console.error("Error deleting message:", err);
-        addNotification("Failed to delete message: " + err.message, "error");
-      }
+      // TODO: Implement with Supabase
+      console.warn("Delete message not yet implemented with Supabase");
+      addNotification("Delete message feature coming soon", "info");
     },
-    [selectedStudentId, messages, addNotification]
+    [addNotification]
   );
 
   const postAssignment = async () => {
@@ -997,11 +857,13 @@ const StaffDashboard = () => {
         );
         return;
       }
-      const staffDocSnap = await getDoc(doc(db, "staff", user.uid));
-      if (!staffDocSnap.exists() || !staffDocSnap.data().formFilled) {
+
+      const staffData = await fetchStaffData(user.uid);
+      if (!staffData || !staffData.formFilled) {
         addNotification("Staff profile incomplete or not found.", "error");
         return;
       }
+
       if (!newAssignmentSubject.trim()) {
         addNotification("Please enter assignment subject.", "warning");
         return;
@@ -1013,7 +875,8 @@ const StaffDashboard = () => {
         );
         return;
       }
-      let deadlineTimestamp = null;
+
+      let deadlineISO = null;
       if (newAssignmentDeadline) {
         const deadlineDateTime = newAssignmentDeadlineTime
           ? `${newAssignmentDeadline}T${newAssignmentDeadlineTime}:00`
@@ -1023,38 +886,27 @@ const StaffDashboard = () => {
           addNotification("Invalid deadline date/time provided.", "warning");
           return;
         }
-        deadlineTimestamp = Timestamp.fromDate(deadlineDate);
+        deadlineISO = deadlineDate.toISOString();
       }
+
       const newAssignmentData = {
         subject: newAssignmentSubject.trim(),
         driveLink: newAssignmentLink.trim(),
+        drive_link: newAssignmentLink.trim(),
         staffId: user.uid,
-        staffName: staffDocSnap.data().name || "Staff",
-        postedAt: Timestamp.now(),
-        deadline: deadlineTimestamp,
+        staff_id: user.uid,
+        staffName: staffData.name || "Staff",
+        staff_name: staffData.name || "Staff",
+        postedAt: new Date().toISOString(),
+        posted_at: new Date().toISOString(),
+        deadline: deadlineISO,
         isPublic: true,
+        is_public: true,
       };
-      const assignmentRef = await addDoc(
-        collection(db, "assignments"),
-        newAssignmentData
-      );
+
+      await addAssignment(newAssignmentData);
       addNotification("Assignment posted successfully!", "success");
-      const studentsRef = collection(db, "students");
-      const studentSnapshot = await getDocs(studentsRef);
-      studentSnapshot.forEach(async (studentDoc) => {
-        const studentNotifRef = collection(
-          db,
-          "students",
-          studentDoc.id,
-          "notifications"
-        );
-        await addDoc(studentNotifRef, {
-          message: `New assignment posted: ${newAssignmentSubject}`,
-          type: "assignment",
-          assignmentId: assignmentRef.id,
-          timestamp: Timestamp.now(),
-        });
-      });
+
       setNewAssignmentSubject("");
       setNewAssignmentLink("");
       setNewAssignmentDeadline("");
@@ -1065,7 +917,7 @@ const StaffDashboard = () => {
     }
   };
 
-  const deleteAssignment = async (assignmentId) => {
+  const handleDeleteAssignment = async (assignmentId) => {
     try {
       if (
         !window.confirm(
@@ -1073,7 +925,7 @@ const StaffDashboard = () => {
         )
       )
         return;
-      await deleteDoc(doc(db, "assignments", assignmentId));
+      await deleteAssignment(assignmentId);
       addNotification("Assignment deleted successfully!", "success");
     } catch (err) {
       console.error("Error deleting assignment:", err);
@@ -1102,19 +954,22 @@ const StaffDashboard = () => {
       (a) => a.id === selectedAssignmentForMarking
     );
     try {
-      const marksPath = `students/${selectedStudentForMarking}/marks/${selectedAssignmentForMarking}`;
-      const marksRef = doc(db, marksPath);
-      await setDoc(
-        marksRef,
+      await saveMarks(
+        selectedStudentForMarking,
+        selectedAssignmentForMarking,
         {
           marks: assignmentMarks.trim(),
           assignmentSubject: selectedAssignmentDetails?.subject || "N/A",
+          assignment_subject: selectedAssignmentDetails?.subject || "N/A",
           assignmentId: selectedAssignmentForMarking,
+          assignment_id: selectedAssignmentForMarking,
           staffId: staffUserId,
+          staff_id: staffUserId,
           staffName: userData?.name || userNames[staffUserId] || "Staff",
-          markedAt: Timestamp.now(),
-        },
-        { merge: true }
+          staff_name: userData?.name || userNames[staffUserId] || "Staff",
+          markedAt: new Date().toISOString(),
+          marked_at: new Date().toISOString(),
+        }
       );
       addNotification("Marks sent successfully!", "success");
       setSelectedStudentForMarking("");
@@ -1123,23 +978,6 @@ const StaffDashboard = () => {
     } catch (err) {
       console.error("Error sending marks:", err);
       addNotification(`Failed to send marks: ${err.message}`, "error");
-      return;
-    }
-    try {
-      const studentNotifRef = collection(
-        db,
-        "students",
-        selectedStudentForMarking,
-        "notifications"
-      );
-      await addDoc(studentNotifRef, {
-        message: `Marks received for assignment "${selectedAssignmentDetails?.subject}": ${assignmentMarks}`,
-        type: "marks",
-        assignmentId: selectedAssignmentForMarking,
-        timestamp: Timestamp.now(),
-      });
-    } catch (err) {
-      console.warn("Failed to send notification to student:", err);
     }
   };
 
@@ -1226,83 +1064,37 @@ const StaffDashboard = () => {
         addNotification("User not authenticated to post task.", "error");
         return;
       }
-      const staffDocSnap = await getDoc(doc(db, "staff", user.uid));
-      if (!staffDocSnap.exists() || !staffDocSnap.data().formFilled) {
+
+      const staffData = await fetchStaffData(user.uid);
+      if (!staffData || !staffData.formFilled) {
         addNotification("Staff profile incomplete or not found.", "error");
         return;
       }
-      const staffData = staffDocSnap.data();
+
       const newTask = {
         id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: taskContent,
         subject: staffData.subject || "General",
         staffId: user.uid,
+        staff_id: user.uid,
         staffName: staffData.name || "Staff",
-        postedAt: Timestamp.now(),
+        postedAt: new Date().toISOString(),
         date: new Date().toLocaleDateString(),
         completedBy: [],
       };
-      const tasksRef = doc(db, "tasks", "shared");
-      const tasksSnap = await getDoc(tasksRef);
-      const existingTasks = tasksSnap.exists()
-        ? tasksSnap.data().tasks || []
-        : [];
-      await setDoc(
-        tasksRef,
-        { tasks: [...existingTasks, newTask] },
-        { merge: true }
-      );
+
+      const existingTasks = await fetchTasks();
+      const updatedTasks = [...(existingTasks || []), newTask];
+      await saveTasks(updatedTasks);
+
+      // Recalculate performance
       try {
-        const studentsRef = collection(db, "students");
-        const studentsSnap = await getDocs(studentsRef);
-        const allStudents = [];
-        studentsSnap.forEach((studentDoc) => {
-          const studentData = studentDoc.data();
-          if (
-            studentData.name &&
-            studentData.name.trim() !== "" &&
-            studentData.name !== "Unknown"
-          ) {
-            allStudents.push({
-              id: studentDoc.id,
-              name: studentData.name,
-              progress: studentData.progress || 0,
-              streak: studentData.streak || 0,
-              ...studentData,
-            });
-          }
-        });
-        // --- OPTIMIZATION ---
-        // Recalculate performance now that a new task exists
-        await calculateAndStoreOverallPerformance(allStudents, user.uid, [
-          ...existingTasks,
-          newTask,
-        ]);
+        const allStudents = await fetchAllStudents();
+        await calculateAndStoreOverallPerformance(allStudents, user.uid, updatedTasks);
       } catch (progressError) {
-        console.warn(
-          "Failed to recalculate overall performance after new task:",
-          progressError
-        );
+        console.warn("Failed to recalculate overall performance after new task:", progressError);
       }
-      const studentsRef = collection(db, "students");
-      const studentSnapshot = await getDocs(studentsRef);
-      const notificationPromises = studentSnapshot.docs.map(
-        async (studentDoc) => {
-          const studentNotifRef = collection(
-            db,
-            "students",
-            studentDoc.id,
-            "notifications"
-          );
-          return addDoc(studentNotifRef, {
-            message: `New task posted: ${taskContent}`,
-            type: "task",
-            taskId: newTask.id,
-            timestamp: Timestamp.now(),
-          });
-        }
-      );
-      await Promise.all(notificationPromises);
+
       if (taskInput) taskInput.value = "";
       addNotification("Task posted successfully!", "success");
     } catch (err) {
@@ -1326,57 +1118,34 @@ const StaffDashboard = () => {
           addNotification("User not authenticated to delete task.", "error");
           return;
         }
-        const tasksRef = doc(db, "tasks", "shared");
-        const tasksSnap = await getDoc(tasksRef);
-        if (!tasksSnap.exists()) {
+
+        const existingTasks = await fetchTasks();
+        if (!existingTasks || existingTasks.length === 0) {
           addNotification("No tasks found.", "error");
           return;
         }
-        const existingTasks = tasksSnap.data().tasks || [];
+
         const taskToDelete = existingTasks.find((task) => task.id === taskId);
         if (!taskToDelete) {
           addNotification("Task not found.", "error");
           return;
         }
-        if (taskToDelete.staffId !== user.uid) {
+        if (taskToDelete.staffId !== user.uid && taskToDelete.staff_id !== user.uid) {
           addNotification("You can only delete your own tasks.", "error");
           return;
         }
+
         const updatedTasks = existingTasks.filter((task) => task.id !== taskId);
-        await setDoc(tasksRef, { tasks: updatedTasks }, { merge: true });
+        await saveTasks(updatedTasks);
+
+        // Recalculate performance
         try {
-          const studentsRef = collection(db, "students");
-          const studentsSnap = await getDocs(studentsRef);
-          const allStudents = [];
-          studentsSnap.forEach((studentDoc) => {
-            const studentData = studentDoc.data();
-            if (
-              studentData.name &&
-              studentData.name.trim() !== "" &&
-              studentData.name !== "Unknown"
-            ) {
-              allStudents.push({
-                id: studentDoc.id,
-                name: studentData.name,
-                progress: studentData.progress || 0,
-                streak: studentData.streak || 0,
-                ...studentData,
-              });
-            }
-          });
-          // --- OPTIMIZATION ---
-          // Recalculate performance now that a task is gone
-          await calculateAndStoreOverallPerformance(
-            allStudents,
-            user.uid,
-            updatedTasks
-          );
+          const allStudents = await fetchAllStudents();
+          await calculateAndStoreOverallPerformance(allStudents, user.uid, updatedTasks);
         } catch (progressError) {
-          console.warn(
-            "Failed to recalculate overall performance after task deletion:",
-            progressError
-          );
+          console.warn("Failed to recalculate overall performance after task deletion:", progressError);
         }
+
         addNotification("Task deleted successfully!", "success");
       } catch (err) {
         console.error("Error deleting task:", err);
@@ -1410,33 +1179,13 @@ const StaffDashboard = () => {
       setSelectedStudentName(student.name);
       setShowContactList(false);
       try {
-        const chatId = [staffUserId, student.id].sort().join("_");
-        const messagesRef = doc(db, "messages", chatId);
-        const messagesSnap = await getDoc(messagesRef); // Use getDoc
-        if (messagesSnap.exists()) {
-          const currentMessages = messagesSnap.data().messages || [];
-          const hasUnreadMessages = currentMessages.some(
-            (msg) => msg.sender === "student" && !msg.read
-          );
-          if (hasUnreadMessages) {
-            const updatedMessages = currentMessages.map((msg) =>
-              msg.sender === "student" && !msg.read
-                ? { ...msg, read: true }
-                : msg
-            );
-            await setDoc(
-              messagesRef,
-              { messages: updatedMessages },
-              { merge: true }
-            );
-            countUnreadMessages();
-          }
-        }
+        await markMessagesAsRead(staffUserId, student.id);
+        loadUnreadMessages();
       } catch (error) {
         console.error("Error marking messages as read:", error);
       }
     },
-    [countUnreadMessages]
+    [loadUnreadMessages]
   );
 
   const getLoadingProgress = () => {
@@ -1588,7 +1337,7 @@ const StaffDashboard = () => {
             <StaffInteractionContainer
               activeContainer={activeContainer}
               messages={messages}
-              sendMessage={sendMessage}
+              sendMessage={sendStaffMessage}
               deleteMessage={deleteMessage}
               showContactList={showContactList}
               setShowContactList={setShowContactList}
