@@ -59,7 +59,7 @@ const StudentLogin = () => {
             formFilled: false,
           });
           navigate("/student-form");
-        } else if (studentData.formFilled || studentData.form_filled) {
+        } else if (studentData.formFilled) {
           navigate("/student-dashboard");
         } else {
           navigate("/student-form");

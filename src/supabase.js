@@ -9,7 +9,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
   },
+  global: {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  },
 });
+
+// Normalize Supabase error objects into Error instances with readable messages
+function normalizeError(err) {
+  if (!err) return new Error("Unknown error");
+  if (err instanceof Error) return err;
+  try {
+    const message = err?.message || (typeof err === "object" ? JSON.stringify(err) : String(err));
+    return new Error(message);
+  } catch (e) {
+    return new Error(String(err));
+  }
+}
 
 // Auth helper functions that mirror Firebase auth API
 export const supabaseAuth = {
@@ -56,7 +74,7 @@ export const supabaseAuth = {
   // Sign out
   async signOut() {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) throw normalizeError(error);
     this.currentUser = null;
   },
 };
@@ -72,7 +90,7 @@ export const signInWithEmailAndPassword = async (
     password,
   });
 
-  if (error) throw error;
+  if (error) throw normalizeError(error);
 
   // Update currentUser immediately
   supabaseAuth.currentUser = {
@@ -100,7 +118,7 @@ export const createUserWithEmailAndPassword = async (
     password,
   });
 
-  if (error) throw error;
+  if (error) throw normalizeError(error);
 
   // Update currentUser immediately
   supabaseAuth.currentUser = {
@@ -130,7 +148,7 @@ export const signInWithPopup = async (authInstance, provider) => {
     },
   });
 
-  if (error) throw error;
+  if (error) throw normalizeError(error);
 
   // For OAuth, the redirect will happen and onAuthStateChange will handle the rest
   // Return a promise that never resolves (the page will redirect)
@@ -160,7 +178,7 @@ export const fetchNotes = async () => {
       .select("*")
       .order("timestamp", { ascending: false });
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     // Filter notes based on sharedWith (all or includes current user's ID)
     const filtered = data.filter(
@@ -172,7 +190,7 @@ export const fetchNotes = async () => {
     return filtered;
   } catch (error) {
     console.error("Error fetching notes:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -206,12 +224,12 @@ export const addNote = async (noteData) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return data;
   } catch (error) {
     console.error("Error adding note:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -224,10 +242,10 @@ export const deleteNote = async (noteId) => {
   try {
     const { error } = await supabase.from("notes").delete().eq("id", noteId);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error deleting note:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -277,7 +295,7 @@ export const fetchStudents = async () => {
       .select("id, name")
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return data.map((student) => ({
       id: student.id,
@@ -285,7 +303,7 @@ export const fetchStudents = async () => {
     }));
   } catch (error) {
     console.error("Error fetching students:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -331,7 +349,7 @@ export const fetchUserName = async (userId) => {
       .eq("id", userId)
       .single();
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return data?.name || "Unknown";
   } catch (error) {
@@ -411,10 +429,10 @@ export const sendMessage = async (text, selectedUserId, userRole) => {
         { onConflict: "id" }
       );
 
-    if (upsertError) throw upsertError;
+    if (upsertError) throw normalizeError(upsertError);
   } catch (error) {
     console.error("Error sending message:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -564,10 +582,10 @@ export const markMessagesAsRead = async (selectedUserId, userRole) => {
       })
       .eq("id", existingChat.id);
 
-    if (updateError) throw updateError;
+    if (updateError) throw normalizeError(updateError);
   } catch (error) {
     console.error("Error marking messages as read:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -590,7 +608,7 @@ export const fetchTasks = async () => {
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 is "not found" - that's okay
-      throw error;
+      throw normalizeError(error);
     }
 
     return data?.tasks || [];
@@ -618,10 +636,10 @@ export const saveTasks = async (tasks) => {
         { onConflict: "id" }
       );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error saving tasks:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -685,10 +703,10 @@ export const saveTaskCompletion = async (task) => {
       { onConflict: "student_id,task_id" }
     );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error saving task completion:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -709,7 +727,7 @@ export const fetchTaskStatuses = async (studentId = null) => {
       .select("*")
       .eq("student_id", userId);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     // Convert array to object with task_id as key
     const taskStatuses = {};
@@ -787,10 +805,10 @@ export const deleteTaskStatus = async (taskId, studentId = null) => {
       .eq("student_id", userId)
       .eq("task_id", taskId);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error deleting task status:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -823,7 +841,7 @@ export const uploadFile = async (file, folder = "notes") => {
         upsert: false,
       });
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     // Get public URL
     const {
@@ -833,7 +851,7 @@ export const uploadFile = async (file, folder = "notes") => {
     return publicUrl;
   } catch (error) {
     console.error("Error uploading file:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -853,10 +871,10 @@ export const deleteFile = async (fileUrl) => {
 
     const { error } = await supabase.storage.from("files").remove([filePath]);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error deleting file:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -884,10 +902,36 @@ export const fetchStudentData = async (studentId = null) => {
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 is "not found"
-      throw error;
+      throw normalizeError(error);
     }
 
-    return data || null;
+    // Convert snake_case to camelCase
+    if (data) {
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        displayName: data.display_name,
+        dob: data.dob,
+        streak: data.streak,
+        progress: data.progress,
+        quizCount: data.quiz_count,
+        lastLogin: data.last_login,
+        photoURL: data.photo_url,
+        image: data.image,
+        totalTimeSpentInMs: data.total_time_spent_ms,
+        dailySessions: data.daily_sessions,
+        formFilled: data.form_filled,
+        regNumber: data.reg_number,
+        rollNumber: data.roll_number,
+        department: data.department,
+        gender: data.gender,
+        bloodGroup: data.blood_group,
+        studentContact: data.student_contact,
+      };
+    }
+
+    return null;
   } catch (error) {
     console.error("Error fetching student data:", error);
     return null;
@@ -935,6 +979,7 @@ export const updateStudentData = async (studentId = null, data) => {
 
     console.log("Updating student data:", { id: userId, ...updateData });
 
+    // Use update instead of upsert since we're only updating existing records
     const { data: result, error } = await supabase
       .from("students")
       .update(updateData)
@@ -943,14 +988,47 @@ export const updateStudentData = async (studentId = null, data) => {
 
     if (error) {
       console.error("Supabase error details:", error);
-      throw error;
+        // If row-level security is preventing client-side upsert, fallback to server endpoint
+        const message = error?.message || '';
+        if (message.toLowerCase().includes('row-level security') || message.toLowerCase().includes('using expression')) {
+          try {
+            console.warn('RLS detected - delegating upsert to backend');
+            const serviceSecret = process.env.REACT_APP_SERVICE_SECRET || '';
+            // Determine backend URL: use explicit env var, otherwise default to localhost:10000 in dev
+            const backendUrl =
+              process.env.REACT_APP_BACKEND_URL ||
+              (window.location.hostname === 'localhost'
+                ? 'http://localhost:10000'
+                : window.location.origin);
+            const resp = await fetch(`${backendUrl}/api/upsert-student`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-service-secret': serviceSecret,
+              },
+              body: JSON.stringify({ id: userId, data: data }),
+            });
+
+            if (!resp.ok) {
+              const text = await resp.text();
+              throw new Error('Server upsert failed: ' + text);
+            }
+
+            return await resp.json();
+          } catch (backendErr) {
+            console.error('Backend upsert failed:', backendErr);
+            throw normalizeError(backendErr);
+          }
+        }
+
+        throw normalizeError(error);
     }
 
     console.log("Student data updated successfully:", result);
     return result;
   } catch (error) {
     console.error("Error updating student data:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -965,7 +1043,7 @@ export const fetchAllStudents = async () => {
       .select("*")
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     // Convert snake_case to camelCase for compatibility
     return data.map((student) => ({
@@ -1010,7 +1088,7 @@ export const fetchStaffData = async (staffId = null) => {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      throw error;
+      throw normalizeError(error);
     }
 
     // Convert snake_case to camelCase
@@ -1051,10 +1129,10 @@ export const updateStaffStats = async (staffId, stats) => {
         { onConflict: "id" }
       );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error updating staff stats:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1066,11 +1144,17 @@ export const updateStaffStats = async (staffId, stats) => {
  */
 export const updateStaffData = async (staffId, data) => {
   try {
-    const updateData = {};
+    const updateData = {
+      id: staffId, // Always include id for upsert
+    };
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email;
-    if (data.displayName !== undefined) updateData.display_name = data.displayName;
+    // The `staff` table does not have a `display_name` column; map displayName to `name` instead
+    if (data.displayName !== undefined) updateData.name = data.displayName;
     if (data.username !== undefined) updateData.username = data.username;
+
+    // Log payload for debugging Supabase requests
+    console.log("Upserting staff data:", updateData);
     if (data.staffId !== undefined) updateData.staff_id = data.staffId;
     if (data.department !== undefined) updateData.department = data.department;
     if (data.subject !== undefined) updateData.subject = data.subject;
@@ -1085,33 +1169,14 @@ export const updateStaffData = async (staffId, data) => {
 
     updateData.updated_at = new Date().toISOString();
 
-    // Check if staff exists
-    const { data: existingStaff } = await supabase
+    const { error } = await supabase
       .from("staff")
-      .select("id")
-      .eq("id", staffId)
-      .single();
+      .upsert(updateData, { onConflict: "email" });
 
-    let error;
-    if (existingStaff) {
-      // Update existing staff
-      const result = await supabase
-        .from("staff")
-        .update(updateData)
-        .eq("id", staffId);
-      error = result.error;
-    } else {
-      // Insert new staff
-      const result = await supabase
-        .from("staff")
-        .insert({ id: staffId, ...updateData });
-      error = result.error;
-    }
-
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error updating staff data:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1187,14 +1252,14 @@ const fetchAllStaff = async () => {
       .select("*")
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     // Convert snake_case to camelCase
     return (data || []).map((staff) => ({
       id: staff.id,
       name: staff.name,
       email: staff.email,
-      displayName: staff.display_name,
+      displayName: staff.display_name || staff.name || null,
       photoURL: staff.photo_url || "/default-staff.png",
       role: staff.role,
       department: staff.department,
@@ -1232,7 +1297,7 @@ export const fetchGoals = async (studentId = null) => {
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 is "not found"
-      throw error;
+      throw normalizeError(error);
     }
 
     return data?.goals || [];
@@ -1264,10 +1329,10 @@ export const saveGoals = async (studentId = null, goals) => {
       { onConflict: "student_id" }
     );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error saving goals:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1338,7 +1403,7 @@ export const fetchAssignments = async (staffId = null) => {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     // Convert snake_case to camelCase
     return data.map((assignment) => ({
@@ -1376,7 +1441,7 @@ export const addAssignment = async (assignmentData) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return {
       id: data.id,
@@ -1388,7 +1453,7 @@ export const addAssignment = async (assignmentData) => {
     };
   } catch (error) {
     console.error("Error adding assignment:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1404,10 +1469,10 @@ export const deleteAssignment = async (assignmentId) => {
       .delete()
       .eq("id", assignmentId);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error deleting assignment:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1430,7 +1495,7 @@ export const fetchSubmission = async (studentId, assignmentId) => {
     if (error) {
       // Only throw if it's a real error, not "no rows"
       if (error.code !== "PGRST116") {
-        throw error;
+        throw normalizeError(error);
       }
       return null;
     }
@@ -1505,10 +1570,10 @@ export const saveSubmission = async (studentId, assignmentId, submissionData) =>
       { onConflict: "student_id,assignment_id" }
     );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error saving submission:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1526,10 +1591,10 @@ export const deleteSubmission = async (studentId, assignmentId) => {
       .eq("student_id", studentId)
       .eq("assignment_id", assignmentId);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error deleting submission:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1587,7 +1652,7 @@ export const fetchMarks = async (studentId, assignmentId) => {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      throw error;
+      throw normalizeError(error);
     }
 
     return data || null;
@@ -1617,10 +1682,10 @@ export const saveMarks = async (studentId, assignmentId, marksData) => {
       { onConflict: "student_id,assignment_id" }
     );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error saving marks:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1650,7 +1715,7 @@ export const fetchLeaderboard = async (limit = null) => {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return data || [];
   } catch (error) {
@@ -1680,10 +1745,10 @@ export const updateLeaderboard = async (studentId, name, streak, progress) => {
       { onConflict: "student_id" }
     );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error updating leaderboard:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1705,7 +1770,7 @@ export const fetchSettings = async (settingKey) => {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      throw error;
+      throw normalizeError(error);
     }
 
     return data?.setting_value || null;
@@ -1736,10 +1801,10 @@ export const saveSettings = async (settingKey, settingValue, updatedBy = null) =
       { onConflict: "setting_key" }
     );
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error saving settings:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1791,7 +1856,7 @@ export const fetchCirculars = async () => {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return data || [];
   } catch (error) {
@@ -1819,12 +1884,12 @@ export const addCircular = async (circularData) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     return data;
   } catch (error) {
     console.error("Error adding circular:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1840,10 +1905,10 @@ export const deleteCircular = async (circularId) => {
       .delete()
       .eq("id", circularId);
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
   } catch (error) {
     console.error("Error deleting circular:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 
@@ -1864,7 +1929,7 @@ export const resetAllStreaksToZero = async () => {
       .from("students")
       .select("id");
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1909,7 +1974,7 @@ export const deleteUnknownStudents = async () => {
       .from("students")
       .select("id, name");
 
-    if (error) throw error;
+    if (error) throw normalizeError(error);
 
     const unknownStudentIds = students
       .filter(
@@ -2025,7 +2090,7 @@ export const calculateAndStoreOverallPerformance = async (
     return overallPercentage;
   } catch (error) {
     console.error("Error calculating overall performance:", error);
-    throw error;
+    throw normalizeError(error);
   }
 };
 

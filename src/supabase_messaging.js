@@ -23,7 +23,7 @@ export const fetchMessages = async (staffId, studentId) => {
                 // No messages yet, return empty array
                 return [];
             }
-            throw error;
+            throw new Error(error.message || JSON.stringify(error));
         }
 
         return data?.messages || [];
@@ -71,7 +71,7 @@ export const sendMessage = async (staffId, studentId, message, sender) => {
                 })
                 .eq("id", chatId);
 
-            if (error) throw error;
+            if (error) throw new Error(error.message || JSON.stringify(error));
         } else {
             // Create new conversation
             const { error } = await supabase.from("messages").insert({
@@ -81,13 +81,13 @@ export const sendMessage = async (staffId, studentId, message, sender) => {
                 messages: [newMessage],
             });
 
-            if (error) throw error;
+            if (error) throw new Error(error.message || JSON.stringify(error));
         }
 
         return true;
     } catch (error) {
         console.error("Error sending message:", error);
-        throw error;
+        throw new Error(error.message || JSON.stringify(error));
     }
 };
 
@@ -126,7 +126,7 @@ export const markMessagesAsRead = async (staffId, studentId, reader) => {
             })
             .eq("id", chatId);
 
-        if (error) throw error;
+        if (error) throw new Error(error.message || JSON.stringify(error));
         return true;
     } catch (error) {
         console.error("Error marking messages as read:", error);

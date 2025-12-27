@@ -260,7 +260,7 @@ const StaffDashboard = () => {
           navigate("/staff-form");
           return;
         }
-        if (!staffData.formFilled && !staffData.form_filled) {
+        if (!staffData.formFilled) {
           navigate("/staff-form");
           return;
         }

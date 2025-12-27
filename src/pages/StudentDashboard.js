@@ -8,7 +8,7 @@ import React, {
   useRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabaseAuth as auth } from "../supabase";
+import { supabaseAuth as auth, supabase } from "../supabase";
 import {
   fetchTasks,
   fetchTaskStatuses,
@@ -1111,8 +1111,8 @@ const StudentDashboard = () => {
       };
       const updatedGoals = [...goals, newGoal];
       setGoals(updatedGoals);
-      const goalsRef = doc(db, "students", user.uid, "goals", "list");
-      await setDoc(goalsRef, { goals: updatedGoals });
+      // Use Supabase saveGoals function
+      await saveGoals(user.uid, updatedGoals);
       logStudentActivity("goal added", subject);
       toggleGoalForm(false);
       setNotifications((prev) => [
@@ -1164,8 +1164,8 @@ const StudentDashboard = () => {
         return goal;
       });
       setGoals(updatedGoals);
-      const goalsRef = doc(db, "students", user.uid, "goals", "list");
-      await setDoc(goalsRef, { goals: updatedGoals });
+      // Use Supabase saveGoals function
+      await saveGoals(user.uid, updatedGoals);
 
       // --- OPTIMIZATION ---
       // Call the master progress updater
@@ -1207,8 +1207,8 @@ const StudentDashboard = () => {
           goals.find((g) => g.id === id)?.title || "Selected goal";
         const updatedGoals = goals.filter((goal) => goal.id !== id);
         setGoals(updatedGoals);
-        const goalsRef = doc(db, "students", user.uid, "goals", "list");
-        await setDoc(goalsRef, { goals: updatedGoals });
+        // Use Supabase saveGoals function
+        await saveGoals(user.uid, updatedGoals);
         setNotifications((prev) => [
           ...prev,
           {
@@ -1244,12 +1244,19 @@ const StudentDashboard = () => {
         alert("Please enter feedback before submitting.");
         return;
       }
-      const feedbackColRef = collection(db, "students", user.uid, "feedback");
-      await addDoc(feedbackColRef, {
-        text: feedbackText,
-        studentName: userData.name,
-        submittedAt: new Date(),
-      });
+      // Use Supabase to store feedback
+      const { error } = await supabase
+        .from("feedback")
+        .insert({
+          student_id: user.uid,
+          text: feedbackText,
+          student_name: userData.name,
+          submitted_at: new Date().toISOString(),
+        });
+      
+      if (error) {
+        throw error;
+      }
       logStudentActivity("feedback submitted");
       setNotifications((prev) => [
         ...prev,
@@ -1275,24 +1282,9 @@ const StudentDashboard = () => {
       const staffMember = staffList.find((s) => s.id === task.staffId);
       if (!staffMember) throw new Error("Staff member not found");
 
-      const chatId = [task.staffId, user.uid].sort().join("_");
-      const messagesRef = doc(db, "messages", chatId);
-      const messagesSnap = await getDoc(messagesRef);
-      const existingMessages = messagesSnap.exists()
-        ? messagesSnap.data().messages || []
-        : [];
-      const newMessage = {
-        text: `Reason for not completing task "${task.content}": ${reason}`,
-        sender: "student",
-        senderId: user.uid,
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      await setDoc(
-        messagesRef,
-        { messages: [...existingMessages, newMessage] },
-        { merge: true }
-      );
+      // Use Supabase sendMessage function
+      const messageText = `Reason for not completing task "${task.content}": ${reason}`;
+      await sendMessage(messageText, task.staffId, "student");
 
       setOverdueTaskReasons((prev) => ({ ...prev, [task.id]: reason }));
       setSelectedStaffId(task.staffId);
@@ -1387,10 +1379,21 @@ const StudentDashboard = () => {
     setTaskProgress((prev) => ({ ...prev, [taskId]: updatedProgress }));
 
     try {
-      const userRef = doc(db, "students", user.uid);
-      await updateDoc(userRef, {
-        [`taskProgress.${taskId}`]: updatedProgress,
-      });
+      // Use Supabase instead of Firebase
+      const { error } = await supabase
+        .from("students")
+        .update({
+          task_progress: {
+            ...userData?.task_progress,
+            [taskId]: updatedProgress
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.uid);
+
+      if (error) {
+        console.error("Error updating task progress:", error);
+      }
     } catch (error) {
       console.error("Error updating task progress:", error);
     }
@@ -1449,30 +1452,10 @@ const StudentDashboard = () => {
     try {
       const taskStaff = staffList.find((staff) => staff.id === task.staffId);
       if (taskStaff) {
-        const chatId = [user.uid, task.staffId].sort().join("_");
-        const messageData = {
-          messages: [
-            {
-              sender: "student",
-              senderId: user.uid,
-              text: `Overdue Task Reason - "${task.content}" (${task.subject || "No Subject"
-                }): ${reason}`,
-              timestamp: new Date().toISOString(),
-              read: false,
-            },
-          ],
-        };
-        const chatRef = doc(db, "messages", chatId);
-        const chatDoc = await getDoc(chatRef);
-
-        if (chatDoc.exists()) {
-          const existingMessages = chatDoc.data().messages || [];
-          await updateDoc(chatRef, {
-            messages: [...existingMessages, messageData.messages[0]],
-          });
-        } else {
-          await setDoc(chatRef, messageData);
-        }
+        // Use Supabase sendMessage function instead of Firebase
+        const messageText = `Overdue Task Reason - "${task.content}" (${task.subject || "No Subject"
+                }): ${reason}`;
+        await sendMessage(messageText, task.staffId, "student");
 
         const taskId =
           task?.id || task?.content?.toLowerCase().replace(/\s+/g, "_");

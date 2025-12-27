@@ -313,7 +313,7 @@ Student's question: ${message}`;
             onConflict: 'topic'
           });
 
-        if (error) throw error;
+        if (error) throw new Error(error.message || JSON.stringify(error));
         console.log("💾 Cached new response for topic:", studentQuestion);
       } catch (dbError) {
         console.error("Error saving response to cache:", dbError);
@@ -472,6 +472,58 @@ ${prompt}`,
       message: error.message,
       details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
+  }
+});
+
+// Secure server-side upsert route for student data to bypass RLS when needed
+app.post("/api/upsert-student", async (req, res) => {
+  try {
+    const secret = req.headers["x-service-secret"] || req.headers["X-Service-Secret"];
+    if (!process.env.SERVICE_SECRET || secret !== process.env.SERVICE_SECRET) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { id, data } = req.body;
+    if (!id || !data) {
+      return res.status(400).json({ error: "Missing id or data" });
+    }
+
+    // Map camelCase to snake_case for students table
+    const updateData = { id };
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.displayName !== undefined) updateData.name = data.displayName;
+    if (data.dob !== undefined) updateData.dob = data.dob;
+    if (data.streak !== undefined) updateData.streak = data.streak;
+    if (data.progress !== undefined) updateData.progress = data.progress;
+    if (data.quizCount !== undefined) updateData.quiz_count = data.quizCount;
+    if (data.lastLogin !== undefined) updateData.last_login = data.lastLogin;
+    if (data.photoURL !== undefined) updateData.photo_url = data.photoURL;
+    if (data.image !== undefined) updateData.image = data.image;
+    if (data.totalTimeSpentInMs !== undefined)
+      updateData.total_time_spent_ms = data.totalTimeSpentInMs;
+    if (data.dailySessions !== undefined)
+      updateData.daily_sessions = data.dailySessions;
+    if (data.formFilled !== undefined) updateData.form_filled = data.formFilled;
+    if (data.regNumber !== undefined) updateData.reg_number = data.regNumber;
+    if (data.rollNumber !== undefined) updateData.roll_number = data.rollNumber;
+    if (data.department !== undefined) updateData.department = data.department;
+    if (data.gender !== undefined) updateData.gender = data.gender;
+    if (data.bloodGroup !== undefined) updateData.blood_group = data.bloodGroup;
+    if (data.studentContact !== undefined) updateData.student_contact = data.studentContact;
+
+    updateData.updated_at = new Date().toISOString();
+
+    const { error } = await supabase.from("students").upsert(updateData, { onConflict: "email" });
+    if (error) {
+      console.error("Server upsert error:", error);
+      return res.status(500).json({ error: error.message || JSON.stringify(error) });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("/api/upsert-student failed:", err.message || err);
+    return res.status(500).json({ error: err.message || String(err) });
   }
 });
 
