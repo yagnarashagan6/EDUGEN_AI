@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabaseAuth as auth, supabase } from "../supabase";
 import {
   fetchTasks,
@@ -75,6 +75,7 @@ import {
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [userData, setUserData] = useState(null);
   const [activeContainer, setActiveContainer] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -536,6 +537,29 @@ const StudentDashboard = () => {
       return {};
     }
   }, []);
+
+  // Listen for profile updates - refetch user data when returning from profile edit
+  useEffect(() => {
+    const refreshTimestamp = location.state?.refresh;
+    if (refreshTimestamp) {
+      console.log("Profile updated, refetching user data...");
+      const user = auth.currentUser;
+      if (user) {
+        fetchStudentData(user.uid).then((fetchedUserData) => {
+          if (fetchedUserData) {
+            const updatedUserData = {
+              ...fetchedUserData,
+              photoURL: fetchedUserData.photoURL || fetchedUserData.photo_url || "/default-student.png",
+            };
+            setUserData(updatedUserData);
+            console.log("User data refreshed:", updatedUserData);
+          }
+        });
+      }
+      // Clear the refresh state to prevent re-running
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state?.refresh]);
 
   useEffect(() => {
     const checkAuthAndFetchData = async () => {

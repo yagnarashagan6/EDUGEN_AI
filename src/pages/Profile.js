@@ -61,7 +61,7 @@ const Profile = () => {
   const studentFields = [
     { label: "Register Number", value: userData.regNumber },
     { label: "Roll Number", value: userData.rollNumber },
-    { label: "Department", value: userData.course },
+    { label: "Department", value: userData.department },
     { label: "Blood Group", value: userData.bloodGroup },
     { label: "Student Contact", value: userData.studentContact },
   ];
