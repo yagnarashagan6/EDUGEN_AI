@@ -750,6 +750,10 @@ const StudentDashboard = () => {
         const fetchedCirculars = await fetchCirculars();
         setCirculars(fetchedCirculars);
 
+        // Fetch leaderboard data
+        const leaderboardData = await fetchLeaderboard();
+        setLeaderboard(leaderboardData);
+
         clearTimeout(loadingTimeout); // Clear timeout on successful load
         setLoading((prev) => ({ ...prev, dashboard: false }));
 
@@ -783,10 +787,10 @@ const StudentDashboard = () => {
       const timer = setTimeout(async () => {
         const user = auth.currentUser;
         if (user && pendingStreakUpdate) {
-          const userRef = doc(db, "students", user.uid);
-          await updateDoc(userRef, {
+          // Use Supabase instead of Firebase
+          await updateStudentData(user.uid, {
             streak: newStreakValue,
-            lastLogin: new Date().toISOString(),
+            last_login: new Date().toISOString(),
           });
           setStreak(newStreakValue);
           // Update local leaderboard

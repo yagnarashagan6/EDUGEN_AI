@@ -914,6 +914,9 @@ export const fetchStudentData = async (studentId = null) => {
         bloodGroup: data.blood_group || data.bloodGroup,
         studentContact: data.student_contact || data.studentContact,
         photoURL: data.photo_url || data.photoURL || data.image,
+        lastLogin: data.last_login || data.lastLogin,
+        quizCount: data.quiz_count || data.quizCount,
+        totalTimeSpentInMs: data.total_time_spent_ms || data.totalTimeSpentInMs,
       };
     }
 
@@ -1634,7 +1637,7 @@ export const fetchMarks = async (studentId, assignmentId) => {
       .select("*")
       .eq("student_id", studentId)
       .eq("assignment_id", assignmentId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== "PGRST116") {
       throw normalizeError(error);
