@@ -917,6 +917,7 @@ export const fetchStudentData = async (studentId = null) => {
         lastLogin: data.last_login || data.lastLogin,
         quizCount: data.quiz_count || data.quizCount,
         totalTimeSpentInMs: data.total_time_spent_ms || data.totalTimeSpentInMs,
+        formFilled: data.form_filled || data.formFilled,
       };
     }
 
@@ -977,40 +978,40 @@ export const updateStudentData = async (studentId = null, data) => {
 
     if (error) {
       console.error("Supabase error details:", error);
-        // If row-level security is preventing client-side upsert, fallback to server endpoint
-        const message = error?.message || '';
-        if (message.toLowerCase().includes('row-level security') || message.toLowerCase().includes('using expression')) {
-          try {
-            console.warn('RLS detected - delegating upsert to backend');
-            const serviceSecret = process.env.REACT_APP_SERVICE_SECRET || '';
-            // Determine backend URL: use explicit env var, otherwise default to localhost:10000 in dev
-            const backendUrl =
-              process.env.REACT_APP_BACKEND_URL ||
-              (window.location.hostname === 'localhost'
-                ? 'http://localhost:10000'
-                : window.location.origin);
-            const resp = await fetch(`${backendUrl}/api/upsert-student`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-service-secret': serviceSecret,
-              },
-              body: JSON.stringify({ id: userId, data: data }),
-            });
+      // If row-level security is preventing client-side upsert, fallback to server endpoint
+      const message = error?.message || '';
+      if (message.toLowerCase().includes('row-level security') || message.toLowerCase().includes('using expression')) {
+        try {
+          console.warn('RLS detected - delegating upsert to backend');
+          const serviceSecret = process.env.REACT_APP_SERVICE_SECRET || '';
+          // Determine backend URL: use explicit env var, otherwise default to localhost:10000 in dev
+          const backendUrl =
+            process.env.REACT_APP_BACKEND_URL ||
+            (window.location.hostname === 'localhost'
+              ? 'http://localhost:10000'
+              : window.location.origin);
+          const resp = await fetch(`${backendUrl}/api/upsert-student`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-service-secret': serviceSecret,
+            },
+            body: JSON.stringify({ id: userId, data: data }),
+          });
 
-            if (!resp.ok) {
-              const text = await resp.text();
-              throw new Error('Server upsert failed: ' + text);
-            }
-
-            return await resp.json();
-          } catch (backendErr) {
-            console.error('Backend upsert failed:', backendErr);
-            throw normalizeError(backendErr);
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error('Server upsert failed: ' + text);
           }
-        }
 
-        throw normalizeError(error);
+          return await resp.json();
+        } catch (backendErr) {
+          console.error('Backend upsert failed:', backendErr);
+          throw normalizeError(backendErr);
+        }
+      }
+
+      throw normalizeError(error);
     }
 
     console.log("Student data updated successfully:", result);
