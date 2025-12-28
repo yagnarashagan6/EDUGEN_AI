@@ -297,9 +297,16 @@ const StaffDashboard = () => {
         setStudentStats(
           filteredStudents.sort((a, b) => (b.progress || 0) - (a.progress || 0))
         );
+
+        // Calculate active students (students with streak > 0)
+        const activeStudentsCount = filteredStudents.filter(
+          (student) => (student.streak || 0) > 0
+        ).length;
+
         setQuickStats((prev) => ({
           ...prev,
           totalStudents: filteredStudents.length,
+          activeStudents: activeStudentsCount,
         }));
         // Removed localStorage caching to avoid quota exceeded errors
         setLoading((prev) => ({ ...prev, students: false }));
@@ -471,11 +478,8 @@ const StaffDashboard = () => {
     const promises = studentStats.map(async (student) => {
       try {
         const studentTaskStatuses = await fetchTaskStatuses(student.id);
-        const map = {};
-        studentTaskStatuses.forEach((status) => {
-          map[status.task_id] = status;
-        });
-        allStatuses[student.id] = map;
+        // fetchTaskStatuses returns an object, not an array
+        allStatuses[student.id] = studentTaskStatuses || {};
       } catch (e) {
         console.warn("Failed to load task status for", student.id, e);
         allStatuses[student.id] = {}; // Ensure student key exists
