@@ -969,11 +969,10 @@ export const updateStudentData = async (studentId = null, data) => {
 
     console.log("Updating student data:", { id: userId, ...updateData });
 
-    // Use update instead of upsert since we're only updating existing records
+    // Use upsert to handle both update and creation of student records
     const { data: result, error } = await supabase
       .from("students")
-      .update(updateData)
-      .eq("id", userId)
+      .upsert({ id: userId, ...updateData }, { onConflict: "id" })
       .select();
 
     if (error) {

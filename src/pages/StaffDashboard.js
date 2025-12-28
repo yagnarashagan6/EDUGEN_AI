@@ -1072,12 +1072,23 @@ const StaffDashboard = () => {
 
   const postTask = useCallback(async () => {
     try {
-      const taskInput = document.getElementById("task-content");
-      const taskContent = taskInput?.value.trim();
-      if (!taskContent) {
-        addNotification("Please enter a task description.", "warning");
+      const taskTopicInput = document.getElementById("task-topic");
+      const taskSubtopicInput = document.getElementById("task-subtopic");
+      const taskDifficultyInput = document.getElementById("task-difficulty");
+      const taskQuestionsInput = document.getElementById("task-questions");
+
+      const taskTopic = taskTopicInput?.value.trim();
+      const taskSubtopic = taskSubtopicInput?.value.trim();
+      const taskDifficulty = taskDifficultyInput?.value || "Easy";
+      const taskQuestions = parseInt(taskQuestionsInput?.value || "5", 10);
+
+      if (!taskTopic) {
+        addNotification("Please enter a topic.", "warning");
         return;
       }
+
+      const taskContent = taskSubtopic ? `${taskTopic} - ${taskSubtopic}` : taskTopic;
+
       const user = auth.currentUser;
       if (!user) {
         addNotification("User not authenticated to post task.", "error");
@@ -1093,6 +1104,10 @@ const StaffDashboard = () => {
       const newTask = {
         id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: taskContent,
+        topic: taskTopic,
+        subtopic: taskSubtopic || "",
+        difficulty: taskDifficulty,
+        numQuestions: taskQuestions,
         subject: staffData.subject || "General",
         staffId: user.uid,
         staff_id: user.uid,
@@ -1114,7 +1129,10 @@ const StaffDashboard = () => {
         console.warn("Failed to recalculate overall performance after new task:", progressError);
       }
 
-      if (taskInput) taskInput.value = "";
+      if (taskTopicInput) taskTopicInput.value = "";
+      if (taskSubtopicInput) taskSubtopicInput.value = "";
+      if (taskQuestionsInput) taskQuestionsInput.value = "5";
+      if (taskDifficultyInput) taskDifficultyInput.value = "Easy";
       addNotification("Task posted successfully!", "success");
     } catch (err) {
       console.error("Error posting task:", err);

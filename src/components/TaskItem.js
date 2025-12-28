@@ -18,8 +18,11 @@ const TaskItem = ({
   const isReadyForQuiz = hasCopiedTopic && !isCompleted; // Ready for quiz after copying
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(task.content);
-    onCopy(task.content, task.id); // Pass task.id to track progress
+    const textToCopy = task.topic
+      ? `${task.topic}${task.subtopic ? ` - ${task.subtopic}` : ""}`
+      : task.content;
+    navigator.clipboard.writeText(textToCopy);
+    onCopy(textToCopy, task.id); // Pass task.id to track progress
     setCopied(true);
 
     // Update task progress to step 1 (copied topic)
@@ -33,7 +36,10 @@ const TaskItem = ({
   const handleTakeQuiz = () => {
     // Start quiz for this topic
     if (onStartQuiz) {
-      onStartQuiz(task.content, task.id);
+      const topicToQuiz = task.topic
+        ? `${task.topic}${task.subtopic ? ` - ${task.subtopic}` : ""}`
+        : task.content;
+      onStartQuiz(topicToQuiz, task.id);
     }
   };
 

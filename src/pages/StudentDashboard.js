@@ -123,6 +123,7 @@ const StudentDashboard = () => {
 
   const [showQuizSetup, setShowQuizSetup] = useState(false);
   const [quizNumQuestions, setQuizNumQuestions] = useState(3);
+  const [quizDifficulty, setQuizDifficulty] = useState("Medium");
 
   // News-related state
   const [news, setNews] = useState([]);
@@ -563,15 +564,11 @@ const StudentDashboard = () => {
   }, [location.state?.refresh]);
 
   useEffect(() => {
-    const checkAuthAndFetchData = async () => {
-      // console.log("checkAuthAndFetchData called");
-      const user = auth.currentUser;
-      if (!user) {
-        // console.log("No user, navigating to login");
-        navigate("/student-login");
-        return;
-      }
-      // console.log("User found:", user.uid);
+    let dashboardCleanup = null;
+
+    const checkAuthAndFetchData = async (user) => {
+      // console.log("checkAuthAndFetchData called with user:", user?.uid);
+      
       sessionStartTimeRef.current = new Date();
       loginTimeRef.current = new Date();
 
@@ -651,7 +648,7 @@ const StudentDashboard = () => {
           }
         } else {
           navigate("/student-login");
-          return;
+          return () => {};
         }
 
         // --- OPTIMIZATION ---
@@ -661,10 +658,6 @@ const StudentDashboard = () => {
         // --- OPTIMIZATION ---
         // Call the new fetchTaskStatuses function to load completion status.
         const loadedTaskStatuses = await loadTaskStatuses();
-        // console.log(
-        //   "Loaded task statuses (from checkAuthAndFetchData):",
-        //   loadedTaskStatuses
-        // );
 
         // Debug: compute per-subject completed/total using the freshly loaded data
         try {
@@ -689,16 +682,11 @@ const StudentDashboard = () => {
             }).length;
             subjectCounts[subject] = { completed, total };
           });
-          // console.log(
-          //   "Subject counts computed right after load:",
-          //   subjectCounts
-          // );
         } catch (e) {
           console.warn("Failed to compute debug subject counts:", e);
         }
 
         // --- OPTIMIZATION ---
-        // Set up an interval to refresh tasks every 10 minutes.
         const taskInterval = setInterval(loadTasks, 600000); // 10 minutes
 
         let loadedGoals = [];
@@ -707,7 +695,6 @@ const StudentDashboard = () => {
           setGoals(loadedGoals);
           setLoading((prev) => ({ ...prev, goals: false }));
         } catch (goalError) {
-          /* ... error handling ... */
           setLoading((prev) => ({ ...prev, goals: false }));
         }
 
@@ -719,8 +706,6 @@ const StudentDashboard = () => {
         ));
         setLoading((prev) => ({ ...prev, students: false }));
 
-        // --- OPTIMIZATION ---
-        // Recalculate progress based on loaded task statuses (after leaderboard is loaded)
         await updateStudentProgress(
           loadedTaskStatuses,
           loadedGoals,
@@ -740,12 +725,10 @@ const StudentDashboard = () => {
             setAssignmentsLoading(false);
             setLoading((prev) => ({ ...prev, assignments: false }));
           } catch (err) {
-            /* ... error handling ... */
             setLoading((prev) => ({ ...prev, assignments: false }));
           }
         });
 
-        // Set assignments loading to false after setting up listener
         setLoading((prev) => ({ ...prev, assignments: false }));
 
         const fetchedCirculars = await fetchCirculars();
@@ -759,12 +742,10 @@ const StudentDashboard = () => {
         setLoading((prev) => ({ ...prev, dashboard: false }));
 
         return () => {
-          // tasksUnsubscribe(); // No longer exists
-          clearInterval(taskInterval); // --- OPTIMIZATION ---
+          clearInterval(taskInterval);
           assignmentsUnsubscribe();
           if (sessionStartTimeRef.current) {
-            const sessionDurationMs = new Date() - sessionStartTimeRef.current;
-            // TODO: Replace with Supabase function
+            // const sessionDurationMs = new Date() - sessionStartTimeRef.current;
             // updateTotalTimeSpentInFirestore(sessionDurationMs);
           }
         };
@@ -773,9 +754,29 @@ const StudentDashboard = () => {
         clearTimeout(loadingTimeout); // Clear timeout on error
         setError(`Failed to load dashboard: ${err.message}`);
         setLoading((prev) => ({ ...prev, dashboard: false }));
+        return () => {};
       }
     };
-    checkAuthAndFetchData();
+
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
+      if (dashboardCleanup) {
+        dashboardCleanup(); // cleanup previous run if any
+        dashboardCleanup = null;
+      }
+
+      if (user) {
+        // User is logged in, fetch data
+        dashboardCleanup = await checkAuthAndFetchData(user);
+      } else {
+        // No user, redirect to login
+        navigate("/student-login");
+      }
+    });
+
+    return () => {
+      if (dashboardCleanup) dashboardCleanup();
+      unsubscribeAuth();
+    };
   }, [
     navigate,
     updateTotalTimeSpentInFirestore,
@@ -942,6 +943,15 @@ const StudentDashboard = () => {
 
   const startQuizForTopic = (topicContent, taskId = null) => {
     if (!inQuiz) {
+      const task = tasks.find((t) => t.id === taskId) || tasks.find((t) => t.content === topicContent);
+      if (task) {
+        setQuizDifficulty(task.difficulty || "Medium");
+        setQuizNumQuestions(task.numQuestions || 5);
+      } else {
+        setQuizDifficulty("Medium");
+        setQuizNumQuestions(5);
+      }
+
       setCurrentTopic(topicContent);
       setNotifications((prev) => [
         ...prev,
@@ -1009,6 +1019,7 @@ const StudentDashboard = () => {
       const requestBody = {
         topic: currentTopic.trim(),
         count: quizNumQuestions,
+        difficulty: quizDifficulty,
       };
       const response = await generateQuizWithFallback(requestBody);
       // ... (rest of quiz generation logic)

@@ -39,7 +39,7 @@ const StaffLogin = () => {
         try {
           // Validate email for Google OAuth sign-in
           if (!isEmailAllowed(user.email)) {
-            setError("Access denied. Your email is not authorized.");
+            // Silently sign out if unauthorized - error will be shown by the login handler if this was an active attempt
             await auth.signOut();
             setIsLoading(false);
             return;
@@ -130,10 +130,14 @@ const StaffLogin = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      // Supabase OAuth will redirect to Google and back
-      // The onAuthStateChanged listener in useEffect will handle the redirect
-      await signInWithPopup(auth, googleProvider);
-      // Note: The page will redirect, so code below won't execute
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (!isEmailAllowed(user.email)) {
+        setError("Access denied. Your email is not authorized.");
+        await auth.signOut();
+        return;
+      }
+      // If allowed, the onAuthStateChanged listener will handle navigation
     } catch (err) {
       setError("Error during Google Sign-In: " + err.message);
       console.error("Google Sign-In error:", err);

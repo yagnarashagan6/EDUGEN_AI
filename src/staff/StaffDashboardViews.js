@@ -154,13 +154,48 @@ export const TasksContainer = ({
       <div className="container-body">
         <div className="task-form">
           <h3>Post a New Task/Topic</h3>
-          <input
-            type="text"
-            id="task-content"
-            placeholder="Enter task description or topic..."
-            className="goal-input"
-            aria-label="Task content"
-          />
+
+          <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+            <input
+              type="text"
+              id="task-topic"
+              placeholder="Topic"
+              className="goal-input"
+              aria-label="Task topic"
+              style={{ flex: 1 }}
+            />
+            <input
+              type="text"
+              id="task-subtopic"
+              placeholder="Subtopic"
+              className="goal-input"
+              aria-label="Task subtopic"
+              style={{ flex: 1 }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+             <select
+              id="task-difficulty"
+              className="goal-input"
+              aria-label="Task difficulty"
+              style={{ flex: 1 }}
+            >
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+            <input
+              type="number"
+              id="task-questions"
+              placeholder="No. of Questions"
+              className="goal-input"
+              aria-label="Number of questions"
+              defaultValue={5}
+              min={1}
+              max={20}
+              style={{ flex: 1 }}
+            />
+          </div>
           <button
             onClick={postTask}
             className="add-goal-btn"
