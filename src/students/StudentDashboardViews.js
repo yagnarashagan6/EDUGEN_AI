@@ -301,29 +301,14 @@ export const TasksContainer = ({
           <div className="quiz-setup-modal">
             <h3>Set Up Quiz for "{currentTopic}"</h3>
             <div className="quiz-setup-content">
-              <label htmlFor="quiz-num-questions">
-                Number of Questions (3-10):
-              </label>
-              <input
-                type="number"
-                id="quiz-num-questions"
-                min="3"
-                max="10"
-                value={quizNumQuestions}
-                onChange={(e) => setQuizNumQuestions(parseInt(e.target.value))}
-                className="quiz-num-input"
-              />
+               <p>Are you sure you want to start the quiz for "{currentTopic}"?</p>
             </div>
             <div className="quiz-setup-buttons">
               <button
                 className="start-quiz-btn"
                 onClick={() => {
-                  if (quizNumQuestions >= 3 && quizNumQuestions <= 10) {
-                    setShowQuizSetup(false);
-                    generateQuizQuestions();
-                  } else {
-                    alert("Please enter a number between 3 and 10.");
-                  }
+                  setShowQuizSetup(false);
+                  generateQuizQuestions();
                 }}
               >
                 Start Quiz
