@@ -475,6 +475,124 @@ ${prompt}`,
   }
 });
 
+// =============== RAG API PROXY ENDPOINTS ===============
+const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5000';
+
+// List available PDFs
+app.get("/api/rag/list-pdfs", async (req, res) => {
+  try {
+    const response = await fetch(`${RAG_API_URL}/api/rag/list-pdfs`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching PDF list:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Generate 16-mark answer using RAG
+app.post("/api/rag/generate-answer", async (req, res) => {
+  try {
+    const { topic, subtopic, pdf_name } = req.body;
+    
+    if (!topic || !pdf_name) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Topic and PDF name are required" 
+      });
+    }
+
+    console.log(`Generating RAG answer for topic: ${topic}, PDF: ${pdf_name}`);
+
+    const response = await fetch(`${RAG_API_URL}/api/rag/generate-answer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ topic, subtopic, pdf_name }),
+      timeout: 60000, // 60 second timeout for RAG processing
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `RAG API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Cache the answer in Supabase if caching is enabled
+    if (cachingEnabled && supabase && data.success) {
+      try {
+        const cacheKey = `${topic}_${subtopic || 'general'}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        await supabase
+          .from('rag_answers')
+          .upsert({
+            topic: topic,
+            subtopic: subtopic || null,
+            pdf_name: pdf_name,
+            answer: data.answer,
+            sources: data.sources || [],
+            created_at: new Date().toISOString(),
+          }, {
+            onConflict: 'topic,subtopic'
+          });
+        console.log(`✅ Cached RAG answer for: ${topic}`);
+      } catch (cacheError) {
+        console.warn("Failed to cache RAG answer:", cacheError);
+      }
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error("Error generating RAG answer:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get cached RAG answer
+app.post("/api/rag/get-cached-answer", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({ 
+        success: false, 
+        error: "Caching not enabled" 
+      });
+    }
+
+    const { topic, subtopic } = req.body;
+    
+    let query = supabase
+      .from('rag_answers')
+      .select('*')
+      .eq('topic', topic);
+    
+    if (subtopic) {
+      query = query.eq('subtopic', subtopic);
+    } else {
+      query = query.is('subtopic', null);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error || !data) {
+      return res.json({ success: false, cached: false });
+    }
+
+    res.json({ 
+      success: true, 
+      cached: true,
+      answer: data.answer,
+      sources: data.sources,
+      pdf_name: data.pdf_name,
+      created_at: data.created_at
+    });
+  } catch (error) {
+    console.error("Error fetching cached answer:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+// =================================================================
+
 // Secure server-side upsert route for student data to bypass RLS when needed
 app.post("/api/upsert-student", async (req, res) => {
   try {

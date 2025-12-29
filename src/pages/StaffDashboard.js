@@ -149,6 +149,12 @@ const StaffDashboard = () => {
   const [iconDirection, setIconDirection] = React.useState(1);
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [assignmentSubmissions, setAssignmentSubmissions] = useState({});
+  
+  // RAG Model Integration States
+  const [availablePDFs, setAvailablePDFs] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]); // Support multiple files
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [generatingAnswer, setGeneratingAnswer] = useState(false);
 
   // --- Logic and Handler Functions ---
 
@@ -852,6 +858,79 @@ const StaffDashboard = () => {
     [addNotification]
   );
 
+  // ===== RAG MODEL INTEGRATION FUNCTIONS =====
+  
+  // Fetch available PDFs/documents from RAG API
+  const fetchAvailablePDFs = useCallback(async () => {
+    try{
+      const response = await fetch('http://localhost:10000/api/rag/list-pdfs');
+      const data = await response.json();
+      if (data.success) {
+        setAvailablePDFs(data.pdfs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching available PDFs:', error);
+    }
+  }, []);
+
+  // Handle file upload (supports PDF, DOC, DOCX, TXT)
+  const handleFileUpload = useCallback(async (files) => {
+    if (!files || files.length === 0) {
+      addNotification('Please select at least one file', 'warning');
+      return;
+    }
+
+    const supportedFormats = ['.pdf', '.doc', '.docx', '.txt'];
+    const invalidFiles = Array.from(files).filter(file => {
+      const ext = '.' + file.name.split('.').pop().toLowerCase();
+      return !supportedFormats.includes(ext);
+    });
+
+    if (invalidFiles.length > 0) {
+      addNotification(
+        'Unsupported file format. Please upload PDF, DOC, DOCX, or TXT files.',
+        'warning'
+      );
+      return;
+    }
+
+    setUploadingFiles(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch('http://localhost:5000/api/rag/upload-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Upload failed');
+        }
+        return data.filename;
+      });
+
+      const uploadedFiles = await Promise.all(uploadPromises);
+      addNotification(
+        `Successfully uploaded ${uploadedFiles.length} file(s)!`,
+        'success'
+      );
+      fetchAvailablePDFs();
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      addNotification('Failed to upload files: ' + error.message, 'error');
+    } finally {
+      setUploadingFiles(false);
+    }
+  }, [addNotification, fetchAvailablePDFs]);
+
+  // Load PDFs on component mount
+  useEffect(() => {
+    fetchAvailablePDFs();
+  }, [fetchAvailablePDFs]);
+
+  // ===== END RAG MODEL INTEGRATION =====
+
   const postAssignment = async () => {
     try {
       const user = auth.currentUser;
@@ -1087,6 +1166,51 @@ const StaffDashboard = () => {
         return;
       }
 
+      // ===== RAG ANSWER GENERATION =====
+      let ragAnswer = null;
+      let filesUsed = [];
+
+      if (selectedFiles.length > 0) {
+        setGeneratingAnswer(true);
+        try {
+          const response = await fetch('http://localhost:10000/api/rag/generate-answer', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              topic: taskTopic,
+              subtopic: taskSubtopic || '',
+              pdf_name: selectedFiles[0], // Use first selected file for now
+            }),
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            ragAnswer = data.answer;
+            filesUsed = selectedFiles;
+            addNotification(
+              `AI generated a comprehensive answer from ${selectedFiles.length} file(s)!`,
+              'success'
+            );
+          } else {
+            addNotification(
+              `Warning: Could not generate answer: ${data.error}`,
+              'warning'
+            );
+          }
+        } catch (error) {
+          console.error('Error generating RAG answer:', error);
+          addNotification(
+            'Warning: Failed to generate answer from documents',
+            'warning'
+          );
+        } finally {
+          setGeneratingAnswer(false);
+        }
+      }
+      // ===== END RAG ANSWER GENERATION =====
+
       const newTask = {
         id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: taskContent,
@@ -1101,6 +1225,8 @@ const StaffDashboard = () => {
         postedAt: new Date().toISOString(),
         date: new Date().toLocaleDateString(),
         completedBy: [],
+        filesUsed: filesUsed, // NEW: Store which files were used
+        ragAnswer: ragAnswer, // NEW: Store the AI-generated answer
       };
 
       const existingTasks = await fetchTasks();
@@ -1124,7 +1250,7 @@ const StaffDashboard = () => {
       console.error("Error posting task:", err);
       addNotification("Failed to post task: " + err.message, "error");
     }
-  }, [addNotification]);
+  }, [addNotification, selectedFiles]);
 
   const deleteTask = useCallback(
     async (taskId) => {
@@ -1317,6 +1443,12 @@ const StaffDashboard = () => {
               loading={loading}
               tasks={tasks}
               deleteTask={deleteTask}
+              availablePDFs={availablePDFs}
+              selectedFiles={selectedFiles}
+              setSelectedFiles={setSelectedFiles}
+              handleFileUpload={handleFileUpload}
+              uploadingFiles={uploadingFiles}
+              generatingAnswer={generatingAnswer}
             />
 
             <AssignmentsContainer

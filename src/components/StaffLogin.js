@@ -35,12 +35,23 @@ const StaffLogin = () => {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      // Only process if we're on the staff login page
+      if (window.location.pathname !== '/staff-login') {
+        setIsLoading(false);
+        return;
+      }
+
       if (user) {
         try {
           // Validate email for Google OAuth sign-in
           if (!isEmailAllowed(user.email)) {
-            // Silently sign out if unauthorized - error will be shown by the login handler if this was an active attempt
-            await auth.signOut();
+            // Silently sign out if unauthorized
+            try {
+              await auth.signOut();
+            } catch (signOutError) {
+              // Ignore sign out errors - session might not exist
+              console.log("SignOut error (ignored):", signOutError.message);
+            }
             setIsLoading(false);
             return;
           }
@@ -68,7 +79,7 @@ const StaffLogin = () => {
       }
     });
     return () => unsubscribe();
-  }, [navigate]);
+  }, [navigate, isEmailAllowed]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

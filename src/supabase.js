@@ -976,40 +976,53 @@ export const updateStudentData = async (studentId = null, data) => {
 
     if (error) {
       console.error("Supabase error details:", error);
-        // If row-level security is preventing client-side upsert, fallback to server endpoint
-        const message = error?.message || '';
-        if (message.toLowerCase().includes('row-level security') || message.toLowerCase().includes('using expression')) {
-          try {
-            console.warn('RLS detected - delegating upsert to backend');
-            const serviceSecret = process.env.REACT_APP_SERVICE_SECRET || '';
-            // Determine backend URL: use explicit env var, otherwise default to localhost:10000 in dev
-            const backendUrl =
-              process.env.REACT_APP_BACKEND_URL ||
-              (window.location.hostname === 'localhost'
-                ? 'http://localhost:10000'
-                : window.location.origin);
-            const resp = await fetch(`${backendUrl}/api/upsert-student`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-service-secret': serviceSecret,
-              },
-              body: JSON.stringify({ id: userId, data: data }),
-            });
-
-            if (!resp.ok) {
-              const text = await resp.text();
-              throw new Error('Server upsert failed: ' + text);
-            }
-
-            return await resp.json();
-          } catch (backendErr) {
-            console.error('Backend upsert failed:', backendErr);
-            throw normalizeError(backendErr);
-          }
+      const message = error?.message || '';
+      
+      // Handle duplicate email constraint
+      if (message.includes('students_email_key') || message.includes('duplicate key')) {
+        console.warn('Duplicate email detected - student record may already exist');
+        // Try to fetch the existing student data instead
+        const existingData = await fetchStudentData(userId);
+        if (existingData) {
+          console.log('Found existing student data, returning it instead');
+          return existingData;
         }
+        throw new Error('Student record with this email already exists. Please ensure RLS policies are configured correctly.');
+      }
+      
+      // If row-level security is preventing client-side upsert, fallback to server endpoint
+      if (message.toLowerCase().includes('row-level security') || message.toLowerCase().includes('using expression')) {
+        try {
+          console.warn('RLS detected - delegating upsert to backend');
+          const serviceSecret = process.env.REACT_APP_SERVICE_SECRET || '';
+          // Determine backend URL: use explicit env var, otherwise default to localhost:10000 in dev
+          const backendUrl =
+            process.env.REACT_APP_BACKEND_URL ||
+            (window.location.hostname === 'localhost'
+              ? 'http://localhost:10000'
+              : window.location.origin);
+          const resp = await fetch(`${backendUrl}/api/upsert-student`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-service-secret': serviceSecret,
+            },
+            body: JSON.stringify({ id: userId, data: data }),
+          });
 
-        throw normalizeError(error);
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error('Server upsert failed: ' + text);
+          }
+
+          return await resp.json();
+        } catch (backendErr) {
+          console.error('Backend upsert failed:', backendErr);
+          throw normalizeError(backendErr);
+        }
+      }
+
+      throw normalizeError(error);
     }
 
     console.log("Student data updated successfully:", result);
@@ -1274,16 +1287,21 @@ export const fetchGoals = async (studentId = null) => {
     const userId = studentId || supabaseAuth.currentUser?.uid;
     if (!userId) {
       throw new Error("No user ID provided");
-    }
+    } 
 
     const { data, error } = await supabase
       .from("goals")
-      .select("goals")
+      .select("*")  // Select all columns to avoid 406 errors
       .eq("student_id", userId)
-      .single();
+      .maybeSingle();  // Use maybeSingle instead of single to handle non-existent records
 
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 is "not found"
+    if (error) {
+      console.error("Supabase goals fetch error:", error);
+      // Don't throw on 406 or PGRST116, just return empty array
+      if (error.code === "PGRST116" || error.message?.includes("406")) {
+        console.warn("No goals found or 406 error, returning empty array");
+        return [];
+      }
       throw normalizeError(error);
     }
 

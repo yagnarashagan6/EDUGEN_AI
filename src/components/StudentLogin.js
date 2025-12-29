@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   supabaseAuth as auth,
@@ -18,11 +18,29 @@ const StudentLogin = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const hasCheckedAuth = useRef(false);
 
   // Add useEffect for auto-redirect if already signed in
+  // We need onAuthStateChanged for Google OAuth to work
   useEffect(() => {
+    // Reset the flag when component mounts (user navigates to login page)
+    hasCheckedAuth.current = false;
+
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      // Only process if we're on the login page
+      if (window.location.pathname !== '/student-login') {
+        return;
+      }
+
+      // Prevent repeated processing of the same auth state
+      if (hasCheckedAuth.current) {
+        return;
+      }
+
       if (user) {
+        hasCheckedAuth.current = true;
+        console.log("Auth state changed on login page for:", user.email);
+        
         // Validate email for Google OAuth sign-in
         const emailMatch = user.email?.match(/^22aids(\d{3})@act\.edu\.in$/);
         const isYaknarashagan = user.email === "yaknarashagan2@gmail.com";
@@ -43,6 +61,7 @@ const StudentLogin = () => {
           );
           try {
             await auth.signOut();
+            hasCheckedAuth.current = false; // Reset so user can try again
           } catch (signOutError) {
             // Ignore signOut errors (session might not exist)
             console.log("SignOut error (ignored):", signOutError.message);
@@ -50,22 +69,47 @@ const StudentLogin = () => {
           return;
         }
 
+        // Fetch student data
         const studentData = await fetchStudentData(user.uid);
+        console.log("Login check - Student Data:", studentData);
 
         if (!studentData) {
-          await updateStudentData(user.uid, {
-            email: user.email,
-            displayName: user.displayName,
-            formFilled: false,
-          });
-          navigate("/student-form");
-        } else if (studentData.formFilled) {
-          navigate("/student-dashboard");
+          // No student record exists - create one and redirect to form
+          console.log("No student data found - creating new record");
+          try {
+            await updateStudentData(user.uid, {
+              email: user.email,
+              name: user.displayName || user.email?.split('@')[0] || 'Student',
+              formFilled: false,
+            });
+            console.log("Student record created successfully");
+            navigate("/student-form", { replace: true });
+          } catch (error) {
+            console.error("Error creating student record:", error);
+            setError("Failed to create student account. Please try again.");
+            hasCheckedAuth.current = false; // Reset so user can try again
+          }
         } else {
-          navigate("/student-form");
+          // Student record exists - check if form is filled
+          // Use form_filled (snake_case from DB) or formFilled (camelCase)
+          const isFormFilled = studentData.form_filled || studentData.formFilled;
+          
+          if (isFormFilled === true) {
+            // Form is filled, go to dashboard
+            console.log("Form already filled, redirecting to dashboard");
+            navigate("/student-dashboard", { replace: true });
+          } else {
+            // Form not filled, go to form page
+            console.log("Form not filled, redirecting to form");
+            navigate("/student-form", { replace: true });
+          }
         }
+      } else {
+        // No user signed in - this is expected on login page
+        console.log("No user signed in - showing login form");
       }
     });
+    
     return () => unsubscribe();
   }, [navigate]);
 

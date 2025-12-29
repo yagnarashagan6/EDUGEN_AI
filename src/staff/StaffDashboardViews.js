@@ -142,6 +142,12 @@ export const TasksContainer = ({
   loading,
   tasks,
   deleteTask,
+  availablePDFs = [],
+  selectedFiles = [],
+  setSelectedFiles,
+  handleFileUpload,
+  uploadingFiles = false,
+  generatingAnswer = false,
 }) => {
   return (
     <div
@@ -155,6 +161,103 @@ export const TasksContainer = ({
         <div className="task-form">
           <h3>Post a New Task/Topic</h3>
 
+          {/* PDF/Document Upload Section */}
+          <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e3f2fd' }}>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: '600', color: '#1976d2' }}>
+              <i className="fas fa-file-upload" style={{ marginRight: '8px' }}></i>
+              Document Library for AI Answer Generation
+            </h4>
+            
+            {/* File Upload Input */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleFileUpload(e.target.files);
+                    e.target.value = ''; // Reset input
+                  }
+                }}
+                style={{ flex: 1, minWidth: '200px' }}
+                disabled={uploadingFiles}
+                id="rag-file-upload"
+              />
+              {uploadingFiles && (
+                <span style={{ color: '#1976d2', fontWeight: '500' }}>
+                  <i className="fas fa-spinner fa-spin" style={{ marginRight: '5px' }}></i>
+                  Uploading...
+                </span>
+              )}
+            </div>
+
+            {/* Available Documents List */}
+            {availablePDFs.length > 0 ? (
+              <>
+                <p style={{ fontSize: '13px', marginBottom: '8px', color: '#666' }}>
+                  <strong>Select document(s) for AI answer generation:</strong>
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', maxHeight: '150px', overflowY: 'auto', padding: '5px' }}>
+                  {availablePDFs.map((pdf) => (
+                    <label
+                      key={pdf.name}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px 10px',
+                        background: selectedFiles.includes(pdf.name) ? '#e3f2fd' : 'white',
+                        border: `1px solid ${selectedFiles.includes(pdf.name) ? '#1976d2' : '#ddd'}`,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedFiles.includes(pdf.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedFiles([...selectedFiles, pdf.name]);
+                          } else {
+                            setSelectedFiles(selectedFiles.filter(f => f !== pdf.name));
+                          }
+                        }}
+                        style={{ marginRight: '8px' }}
+                      />
+                      <i className="fas fa-file-pdf" style={{ marginRight: '6px', color: '#d32f2f' }}></i>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {pdf.name}
+                      </span>
+                      <small style={{ color: '#999', marginLeft: '5px' }}>{pdf.size_mb} MB</small>
+                    </label>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', margin: '8px 0 0 0' }}>
+                No documents uploaded yet. Upload PDF, DOC, DOCX, or TXT files above.
+              </p>
+            )}
+
+            {/* Selected Files Summary */}
+            {selectedFiles.length > 0 && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: '#e8f5e9',
+                borderRadius: '6px',
+                fontSize: '13px',
+                border: '1px solid #4caf50'
+              }}>
+                <i className="fas fa-check-circle" style={{ color: '#4caf50', marginRight: '6px' }}></i>
+                <strong>{selectedFiles.length} document(s) selected</strong> - AI will generate structured answers from these files when you post the task.
+              </div>
+            )}
+          </div>
+
+          {/* Topic and Subtopic */}
           <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
             <input
               type="text"
@@ -173,6 +276,8 @@ export const TasksContainer = ({
               style={{ flex: 1 }}
             />
           </div>
+
+          {/* Difficulty and Questions */}
           <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
              <select
               id="task-difficulty"
@@ -196,12 +301,28 @@ export const TasksContainer = ({
               style={{ flex: 1 }}
             />
           </div>
+          
+          {/* Post Task Button */}
           <button
             onClick={postTask}
             className="add-goal-btn"
             aria-label="Post task"
+            disabled={generatingAnswer || uploadingFiles}
+            style={{
+              opacity: (generatingAnswer || uploadingFiles) ? 0.6 : 1,
+              cursor: (generatingAnswer || uploadingFiles) ? 'not-allowed' : 'pointer'
+            }}
           >
-            Post Task
+            {generatingAnswer ? (
+              <>
+                <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                Generating AI Answer...
+              </>
+            ) : uploadingFiles ? (
+              'Uploading Files...'
+            ) : (
+              'Post Task'
+            )}
           </button>
         </div>
         {loading.tasks ? (

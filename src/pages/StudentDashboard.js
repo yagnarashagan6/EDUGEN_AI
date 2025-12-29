@@ -153,6 +153,8 @@ const StudentDashboard = () => {
   const quizRequestLockRef = useRef(false);
   const [taskProgress, setTaskProgress] = useState({});
   const [overdueNotifications, setOverdueNotifications] = useState([]);
+  const updatePendingRef = useRef(false); // Prevent concurrent updates
+  const hasInitialized = useRef(false); // NEW: Track if dashboard has been initialized
 
   // Debug: log taskProgress changes to verify fetch and re-render
   useEffect(() => {
@@ -195,7 +197,14 @@ const StudentDashboard = () => {
       const user = auth.currentUser;
       if (!user || !currentUserData) return;
 
+      // Prevent concurrent updates
+      if (updatePendingRef.current) {
+        console.log("Update already in progress, skipping...");
+        return;
+      }
+
       try {
+        updatePendingRef.current = true;
         // console.log("updateStudentProgress called with:", {
         //   currentTaskProgress,
         //   allTasks: allTasks.length,
@@ -226,6 +235,7 @@ const StudentDashboard = () => {
         // Update Supabase
         setProgress(newProgress);
         await updateStudentData(user.uid, {
+          email: currentUserData.email,
           progress: newProgress,
           quizCount: currentQuizCount, // Also update quiz count
         });
@@ -249,6 +259,8 @@ const StudentDashboard = () => {
         );
       } catch (err) {
         console.error("Error updating student progress:", err);
+      } finally {
+        updatePendingRef.current = false;
       }
     },
     []
@@ -457,6 +469,7 @@ const StudentDashboard = () => {
           setProgress(0);
           setQuizCount(0);
           await updateStudentData(user.uid, {
+            email: userData.email,
             progress: 0,
             quizCount: 0,
             lastProgressReset: new Date().toISOString(),
@@ -566,7 +579,7 @@ const StudentDashboard = () => {
     let dashboardCleanup = null;
 
     const checkAuthAndFetchData = async (user) => {
-      // console.log("checkAuthAndFetchData called with user:", user?.uid);
+      console.log("[StudentDashboard] Initializing dashboard for user:", user?.uid);
       
       sessionStartTimeRef.current = new Date();
       loginTimeRef.current = new Date();
@@ -739,6 +752,7 @@ const StudentDashboard = () => {
 
         clearTimeout(loadingTimeout); // Clear timeout on successful load
         setLoading((prev) => ({ ...prev, dashboard: false }));
+        hasInitialized.current = true; // Mark as initialized
 
         return () => {
           clearInterval(taskInterval);
@@ -758,6 +772,12 @@ const StudentDashboard = () => {
     };
 
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
+      // If already initialized and user is the same, don't re-fetch
+      if (hasInitialized.current && user && userData && user.uid === userData.id) {
+        console.log("[StudentDashboard] Already initialized, skipping re-fetch");
+        return;
+      }
+
       if (dashboardCleanup) {
         dashboardCleanup(); // cleanup previous run if any
         dashboardCleanup = null;
@@ -768,6 +788,7 @@ const StudentDashboard = () => {
         dashboardCleanup = await checkAuthAndFetchData(user);
       } else {
         // No user, redirect to login
+        hasInitialized.current = false; // Reset on logout
         navigate("/student-login");
       }
     });
@@ -779,8 +800,9 @@ const StudentDashboard = () => {
   }, [
     navigate,
     updateTotalTimeSpentInFirestore,
-    fetchTasks,
-    fetchTaskStatuses,
+    loadTasks,
+    loadTaskStatuses,
+    userData, // Added to dependency to track user changes
   ]); // updateLeaderboard removed
 
   useEffect(() => {
@@ -790,6 +812,7 @@ const StudentDashboard = () => {
         if (user && pendingStreakUpdate) {
           // Use Supabase instead of Firebase
           await updateStudentData(user.uid, {
+            email: userData.email,
             streak: newStreakValue,
             last_login: new Date().toISOString(),
           });
@@ -1417,25 +1440,9 @@ const StudentDashboard = () => {
     localStorage.setItem(progressKey, JSON.stringify(updatedProgress));
     setTaskProgress((prev) => ({ ...prev, [taskId]: updatedProgress }));
 
-    try {
-      // Use Supabase instead of Firebase
-      const { error } = await supabase
-        .from("students")
-        .update({
-          task_progress: {
-            ...userData?.task_progress,
-            [taskId]: updatedProgress
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", user.uid);
-
-      if (error) {
-        console.error("Error updating task progress:", error);
-      }
-    } catch (error) {
-      console.error("Error updating task progress:", error);
-    }
+    // Note: Task progress is tracked in the task_status table, not in the students table
+    // The localStorage update above is sufficient for UI state management
+    // The task_status table is updated when tasks are completed via saveTaskCompletion()
   };
 
   const checkOverdueTasks = useCallback(async () => {
