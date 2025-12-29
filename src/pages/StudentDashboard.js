@@ -38,6 +38,7 @@ import "../styles/Dashboard.css";
 import "../styles/Sidebar.css";
 import "../styles/Chat.css";
 import "../styles/Notes.css";
+import "../styles/StudentTheme.css";
 import EduTube from "../components/Youtube";
 
 // Import the refactored parts
@@ -1315,7 +1316,7 @@ const StudentDashboard = () => {
           student_name: userData.name,
           submitted_at: new Date().toISOString(),
         });
-      
+
       if (error) {
         throw error;
       }
@@ -1500,7 +1501,7 @@ const StudentDashboard = () => {
       if (taskStaff) {
         // Use Supabase sendMessage function instead of Firebase
         const messageText = `Overdue Task Reason - "${task.content}" (${task.subject || "No Subject"
-                }): ${reason}`;
+          }): ${reason}`;
         await sendMessage(messageText, task.staffId, "student");
 
         const taskId =
@@ -1585,7 +1586,7 @@ const StudentDashboard = () => {
 
   return (
     <ErrorBoundary>
-      <div className="dashboard-container">
+      <div className="dashboard-container student-dashboard">
         <GuideModal
           isOpen={!localStorage.getItem("hasSeenStudentGuide")}
           onClose={() => localStorage.setItem("hasSeenStudentGuide", "true")}

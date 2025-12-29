@@ -46,6 +46,7 @@ import "../styles/Dashboard.css";
 import "../styles/StaffInteraction.css";
 import "../styles/Chat.css";
 import "../styles/Youtube.css";
+import "../styles/StaffTheme.css";
 import "../staff/StaffDashboardComponents.js";
 import "../staff/StaffDashboardUtils.js";
 import "../staff/StaffDashboardViews.js";
@@ -364,7 +365,20 @@ const StaffDashboard = () => {
       }
     };
     fetchInitialDashboardData();
-  }, [navigate, addNotification, fetchUserNames]);
+  }, [addNotification, navigate, fetchUserNames]);
+
+  // Recalculate active students whenever studentStats changes
+  useEffect(() => {
+    if (studentStats.length > 0) {
+      const activeCount = studentStats.filter(
+        (student) => (student.streak || 0) > 0
+      ).length;
+      setQuickStats((prev) => ({
+        ...prev,
+        activeStudents: activeCount,
+      }));
+    }
+  }, [studentStats]);
 
   useEffect(() => {
     const refreshStudentStats = async () => {
@@ -1385,7 +1399,7 @@ const StaffDashboard = () => {
   // --- Main Render ---
   return (
     <ErrorBoundary>
-      <div className="dashboard-container">
+      <div className="dashboard-container staff-dashboard">
         <GuideModal
           isOpen={showGuide}
           onClose={() => setShowGuide(false)}

@@ -1,0 +1,145 @@
+/* Staff Dashboard Theme - Creative Blue Dominant */
+
+/* Main Background - Soft Blue Tint */
+.dashboard-container.staff-dashboard {
+    background-color: #f0f7ff;
+}
+
+/* Sidebar - Deep Glassy Blue */
+.dashboard-container.staff-dashboard .sidebar {
+    background: linear-gradient(160deg, #102a71 0%, #1e40af 100%);
+    box-shadow: 4px 0 15px rgba(30, 64, 175, 0.2);
+}
+
+/* Header - Vibrant Blue Gradient with Yellow Stripe */
+.dashboard-container.staff-dashboard .container-header {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 80%);
+    border-bottom: 4px solid #facc15;
+    /* Pop of yellow */
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    color: #fff;
+}
+
+/* Primary Action Buttons - Vibrant Blue */
+.dashboard-container.staff-dashboard .add-goal-btn,
+.dashboard-container.staff-dashboard .copy-topic-btn {
+    background: linear-gradient(to right, #2563eb, #3b82f6);
+    border: none;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: white;
+}
+
+.dashboard-container.staff-dashboard .add-goal-btn:hover,
+.dashboard-container.staff-dashboard .copy-topic-btn:hover {
+    background: linear-gradient(to right, #1d4ed8, #2563eb);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    color: white;
+}
+
+/* Secondary Buttons - High Contrast Yellow */
+.dashboard-container.staff-dashboard .complete-btn,
+.dashboard-container.staff-dashboard .save-goal-btn {
+    background: linear-gradient(to right, #eab308, #ca8a04);
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(234, 179, 8, 0.3);
+}
+
+.dashboard-container.staff-dashboard .complete-btn:hover,
+.dashboard-container.staff-dashboard .save-goal-btn:hover {
+    background: linear-gradient(to right, #ca8a04, #a16207);
+    transform: scale(1.05);
+}
+
+/* Cards - White with Blue Accents */
+.dashboard-container.staff-dashboard .task-item,
+.dashboard-container.staff-dashboard .goal-card,
+.dashboard-container.staff-dashboard .stat-box {
+    background: white;
+    border: 1px solid #e0e7ff;
+    border-left: 5px solid #3b82f6;
+    /* Blue highlight */
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+/* Card Hover - Transform to Yellow Accent */
+.dashboard-container.staff-dashboard .task-item:hover,
+.dashboard-container.staff-dashboard .goal-card:hover,
+.dashboard-container.staff-dashboard .stat-box:hover {
+    border-left-color: #facc15;
+    /* Shift to yellow on interaction */
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
+}
+
+/* Search Bar */
+.dashboard-container.staff-dashboard .search-bar:focus {
+    border-color: #facc15;
+    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.25);
+}
+
+/* Quick Stats - Blue Theme */
+.dashboard-container.staff-dashboard .quick-stats .stat-box:nth-child(1) {
+    background: linear-gradient(to right, #fefce8, #fff7ed);
+    border: 1px solid #fde047;
+    border-left: 6px solid #eab308;
+    /* Gold for first stat */
+}
+
+.dashboard-container.staff-dashboard .quick-stats .stat-box {
+    border-left: 6px solid #3b82f6;
+    /* Blue for others */
+}
+
+/* Progress Bars */
+.dashboard-container.staff-dashboard .progress-bar {
+    background-color: #dbeafe;
+}
+
+.dashboard-container.staff-dashboard .progress-fill {
+    background: linear-gradient(90deg, #3b82f6, #facc15);
+    /* Blue to Yellow gradient */
+}
+
+/* Subject/Category Cards */
+.dashboard-container.staff-dashboard .subject-card {
+    background: white;
+    border-radius: 15px;
+    border-top: 6px solid #3b82f6;
+    border-bottom: 2px solid transparent;
+}
+
+.dashboard-container.staff-dashboard .subject-card:hover {
+    border-top-color: #facc15;
+    border-bottom-color: #facc15;
+}
+
+/* Streak/Info Container */
+.dashboard-container.staff-dashboard .streak-container {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 8px 32px rgba(30, 64, 175, 0.3);
+}
+
+.dashboard-container.staff-dashboard .streak-container h3,
+.dashboard-container.staff-dashboard .streak-container p {
+    color: white;
+}
+
+/* Details Button - Outline Style */
+.dashboard-container.staff-dashboard .details-btn {
+    border: 2px solid #3b82f6;
+    color: #2563eb;
+    background: transparent;
+    font-weight: 600;
+}
+
+.dashboard-container.staff-dashboard .details-btn:hover {
+    background: #facc15;
+    border-color: #facc15;
+    color: #1e3a8a;
+}

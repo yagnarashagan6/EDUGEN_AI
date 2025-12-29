@@ -917,6 +917,7 @@ export const fetchStudentData = async (studentId = null) => {
         lastLogin: data.last_login || data.lastLogin,
         quizCount: data.quiz_count || data.quizCount,
         totalTimeSpentInMs: data.total_time_spent_ms || data.totalTimeSpentInMs,
+        formFilled: data.form_filled || data.formFilled,
       };
     }
 
