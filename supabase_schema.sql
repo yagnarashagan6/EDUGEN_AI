@@ -241,6 +241,26 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- ============================================
+-- 18. APPROVED_CONTENT TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS approved_content (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subject TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  subtopic TEXT,
+  ai_answer TEXT,
+  quiz_questions JSONB,
+  quiz_config JSONB,
+  difficulty TEXT,
+  staff_id TEXT NOT NULL,
+  staff_name TEXT,
+  files_used JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(subject, topic)
+);
+
+-- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 
@@ -294,6 +314,10 @@ CREATE INDEX IF NOT EXISTS idx_student_activities_timestamp ON student_activitie
 -- Settings indexes
 CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(setting_key);
 
+-- Approved content indexes
+CREATE INDEX IF NOT EXISTS idx_approved_content_subject_topic ON approved_content(subject, topic);
+CREATE INDEX IF NOT EXISTS idx_approved_content_staff_id ON approved_content(staff_id);
+
 -- ============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================
@@ -316,6 +340,7 @@ ALTER TABLE circulars ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approved_content ENABLE ROW LEVEL SECURITY;
 
 -- Notes policies
 CREATE POLICY "Users can read notes shared with them"
@@ -529,6 +554,17 @@ CREATE POLICY "Authenticated users can manage settings"
   TO authenticated
   USING (true);
 
+-- Approved content policies
+CREATE POLICY "Authenticated users can read approved content"
+  ON approved_content FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Staff can manage approved content"
+  ON approved_content FOR ALL
+  TO authenticated
+  USING (true);
+
 -- ============================================
 -- ENABLE REALTIME
 -- ============================================
@@ -551,6 +587,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE circulars;
 ALTER PUBLICATION supabase_realtime ADD TABLE assignments;
 ALTER PUBLICATION supabase_realtime ADD TABLE student_activities;
 ALTER PUBLICATION supabase_realtime ADD TABLE settings;
+ALTER PUBLICATION supabase_realtime ADD TABLE approved_content;
 
 -- ============================================
 -- TRIGGERS FOR UPDATED_AT
@@ -606,6 +643,9 @@ CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_approved_content_updated_at BEFORE UPDATE ON approved_content
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================

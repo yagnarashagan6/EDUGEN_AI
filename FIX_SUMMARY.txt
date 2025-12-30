@@ -1,0 +1,126 @@
+# Student Quiz & Chatbot Fixes - Summary
+
+## Issues Fixed
+
+### Issue 1: Quiz Not Loading - Subject Mismatch ❌ → ✅
+
+**Problem:**
+The student dashboard was searching for approved quizzes with the wrong subject:
+- Task content: `"Horticulture - Low-intensity farming, small plots..."`
+- Search was using: subject = `"Human Resource and Management"` (WRONG!)
+- Approved quiz has: subject = `"Horticulture"`, topic = `"Low-intensity farming, small plots"`
+
+**Root Cause:**
+The `StaffDashboard.js` was incorrectly deriving the subject from topic/subtopic fields instead of using the task's actual subject field.
+
+**Solution:**
+1. **StudentDashboard.js**: Extract subject directly from the task content string (before the " - " separator)
+2. **StaffDashboard.js**: Use the task's `subject` field directly when saving approved content
+
+**Files Modified:**
+- `c:\EDUGEN_AI\src\pages\StudentDashboard.js` - Lines 1042-1097
+- `c:\EDUGEN_AI\src\pages\StaffDashboard.js` - Lines 231-253
+
+---
+
+### Issue 2: Chatbot Loading Approved Content Multiple Times 🔄 → ✅
+
+**Problem:**
+The chatbot was checking for approved content 12 times for the same topic, causing:
+- Unnecessary database queries
+- Performance degradation
+- Console spam
+
+**Root Cause:**
+The `useEffect` in `Chatbot.js` was running multiple times because `copiedTopic` wasn't being cleared immediately, causing the effect to re-trigger.
+
+**Solution:**
+Clear `copiedTopic` immediately at the start of the effect to prevent re-runs:
+```javascript
+if (copiedTopic) {
+  const topicToCheck = copiedTopic;
+  clearCopiedTopic(); // Clear immediately!
+  // ... rest of logic
+}
+```
+
+**Files Modified:**
+- `c:\EDUGEN_AI\src\components\Chatbot.js` - Lines 419-475
+
+---
+
+## Expected Behavior Now
+
+### When Staff Posts a Task:
+```
+Task Data:
+- subject: "Horticulture"
+- topic: "Low-intensity farming, small plots"
+- content: "Horticulture - Low-intensity farming, small plots..."
+
+Saved to approved_content:
+✅ subject: "Horticulture"
+✅ topic: "Low-intensity farming, small plots"
+✅ quiz_questions: [5 questions array]
+```
+
+### When Student Clicks "Take Quiz":
+```
+1. Extract from content: "Horticulture - Low-intensity farming, small plots..."
+   → subject: "Horticulture"
+   → topics: ["Low-intensity farming", "small plots"]
+
+2. Search approved_content:
+   ✅ subject = "Horticulture" AND topic = "Low-intensity farming"
+   
+3. Result: MATCH FOUND! Load approved quiz
+```
+
+### When Student Clicks "Copy & Ask AI":
+```
+1. Chatbot receives copiedTopic
+2. Clears copiedTopic immediately (prevents re-runs)
+3. Checks for approved content ONCE
+4. Displays staff-approved answer if found
+```
+
+---
+
+## Console Logs to Verify
+
+### Student Dashboard (Quiz):
+```
+🔍 Checking for approved quiz for topic: "Horticulture - Low-intensity farming, small plots..."
+📚 Extracted subject from content: "Horticulture"
+📝 Task content: "Horticulture - Low-intensity farming, small plots..."
+🔍 Extracted topics to search: ["Low-intensity farming", "small plots"]
+🔍 Searching for approved quiz: subject="Horticulture", topic="Low-intensity farming"
+✅ Found approved quiz for topic "Low-intensity farming" with 5 questions
+✅ Loading staff-approved quiz with 5 questions
+```
+
+### Chatbot (Approved Answer):
+```
+Checking for approved content: Subject="Horticulture", Topic="Low-intensity farming, small plots..."
+✅ Found staff-approved content!
+```
+(Should appear ONLY ONCE, not 12 times!)
+
+---
+
+## Testing Checklist
+
+- [ ] Staff creates a task with subject "Horticulture" and topic "Low-intensity farming, small plots"
+- [ ] Staff approves the AI-generated quiz
+- [ ] Check Supabase `approved_content` table has correct subject and topic
+- [ ] Student clicks "Take Quiz" on the task
+- [ ] Quiz loads successfully (no error message)
+- [ ] Student clicks "Copy & Ask AI"
+- [ ] Chatbot shows approved answer ONCE (not multiple times)
+- [ ] Console shows correct subject extraction logs
+
+---
+
+## No Database Changes Required ✅
+
+All fixes are code-only. Your existing `approved_content` table structure is correct!

@@ -72,6 +72,7 @@ import {
   ChatbotContainer,
   NotesContainer,
   StudyTimerContainer,
+  StudentQuizContainer,
 } from "../students/StudentDashboardViews";
 
 const StudentDashboard = () => {
@@ -83,6 +84,7 @@ const StudentDashboard = () => {
   const [goals, setGoals] = useState([]);
   const [messages, setMessages] = useState([]);
   const [currentTopic, setCurrentTopic] = useState("");
+  const [currentSubtopic, setCurrentSubtopic] = useState("");
   const [inQuiz, setInQuiz] = useState(false);
   const [quizReady, setQuizReady] = useState(false);
   const [quizQuestions, setQuizQuestions] = useState([]);
@@ -124,6 +126,7 @@ const StudentDashboard = () => {
   const [showQuizSetup, setShowQuizSetup] = useState(false);
   const [quizNumQuestions, setQuizNumQuestions] = useState(3);
   const [quizDifficulty, setQuizDifficulty] = useState("Medium");
+  const [currentQuizId, setCurrentQuizId] = useState(null);
 
   // News-related state
   const [news, setNews] = useState([]);
@@ -774,9 +777,13 @@ const StudentDashboard = () => {
 
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       // If already initialized and user is the same, don't re-fetch
-      if (hasInitialized.current && user && userData && user.uid === userData.id) {
-        console.log("[StudentDashboard] Already initialized, skipping re-fetch");
-        return;
+      if (hasInitialized.current && user) {
+        // Check if it's the same user by comparing with stored ref
+        const currentUserIdRef = sessionStorage.getItem('currentStudentUserId');
+        if (currentUserIdRef === user.uid) {
+          console.log("[StudentDashboard] Already initialized, skipping re-fetch");
+          return;
+        }
       }
 
       if (dashboardCleanup) {
@@ -786,10 +793,13 @@ const StudentDashboard = () => {
 
       if (user) {
         // User is logged in, fetch data
+        // Store current user ID in session storage to track initialization
+        sessionStorage.setItem('currentStudentUserId', user.uid);
         dashboardCleanup = await checkAuthAndFetchData(user);
       } else {
         // No user, redirect to login
         hasInitialized.current = false; // Reset on logout
+        sessionStorage.removeItem('currentStudentUserId');
         navigate("/student-login");
       }
     });
@@ -798,13 +808,8 @@ const StudentDashboard = () => {
       if (dashboardCleanup) dashboardCleanup();
       unsubscribeAuth();
     };
-  }, [
-    navigate,
-    updateTotalTimeSpentInFirestore,
-    loadTasks,
-    loadTaskStatuses,
-    userData, // Added to dependency to track user changes
-  ]); // updateLeaderboard removed
+  }, [navigate]); // Removed userData and other function dependencies to prevent re-initialization
+
 
   useEffect(() => {
     if (pendingStreakUpdate && loginTimeRef.current && userData) {
@@ -1036,32 +1041,110 @@ const StudentDashboard = () => {
     }, 12000);
 
     try {
-      // --- OPTIMIZATION ---
-      // We no longer update quizCount here. It will be updated
-      // in the updateStudentProgress function.
-      const requestBody = {
-        topic: currentTopic.trim(),
-        count: quizNumQuestions,
-        difficulty: quizDifficulty,
-      };
-      const response = await generateQuizWithFallback(requestBody);
-      // ... (rest of quiz generation logic)
-      if (response.status === 429) {
-        // ... 429 error handling
-        setInQuiz(false);
-        return;
-      }
-      if (!response.ok) {
-        // ... !ok error handling
-        throw new Error("Quiz generation failed");
-      }
-      const data = await response.json();
-      if (data.questions && data.questions.length > 0) {
-        setQuizQuestions(data.questions);
-        setActiveContainer("tasks-container");
+      // 1. Check for Staff Approved Quiz First
+      console.log(`🔍 Checking for approved quiz for topic: "${currentTopic.trim()}"`);
+      
+      // Find the task to get subject information
+      const currentTask = tasks.find((t) => t.content === currentTopic);
+      
+      // The approved content is saved with:
+      //   subject = staff's subject from profile (e.g., "Human Resource and Management")
+      //   topic = task topic from form (e.g., "Precision Farming Technologies")
+      //
+      // The task content format is: "Topic - Subtopics"
+      // Example: "Precision Farming Technologies - GPS, GIS, Remote Sensing..."
+      
+      let searchSubject = currentTask?.subject || 'General';  // Staff's subject from task
+      let searchTopic = 'General';
+      
+      // Extract topic from content (before " - ")
+      if (currentTopic.includes(' - ')) {
+        const parts = currentTopic.split(' - ');
+        if (parts.length > 0) {
+          searchTopic = parts[0].trim(); // Topic is before " - "
+        }
       } else {
-        throw new Error("No questions generated");
+        searchTopic = currentTopic.trim();
       }
+      
+      console.log(`📚 Search subject (from task): "${searchSubject}"`);
+      console.log(`📝 Search topic (from content): "${searchTopic}"`);
+      console.log(`📋 Full task content: "${currentTopic}"`);
+      
+      // Search for approved quiz using subject from task and topic from content
+      let approvedQuiz = null;
+      
+      if (searchSubject && searchTopic) {
+        console.log(`🔍 Searching for approved quiz: subject="${searchSubject}", topic="${searchTopic}"`);
+        
+        const { data: match, error: searchError } = await supabase
+          .from('approved_content')
+          .select('*')
+          .eq('subject', searchSubject)
+          .eq('topic', searchTopic)
+          .maybeSingle();
+        
+        if (searchError) {
+          console.warn(`⚠️ Error searching for approved quiz:`, searchError);
+        }
+        
+        if (match && match.quiz_questions && match.quiz_questions.length > 0) {
+          console.log(`✅ Found approved quiz for "${searchTopic}" with ${match.quiz_questions.length} questions`);
+          approvedQuiz = match;
+        }
+      }
+
+      // If we found an approved quiz, use it and DO NOT generate a new one
+      if (approvedQuiz && approvedQuiz.quiz_questions && approvedQuiz.quiz_questions.length > 0) {
+        console.log("✅ Loading staff-approved quiz with", approvedQuiz.quiz_questions.length, "questions");
+        setQuizQuestions(approvedQuiz.quiz_questions);
+        if (approvedQuiz.quiz_config && approvedQuiz.quiz_config.quiz_id) {
+            setCurrentQuizId(approvedQuiz.quiz_config.quiz_id);
+            console.log("✅ Set Quiz ID:", approvedQuiz.quiz_config.quiz_id);
+        } else {
+            setCurrentQuizId(null);
+        }
+        setActiveContainer("tasks-container");
+        setNotifications((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            type: "success",
+            message: "Loaded staff-approved quiz for this topic.",
+          },
+        ]);
+        
+        // Clear lock since we are done
+        clearTimeout(quizLockTimeout);
+        quizRequestLockRef.current = false;
+        setInQuiz(true); // Ensure quiz mode is active
+        setQuizReady(true);
+        return; // IMPORTANT: Return here to prevent quiz generation
+      } else {
+        console.log("❌ No approved quiz found for this topic.");
+        
+        // Show error notification and exit - DO NOT generate quiz
+        setNotifications((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            type: "error",
+            message: "No approved quiz available for this topic. Please contact your instructor.",
+          },
+        ]);
+        
+        setInQuiz(false);
+        setCurrentTopic("");
+        setQuizQuestions([]);
+        setActiveContainer(null);
+        clearTimeout(quizLockTimeout);
+        quizRequestLockRef.current = false;
+        return; // Exit without generating quiz
+      }
+
+      // This code below should never be reached now - all quiz generation code has been removed
+      // Students can only take staff-approved quizzes
+
     } catch (err) {
       console.error("Error generating quiz:", err);
       setNotifications((prev) => [
@@ -1084,7 +1167,7 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleQuizComplete = async (score) => {
+  const handleQuizComplete = async (score, userAnswers = []) => {
     const user = auth.currentUser;
     if (!user || !userData) return;
     try {
@@ -1112,6 +1195,87 @@ const StudentDashboard = () => {
           },
         };
         setTaskProgress(updatedTaskProgress);
+      }
+
+      // --- NEW: Save Detailed Performance for Staff Dashboard ---
+      try {
+        // Calculate subtopic performance
+        const subtopicStats = {};
+        
+        quizQuestions.forEach((q, index) => {
+            const subtopic = q.subtopic || "General";
+            const isCorrect = userAnswers[index] === q.correctAnswer;
+            
+            if (!subtopicStats[subtopic]) {
+                subtopicStats[subtopic] = { total: 0, correct: 0 };
+            }
+            subtopicStats[subtopic].total += 1;
+            if (isCorrect) subtopicStats[subtopic].correct += 1;
+        });
+
+        const strengths = [];
+        const weaknesses = [];
+
+        Object.keys(subtopicStats).forEach(subtopic => {
+            const stats = subtopicStats[subtopic];
+            const percent = (stats.correct / stats.total) * 100;
+            if (percent >= 70) {
+                strengths.push(subtopic);
+            } else if (percent < 50) {
+                weaknesses.push(subtopic);
+            }
+        });
+
+        // Construct performance data
+        const performanceData = {
+            student_id: user.uid,
+            quiz_id: currentQuizId || null,
+            topic: currentTopic,
+            subtopic: currentSubtopic || (quizQuestions[0] && quizQuestions[0].subtopic) || "General",
+            score: score,
+            total_questions: quizQuestions.length,
+            percentage: percentage,
+            strengths: strengths,
+            weaknesses: weaknesses,
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log("Saving student performance:", performanceData);
+
+        // 1. Submit to Backend API (Recommended for comprehensive analytics)
+        if (currentQuizId) {
+             try {
+                const submitResponse = await fetch('http://localhost:10000/api/quiz/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quizId: currentQuizId,
+                        studentId: user.uid,
+                        studentName: userData.name || "Student",
+                        answers: userAnswers.map((ans, idx) => ({ selectedAnswer: ans, questionIndex: idx })),
+                        timeTaken: 0 
+                    })
+                });
+                const submitResult = await submitResponse.json();
+                console.log("✅ Quiz submitted to backend:", submitResult);
+            } catch (backendError) {
+                console.error("❌ Failed to submit quiz to backend:", backendError);
+            }
+        }
+
+        // 2. Direct Supabase Fallback (Keep existing logic)
+        const { error: perfError } = await supabase
+            .from('student_performance')
+            .upsert(performanceData, { onConflict: 'student_id, quiz_id' });
+        
+        if (perfError) {
+             console.warn("Performance save warning (might be duplicate or schema issue):", perfError);
+        } else {
+            console.log("Student performance saved successfully (Direct).");
+        }
+
+      } catch (saveError) {
+          console.error("Failed to save detailed performance:", saveError);
       }
 
       // Call the master progress updater
@@ -1632,6 +1796,7 @@ const StudentDashboard = () => {
               activeContainer={activeContainer}
               inQuiz={inQuiz}
               currentTopic={currentTopic}
+              currentSubtopic={currentSubtopic}
               quizQuestions={quizQuestions}
               handleQuizComplete={handleQuizComplete}
               setInQuiz={setInQuiz}
@@ -1652,6 +1817,7 @@ const StudentDashboard = () => {
               updateTaskProgress={updateTaskProgress}
               setSelectedSubject={setSelectedSubject}
               currentUserId={currentUserId}
+              userData={userData}
             />
 
             <GoalsContainer
@@ -1751,6 +1917,12 @@ const StudentDashboard = () => {
             />
 
             <StudyTimerContainer activeContainer={activeContainer} />
+
+            <StudentQuizContainer
+              activeContainer={activeContainer === "quiz-container" ? "quiz" : null}
+              studentId={auth.currentUser?.uid}
+              studentName={userData?.name}
+            />
 
             {quizReady && !inQuiz && (
               <div className="quiz-prompt">

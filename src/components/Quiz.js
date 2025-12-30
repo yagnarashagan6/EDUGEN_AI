@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "../styles/Quiz.css";
 import jsPDF from "jspdf";
-
-// Add this import at the top
 import confetti from "canvas-confetti";
+import QuizResults from "./QuizResults";
 
 const Quiz = ({
   topic,
+  subtopic,
+  studentName = "Student",
   handleQuizComplete,
   handleQuizCancel,
   questions: initialQuestions,
@@ -248,7 +249,7 @@ const Quiz = ({
   };
 
   const handleBackToTasks = () => {
-    handleQuizComplete(score);
+    handleQuizComplete(score, userAnswers);
   };
 
   const getTimerClass = () => {
@@ -281,102 +282,18 @@ const Quiz = ({
   }
 
   if (quizCompleted) {
-    const handleDownloadPDF = () => {
-      const doc = new jsPDF();
-      doc.setFontSize(18);
-      doc.text(`Quiz Results: ${topic}`, 10, 15);
-      doc.setFontSize(12);
-      doc.text(`Score: ${score} / ${questions.length}`, 10, 25);
-      let y = 35;
-      questions.forEach((q, idx) => {
-        doc.setFont(undefined, "bold");
-        doc.text(`Q${idx + 1}: ${q.text}`, 10, y);
-        y += 7;
-        doc.setFont(undefined, "normal");
-        q.options.forEach((opt) => {
-          let prefix = " ";
-          if (opt === q.correctAnswer) prefix = "✓";
-          if (userAnswers[idx] === opt && opt !== q.correctAnswer) prefix = "✗";
-          doc.text(`${prefix} ${opt}`, 14, y);
-          y += 6;
-        });
-        doc.text(`Your Answer: ${userAnswers[idx] || "No answer"}`, 14, y);
-        y += 6;
-        if (userAnswers[idx] !== q.correctAnswer) {
-          doc.text(`Correct Answer: ${q.correctAnswer}`, 14, y);
-          y += 6;
-        }
-        y += 2;
-        if (y > 270) {
-          doc.addPage();
-          y = 15;
-        }
-      });
-      doc.save(`Quiz_${topic.replace(/\s+/g, "_")}.pdf`);
-    };
-
     return (
-      <div
-        className={`edugen-quiz-container ${
-          isInContainer ? "container-quiz" : ""
-        }`}
-      >
-        <div className="edugen-quiz-content">
-          <div className="edugen-quiz-result">
-            <h2 className="edugen-quiz-result-title">Quiz Completed!</h2>
-            <div className="edugen-quiz-score-circle">
-              {score} / {questions.length}
-            </div>
-            <div className="edugen-quiz-result-message">Your Results:</div>
-            <div className="edugen-quiz-results-list">
-              {questions.map((q, idx) => {
-                const userAnswer = userAnswers[idx];
-                const isCorrect = userAnswer === q.correctAnswer;
-                return (
-                  <div
-                    key={idx}
-                    className={`edugen-quiz-result-item ${
-                      isCorrect ? "correct" : "incorrect"
-                    }`}
-                  >
-                    <div className="edugen-quiz-result-question">
-                      Q{idx + 1}: {q.text}
-                    </div>
-                    <div
-                      className={`edugen-quiz-result-answer ${
-                        isCorrect ? "correct" : "incorrect"
-                      }`}
-                    >
-                      Your Answer: {userAnswer || "No answer"}
-                    </div>
-                    {!isCorrect && (
-                      <div className="edugen-quiz-result-correct">
-                        Correct Answer: {q.correctAnswer}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="edugen-quiz-result-actions-row">
-              <button
-                className="edugen-quiz-download-pdf-btn"
-                onClick={handleDownloadPDF}
-              >
-                <i className="fas fa-file-pdf"></i>
-                Download PDF
-              </button>
-              <button
-                className="edugen-quiz-back-button"
-                onClick={handleBackToTasks}
-              >
-                <i className="fas fa-arrow-left"></i>
-                Back to Tasks
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <QuizResults
+        studentName={studentName}
+        topic={topic}
+        subtopic={subtopic}
+        score={score}
+        totalQuestions={questions.length}
+        questions={questions}
+        userAnswers={userAnswers}
+        isInContainer={isInContainer}
+        onBackToTasks={() => handleQuizComplete(score, userAnswers)}
+      />
     );
   }
 

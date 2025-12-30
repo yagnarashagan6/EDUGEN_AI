@@ -24,3 +24,38 @@ yarn-error.log*
 # Other
 .DS_Store
 Thumbs.db
+
+# Temporary documentation and fix files
+*_FIXES*.md
+*_FIX_*.md
+*IMPLEMENTATION*.md
+*_SUMMARY.md
+TEST_NOW.md
+QUICK_START*.md
+
+# SQL debug and temporary files
+DEBUG_*.sql
+FIX_*.sql
+TEMP_*.sql
+VERIFY_*.sql
+
+# Test files (if not using tests)
+*.test.js
+setupTests.js
+reportWebVitals.js
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Google Drive OAuth Credentials (IMPORTANT - DO NOT COMMIT!)
+credentials.json
+token.pickle
+*.pickle
+
+# RAG Model Files
+rag model/pdfs/*
+!rag model/pdfs/.gitkeep
+rag model/chroma_db/
+rag model/db/

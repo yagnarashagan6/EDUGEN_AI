@@ -43,6 +43,11 @@ const Sidebar = ({
       icon: "fas fa-file-alt",
       label: "Assignments",
     },
+    {
+      id: "quiz-container",
+      icon: "fas fa-question-circle",
+      label: "Quiz",
+    },
     { id: "streak-container", icon: "fas fa-fire", label: "Streaks" },
     { id: "news-container", icon: "fas fa-newspaper", label: "News" },
     {
@@ -102,6 +107,16 @@ const Sidebar = ({
       id: "timetable-creator-container", // Timetable Creator option for staff
       icon: "fas fa-calendar-alt",
       label: "Timetable Creator",
+    },
+    {
+      id: "rag-model-container",
+      icon: "fas fa-database",
+      label: "RAG Model",
+    },
+    {
+      id: "quiz-analytics",
+      icon: "fas fa-chart-pie",
+      label: "Quiz Analytics",
     },
     {
       id: "youtube-controller-container", // YouTube Controller option for staff

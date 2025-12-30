@@ -12,6 +12,9 @@ import {
   AssignmentItem,
   Leaderboard,
 } from "./StudentDashboardComponents"; // Import from our new file
+import StudentQuizContainer from "../components/StudentQuizContainer";
+
+export { StudentQuizContainer };
 
 // Helper to resolve a task's status from taskProgress using multiple key strategies
 const resolveTaskStatus = (task, taskProgress) => {
@@ -208,6 +211,7 @@ export const TasksContainer = ({
   activeContainer,
   inQuiz,
   currentTopic,
+  currentSubtopic,
   quizQuestions,
   handleQuizComplete,
   setInQuiz,
@@ -228,6 +232,7 @@ export const TasksContainer = ({
   updateTaskProgress,
   setSelectedSubject,
   currentUserId,
+  userData,
 }) => {
   return (
     <div
@@ -250,6 +255,8 @@ export const TasksContainer = ({
           quizQuestions.length > 0 ? (
             <Quiz
               topic={currentTopic}
+              subtopic={currentSubtopic}
+              studentName={userData?.name || "Student"}
               questions={quizQuestions}
               handleQuizComplete={handleQuizComplete}
               handleQuizCancel={() => {
@@ -358,6 +365,7 @@ export const TasksContainer = ({
                     isCompleted={isCompleted}
                     taskProgress={taskProgress} // Pass the full taskProgress map (TaskItem expects map)
                     onUpdateTaskProgress={updateTaskProgress} // Pass update function
+                    hideSubject={true} // Hide subject label since we're already in a subject-filtered view
                   />
                 );
               })

@@ -9,6 +9,7 @@ const TaskItem = ({
   isCompleted,
   taskProgress = {}, // Add taskProgress prop
   onUpdateTaskProgress, // Add progress update function
+  hideSubject = false, // Add hideSubject prop to conditionally hide subject display
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -81,7 +82,8 @@ const TaskItem = ({
       }`}
     >
       <p>
-        {task.content} <small>({task.subject || "No Subject"})</small>
+        {task.content}
+        {!hideSubject && <small> ({task.subject || "No Subject"})</small>}
         {role === "student" && (
           <span
             style={{

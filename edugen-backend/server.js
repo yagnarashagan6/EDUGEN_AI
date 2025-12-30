@@ -362,6 +362,7 @@ app.post("/api/generate-quiz", async (req, res) => {
    - "text": The question
    - "options": Array of 4 options (prefix with A), B), etc.)
    - "correctAnswer": The full correct option text
+   - "subtopic": The specific subtopic (if applicable, else topic)
 3. Return only a valid JSON array with no extra text
 
 Example:
@@ -450,10 +451,17 @@ ${prompt}`,
           `Question ${i + 1} correctAnswer doesn't match any option`
         );
       }
+      if (!q.options.includes(q.correctAnswer)) {
+        throw new Error(
+          `Question ${i + 1} correctAnswer doesn't match any option`
+        );
+      }
       return {
         text: q.text.trim(),
         options: q.options.map((opt) => opt.trim()),
         correctAnswer: q.correctAnswer.trim(),
+        explanation: q.explanation ? q.explanation.trim() : "",
+        subtopic: q.subtopic ? q.subtopic.trim() : (subtopic || topic) // Fallback to provided subtopic/topic
       };
     });
 
@@ -644,6 +652,751 @@ app.post("/api/upsert-student", async (req, res) => {
     return res.status(500).json({ error: err.message || String(err) });
   }
 });
+
+// =============== ADAPTIVE QUIZ ENDPOINTS ===============
+import adaptiveQuizService from './adaptiveQuizService.js';
+
+// Generate baseline quiz (Agent 1)
+app.post("/api/quiz/generate", async (req, res) => {
+  try {
+    const { topic, subtopics, difficulty, questionCount, cognitiveLevel, pdf_name } = req.body;
+
+    if (!topic || !questionCount) {
+      return res.status(400).json({
+        success: false,
+        error: "Topic and question count are required",
+      });
+    }
+
+    console.log(`Generating quiz: ${topic}, ${questionCount} questions, ${difficulty} difficulty${pdf_name ? `, using PDF: ${pdf_name}` : ''}`);
+
+    // Strategies: RAG (if PDF) -> Pure AI (Fallback)
+    
+    if (pdf_name) {
+        try {
+            console.log(`Attempting RAG generation with ${pdf_name}...`);
+            const ragResponse = await fetch(`${RAG_API_URL}/api/rag/generate-quiz`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic,
+                    subtopic: subtopics ? subtopics[0] : "", // RAG API expects single subtopic string or uses query
+                    pdf_name,
+                    difficulty,
+                    question_count: parseInt(questionCount),
+                    cognitive_level: cognitiveLevel
+                }),
+                timeout: 60000 // 60s timeout for RAG
+            });
+            
+            if (ragResponse.ok) {
+                const ragData = await ragResponse.json();
+                if (ragData.success && ragData.questions && ragData.questions.length > 0) {
+                    console.log("✅ RAG Quiz Generation Successful");
+                    return res.json({
+                        success: true,
+                        questions: ragData.questions,
+                        source: "RAG (" + pdf_name + ")",
+                        context: ragData.context || '',  // Pass through context for admin
+                        chunks_found: ragData.chunks_found || 0  // Pass through chunks for admin
+                    });
+                } else {
+                    console.warn(`RAG Generation returned success=false: ${ragData.error}. Falling back to Pure AI.`);
+                }
+            } else {
+                 console.warn(`RAG API returned status ${ragResponse.status}. Falling back to Pure AI.`);
+            }
+        } catch (ragError) {
+             console.error("RAG Quiz Generation Error:", ragError.message);
+             console.log("Falling back to Pure AI...");
+        }
+    }
+
+    // Fallback or Default: Pure AI Generation
+    const result = await adaptiveQuizService.generateMCQs({
+      topic,
+      subtopics: subtopics || [],
+      difficulty: difficulty || "medium",
+      questionCount: parseInt(questionCount),
+      cognitiveLevel: cognitiveLevel || "application",
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Quiz generation error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Save quiz to database
+app.post("/api/quiz/save", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { title, topic, subtopic, difficulty, questionCount, questions, quizType, staffId } = req.body;
+
+    if (!title || !topic || !questions || !staffId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("quizzes")
+      .insert({
+        title,
+        topic,
+        subtopic,
+        difficulty,
+        question_count: questionCount,
+        questions,
+        quiz_type: quizType || "general",
+        staff_id: staffId,
+        is_published: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      quiz: data,
+    });
+  } catch (error) {
+    console.error("Save quiz error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Publish quiz
+app.post("/api/quiz/publish/:quizId", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { quizId } = req.params;
+
+    const { data, error } = await supabase
+      .from("quizzes")
+      .update({
+        is_published: true,
+        published_at: new Date().toISOString(),
+      })
+      .eq("id", quizId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      quiz: data,
+    });
+  } catch (error) {
+    console.error("Publish quiz error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Get all quizzes for staff
+app.get("/api/quiz/list/:staffId", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { staffId } = req.params;
+
+    const { data, error } = await supabase
+      .from("quizzes")
+      .select("*")
+      .eq("staff_id", staffId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      quizzes: data || [],
+    });
+  } catch (error) {
+    console.error("List quizzes error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Get published quizzes for students
+app.get("/api/quiz/published", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("quizzes")
+      .select("*")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      quizzes: data || [],
+    });
+  } catch (error) {
+    console.error("Get published quizzes error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Submit quiz attempt
+app.post("/api/quiz/submit", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { quizId, studentId, studentName, answers, timeTaken } = req.body;
+
+    if (!quizId || !studentId || !answers) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    // Get quiz to check answers
+    const { data: quiz, error: quizError } = await supabase
+      .from("quizzes")
+      .select("*")
+      .eq("id", quizId)
+      .single();
+
+    if (quizError) throw quizError;
+
+    // Calculate score
+    let score = 0;
+    const processedAnswers = answers.map((answer, index) => {
+      const question = quiz.questions[index];
+      const isCorrect = answer.selectedAnswer === question.correctAnswer;
+      if (isCorrect) score++;
+      return {
+        questionIndex: index,
+        selectedAnswer: answer.selectedAnswer,
+        isCorrect,
+      };
+    });
+
+    // Calculate answer format
+    const answerFormat = adaptiveQuizService.calculateAnswerFormat(processedAnswers);
+
+    // Save attempt
+    const { data: attempt, error: attemptError } = await supabase
+      .from("quiz_attempts")
+      .insert({
+        quiz_id: quizId,
+        student_id: studentId,
+        student_name: studentName,
+        answers: processedAnswers,
+        answer_format: answerFormat,
+        score,
+        total_questions: quiz.question_count,
+        time_taken_seconds: timeTaken,
+      })
+      .select()
+      .single();
+
+    if (attemptError) throw attemptError;
+
+    // Calculate performance metrics
+    const abilityEstimate = adaptiveQuizService.calculateAbilityEstimate(
+      score,
+      quiz.question_count,
+      quiz.difficulty
+    );
+
+    const confidenceLevel = adaptiveQuizService.calculateConfidenceLevel(
+      processedAnswers,
+      quiz.difficulty
+    );
+
+    // Save performance data
+    const { error: perfError } = await supabase
+      .from("student_performance")
+      .upsert({
+        student_id: studentId,
+        quiz_id: quizId,
+        topic: quiz.topic,
+        subtopic: quiz.subtopic,
+        difficulty: quiz.difficulty,
+        score,
+        total_questions: quiz.question_count,
+        percentage: (score / quiz.question_count) * 100,
+        ability_estimate: abilityEstimate,
+        confidence_level: confidenceLevel,
+      });
+
+    if (perfError) console.warn("Performance save error:", perfError);
+
+    res.json({
+      success: true,
+      attempt,
+      score,
+      totalQuestions: quiz.question_count,
+      percentage: (score / quiz.question_count) * 100,
+      answerFormat,
+    });
+  } catch (error) {
+    console.error("Submit quiz error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Analyze performance and group students (Agent 2)
+app.post("/api/quiz/analyze/:quizId", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { quizId } = req.params;
+
+    // Get all attempts for this quiz
+    const { data: attempts, error: attemptsError } = await supabase
+      .from("quiz_attempts")
+      .select("*")
+      .eq("quiz_id", quizId);
+
+    if (attemptsError) throw attemptsError;
+
+    if (!attempts || attempts.length === 0) {
+      return res.json({
+        success: true,
+        message: "No attempts to analyze",
+        analysis: [],
+      });
+    }
+
+    // Get quiz details
+    const { data: quiz, error: quizError } = await supabase
+      .from("quizzes")
+      .select("*")
+      .eq("id", quizId)
+      .single();
+
+    if (quizError) throw quizError;
+
+    // Prepare data for Agent 2
+    const quizAttempts = attempts.map(attempt => ({
+      studentId: attempt.student_id,
+      studentName: attempt.student_name,
+      answerFormat: attempt.answer_format,
+      score: attempt.score,
+      totalQuestions: attempt.total_questions,
+      answers: attempt.answers,
+      timeTaken: attempt.time_taken_seconds,
+    }));
+
+    console.log(`Analyzing ${attempts.length} attempts for quiz ${quizId}`);
+
+    // Call Agent 2
+    const analysisResult = await adaptiveQuizService.analyzePerformanceAndGroup(quizAttempts);
+
+    if (!analysisResult.success) {
+      throw new Error(analysisResult.error);
+    }
+
+    // Save student groups
+    const groupInserts = analysisResult.analysis.map(student => ({
+      quiz_id: quizId,
+      student_id: student.studentId,
+      student_name: student.studentName,
+      answer_format: student.answerFormat,
+      group_type: student.groupType,
+      performance_score: student.overallScore,
+      subtopic_scores: student.subtopicScores,
+    }));
+
+    const { error: groupError } = await supabase
+      .from("student_groups")
+      .upsert(groupInserts, { onConflict: "quiz_id,student_id" });
+
+    if (groupError) console.warn("Group save error:", groupError);
+
+    // Update performance with strengths/weaknesses
+    for (const student of analysisResult.analysis) {
+      await supabase
+        .from("student_performance")
+        .update({
+          strengths: student.strengths,
+          weaknesses: student.weaknesses,
+          ability_estimate: student.abilityEstimate,
+          confidence_level: student.confidenceLevel,
+        })
+        .eq("student_id", student.studentId)
+        .eq("quiz_id", quizId);
+    }
+
+    res.json({
+      success: true,
+      analysis: analysisResult.analysis,
+      groupSummary: analysisResult.groupSummary,
+      answerFormatAnalysis: analysisResult.answerFormatAnalysis,
+    });
+  } catch (error) {
+    console.error("Analyze performance error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Get student groups for a quiz
+app.get("/api/quiz/groups/:quizId", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { quizId } = req.params;
+
+    const { data, error } = await supabase
+      .from("student_groups")
+      .select("*")
+      .eq("quiz_id", quizId)
+      .order("performance_score", { ascending: false });
+
+    if (error) throw error;
+
+    // Group by type
+    const grouped = {
+      strength: data.filter(s => s.group_type === "strength"),
+      average: data.filter(s => s.group_type === "average"),
+      weakness: data.filter(s => s.group_type === "weakness"),
+    };
+
+    res.json({
+      success: true,
+      groups: grouped,
+      total: data.length,
+    });
+  } catch (error) {
+    console.error("Get groups error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Generate adaptive quiz for a group (Agent 3)
+app.post("/api/quiz/adaptive", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { baselineQuizId, groupType, staffId } = req.body;
+
+    if (!baselineQuizId || !groupType || !staffId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    // Get baseline quiz
+    const { data: baselineQuiz, error: quizError } = await supabase
+      .from("quizzes")
+      .select("*")
+      .eq("id", baselineQuizId)
+      .single();
+
+    if (quizError) throw quizError;
+
+    // Get group performance
+    const { data: groupStudents, error: groupError } = await supabase
+      .from("student_groups")
+      .select("*")
+      .eq("quiz_id", baselineQuizId)
+      .eq("group_type", groupType);
+
+    if (groupError) throw groupError;
+
+    if (!groupStudents || groupStudents.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `No students found in ${groupType} group`,
+      });
+    }
+
+    // Calculate aggregate performance
+    const avgScore = groupStudents.reduce((sum, s) => sum + s.performance_score, 0) / groupStudents.length;
+    const allSubtopicScores = groupStudents.reduce((acc, s) => {
+      Object.entries(s.subtopic_scores || {}).forEach(([subtopic, score]) => {
+        if (!acc[subtopic]) acc[subtopic] = [];
+        acc[subtopic].push(score);
+      });
+      return acc;
+    }, {});
+
+    const subtopicAvgs = Object.entries(allSubtopicScores).reduce((acc, [subtopic, scores]) => {
+      acc[subtopic] = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+      return acc;
+    }, {});
+
+    // Identify strengths and weaknesses
+    const strengths = Object.entries(subtopicAvgs)
+      .filter(([_, score]) => score >= 80)
+      .map(([subtopic]) => subtopic);
+    
+    const weaknesses = Object.entries(subtopicAvgs)
+      .filter(([_, score]) => score < 50)
+      .map(([subtopic]) => subtopic);
+
+    const groupPerformance = {
+      avgScore,
+      strengths,
+      weaknesses,
+      subtopicScores: subtopicAvgs,
+    };
+
+    console.log(`Generating adaptive quiz for ${groupType} group (${groupStudents.length} students)`);
+
+    // Call Agent 3
+    const adaptiveResult = await adaptiveQuizService.generateAdaptiveQuiz({
+      topic: baselineQuiz.topic,
+      subtopics: baselineQuiz.subtopic ? [baselineQuiz.subtopic] : [],
+      groupType,
+      groupPerformance,
+      baselineQuizData: baselineQuiz,
+    });
+
+    if (!adaptiveResult.success) {
+      throw new Error(adaptiveResult.error);
+    }
+
+    // Save adaptive quiz
+    const { data: newQuiz, error: saveError } = await supabase
+      .from("quizzes")
+      .insert({
+        title: `${baselineQuiz.title} - Adaptive (${groupType})`,
+        topic: baselineQuiz.topic,
+        subtopic: baselineQuiz.subtopic,
+        difficulty: adaptiveResult.metadata.difficulty,
+        question_count: adaptiveResult.questions.length,
+        questions: adaptiveResult.questions,
+        quiz_type: "adaptive",
+        parent_quiz_id: baselineQuizId,
+        target_group: groupType,
+        staff_id: staffId,
+        is_published: false,
+      })
+      .select()
+      .single();
+
+    if (saveError) throw saveError;
+
+    res.json({
+      success: true,
+      quiz: newQuiz,
+      questions: adaptiveResult.questions,
+      adaptiveStrategy: adaptiveResult.adaptiveStrategy,
+      groupPerformance,
+    });
+  } catch (error) {
+    console.error("Generate adaptive quiz error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Get student performance summary
+app.get("/api/quiz/performance/:studentId", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { studentId } = req.params;
+
+    const { data, error } = await supabase
+      .from("student_performance")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      performance: data || [],
+    });
+  } catch (error) {
+    console.error("Get performance error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Get detailed performance data for a specific quiz
+app.get("/api/quiz/performance-details/:quizId", async (req, res) => {
+  try {
+    if (!cachingEnabled || !supabase) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not available",
+      });
+    }
+
+    const { quizId } = req.params;
+
+    // Get quiz details
+    const { data: quiz, error: quizError } = await supabase
+      .from("quizzes")
+      .select("*")
+      .eq("id", quizId)
+      .single();
+
+    if (quizError) throw quizError;
+
+    // Get all quiz attempts for this quiz
+    const { data: attempts, error: attemptsError } = await supabase
+      .from("quiz_attempts")
+      .select("*")
+      .eq("quiz_id", quizId)
+      .order("submitted_at", { ascending: false });
+
+    if (attemptsError) throw attemptsError;
+
+    if (!attempts || attempts.length === 0) {
+      return res.json({
+        success: true,
+        performance: [],
+      });
+    }
+
+    // Calculate subtopic-based performance for each student
+    const performanceData = attempts.map(attempt => {
+      const subtopicScores = {};
+      const subtopicCounts = {};
+      
+      // Calculate score per subtopic
+      attempt.answers.forEach((answer, index) => {
+        const question = quiz.questions[index];
+        if (question && question.subtopic) {
+          const subtopic = question.subtopic;
+          if (!subtopicScores[subtopic]) {
+            subtopicScores[subtopic] = 0;
+            subtopicCounts[subtopic] = 0;
+          }
+          subtopicCounts[subtopic]++;
+          if (answer.isCorrect) {
+            subtopicScores[subtopic]++;
+          }
+        }
+      });
+
+      // Convert to percentages
+      const subtopicPercentages = {};
+      Object.keys(subtopicScores).forEach(subtopic => {
+        subtopicPercentages[subtopic] = (subtopicScores[subtopic] / subtopicCounts[subtopic]) * 100;
+      });
+
+      // Identify strengths and weaknesses
+      const strengths = [];
+      const weaknesses = [];
+      Object.entries(subtopicPercentages).forEach(([subtopic, percentage]) => {
+        if (percentage >= 80) {
+          strengths.push(subtopic);
+        } else if (percentage < 50) {
+          weaknesses.push(subtopic);
+        }
+      });
+
+      return {
+        student_name: attempt.student_name,
+        student_id: attempt.student_id,
+        score: attempt.score,
+        total_questions: attempt.total_questions,
+        percentage: (attempt.score / attempt.total_questions) * 100,
+        answer_format: attempt.answer_format,
+        strengths,
+        weaknesses,
+        subtopic_scores: subtopicPercentages,
+        submitted_at: attempt.submitted_at,
+      };
+    });
+
+    res.json({
+      success: true,
+      performance: performanceData,
+    });
+  } catch (error) {
+    console.error("Get performance details error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+// =================================================================
 
 // 404 Handler
 app.all("*", (req, res) => {

@@ -10,6 +10,7 @@ import StudentForm from './components/StudentForm';
 import StaffForm from './components/StaffForm';
 import StudentDashboard from './pages/StudentDashboard';
 import StaffDashboard from './pages/StaffDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
 
 
@@ -27,6 +28,7 @@ function App() {
             <Route path="/staff-form" element={<StaffForm />} />
             <Route path="/student-dashboard" element={<StudentDashboard />} />
             <Route path="/staff-dashboard" element={<StaffDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </Router>

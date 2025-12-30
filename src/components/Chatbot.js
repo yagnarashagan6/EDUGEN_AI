@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import "../styles/Chat.css";
 import "../styles/ChatMobile.css";
 import html2pdf from "html2pdf.js";
+import { fetchApprovedContent } from "../services/approvedContentService";
+import { supabase } from "../supabase";
 
 // =============== BACKEND CONFIGURATION ===============
 // Backend URLs for different modes with fallback support
@@ -417,8 +419,76 @@ const Chatbot = ({
 
   useEffect(() => {
     if (copiedTopic) {
-      setInput(copiedTopic);
+      // Clear the copied topic immediately to prevent multiple runs
+      const topicToCheck = copiedTopic;
       clearCopiedTopic();
+      
+      // Check for staff-approved content first
+      const checkForApprovedContent = async () => {
+        try {
+          // Extract topic from the content (format: "Topic - subtopics...")
+          // NOTE: We cannot determine the staff's subject from here
+          // So we'll try to search by topic only, which may not always work
+          
+          let searchTopic = topicToCheck;
+          
+          // Try to parse topic from content if it contains " - "
+          if (topicToCheck.includes(" - ")) {
+            const parts = topicToCheck.split(" - ");
+            if (parts.length >= 1) {
+              searchTopic = parts[0].trim(); // Topic is before " - "
+            }
+          }
+          
+          console.log(`Checking for approved content: Topic="${searchTopic}"`);
+          console.log(`⚠️ Note: Cannot determine staff subject from chatbot. Search may not find all content.`);
+          
+          // Try to find approved content by topic only
+          // This may not work if multiple staff have the same topic name
+          const { data: approvedList, error: searchError } = await supabase
+            .from('approved_content')
+            .select('*')
+            .eq('topic', searchTopic);
+          
+          if (searchError) {
+            console.error("Error searching for approved content:", searchError);
+            setInput(topicToCheck);
+            return;
+          }
+          
+          // If we found any matches, use the first one
+          const approvedContent = approvedList && approvedList.length > 0 ? approvedList[0] : null;
+          
+          if (approvedContent) {
+            // Display staff-approved answer
+            console.log("✅ Found staff-approved content!");
+            setMessages((prev) => [
+              ...prev,
+              {
+                sender: "user",
+                text: topicToCheck,
+              },
+              {
+                sender: "bot",
+                text: approvedContent.ai_answer,
+                isApproved: true,
+                approvedQuiz: approvedContent.quiz_questions,
+                staffName: approvedContent.staff_name,
+              },
+            ]);
+          } else {
+            // No approved content, use normal flow
+            console.log("ℹ️ No approved content found, using normal AI generation");
+            setInput(topicToCheck);
+          }
+        } catch (error) {
+          console.error("Error checking approved content:", error);
+          // Fall back to normal flow on error
+          setInput(topicToCheck);
+        }
+      };
+      
+      checkForApprovedContent();
     }
   }, [copiedTopic, clearCopiedTopic]);
 
@@ -597,17 +667,32 @@ const Chatbot = ({
   const getQuickResponse = (question) => {
     const lowerInput = question.toLowerCase();
 
-    // Check for time/date related queries
-    if (
-      lowerInput.includes("time") ||
-      lowerInput.includes("date") ||
-      lowerInput.includes("current time") ||
-      lowerInput.includes("current date") ||
-      lowerInput.includes("what time is it") ||
-      lowerInput.includes("what's the time") ||
-      lowerInput.includes("what date is it") ||
-      lowerInput.includes("what's the date")
-    ) {
+    // Check for time/date related queries - ONLY if it's a direct question
+    // Exclude topics that contain time/date keywords but aren't asking for current time/date
+    const isTimeQuestion = (
+      (lowerInput.includes("what time") || 
+       lowerInput.includes("what's the time") ||
+       lowerInput.includes("what is the time") ||
+       lowerInput.includes("tell me the time") ||
+       lowerInput.includes("show me the time")) &&
+      !lowerInput.includes("monitoring") &&
+      !lowerInput.includes("real-time") &&
+      !lowerInput.includes("collection")
+    );
+
+    const isDateQuestion = (
+      (lowerInput.includes("what date") || 
+       lowerInput.includes("what's the date") ||
+       lowerInput.includes("what is the date") ||
+       lowerInput.includes("today's date") ||
+       lowerInput.includes("tell me the date") ||
+       lowerInput.includes("show me the date")) &&
+      !lowerInput.includes("monitoring") &&
+      !lowerInput.includes("real-time") &&
+      !lowerInput.includes("collection")
+    );
+
+    if (isTimeQuestion || isDateQuestion) {
       const now = new Date();
       const formatted = now.toLocaleString("en-US", {
         weekday: "long",

@@ -19,12 +19,11 @@ const StudentLogin = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const hasCheckedAuth = useRef(false);
+  const userInitiatedLogin = useRef(false);
 
-  // Add useEffect for auto-redirect if already signed in
-  // We need onAuthStateChanged for Google OAuth to work
+  // Handle OAuth redirects only (not auto-login for cached sessions)
   useEffect(() => {
-    // Reset the flag when component mounts (user navigates to login page)
-    hasCheckedAuth.current = false;
+    let isInitialCheck = true;
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       // Only process if we're on the login page
@@ -32,14 +31,63 @@ const StudentLogin = () => {
         return;
       }
 
-      // Prevent repeated processing of the same auth state
+      // Check if we're returning from an OAuth flow
+      const oauthInProgress = localStorage.getItem('studentOAuthInProgress');
+      if (oauthInProgress === 'true') {
+        userInitiatedLogin.current = true;
+        localStorage.removeItem('studentOAuthInProgress');
+      }
+
+      console.log("Auth state changed:", { 
+        user: user?.email, 
+        isInitialCheck, 
+        userInitiated: userInitiatedLogin.current,
+        hasChecked: hasCheckedAuth.current,
+        oauthInProgress
+      });
+
+      // On initial mount, don't auto-redirect if user already has a session
+      // Only process auth state changes that happen after user interaction (login/Google OAuth)
+      if (isInitialCheck) {
+        isInitialCheck = false;
+        
+        // If there's a user on initial load AND it's not from OAuth redirect
+        if (user && !userInitiatedLogin.current) {
+          console.log("Cached session found - user must explicitly login");
+          // Sign out the cached session to prevent auto-login
+          try {
+            await auth.signOut();
+            hasCheckedAuth.current = false; // Reset so new login can be processed
+            userInitiatedLogin.current = false; // Reset user initiated flag
+          } catch (err) {
+            console.log("Error signing out cached session:", err);
+          }
+          return;
+        }
+        
+        // If OAuth in progress, continue with auth processing
+        if (userInitiatedLogin.current && user) {
+          // Let it fall through to process the OAuth login
+        } else {
+          return;
+        }
+      }
+
+      // Only process auth changes if user explicitly initiated login
+      if (!userInitiatedLogin.current) {
+        console.log("No user-initiated login - ignoring auth change");
+        return;
+      }
+
+      // After initial check, process auth state changes (from user login actions)
       if (hasCheckedAuth.current) {
+        console.log("Already processed auth - ignoring");
         return;
       }
 
       if (user) {
         hasCheckedAuth.current = true;
-        console.log("Auth state changed on login page for:", user.email);
+        console.log("Processing user login:", user.email);
         
         // Validate email for Google OAuth sign-in
         const emailMatch = user.email?.match(/^22aids(\d{3})@act\.edu\.in$/);
@@ -50,7 +98,7 @@ const StudentLogin = () => {
           allowed = num >= 1 && num <= 58;
         }
 
-        // If email is not allowed and it's not from direct login (Google OAuth)
+        // If email is not allowed
         if (
           !allowed &&
           !isYaknarashagan &&
@@ -61,9 +109,9 @@ const StudentLogin = () => {
           );
           try {
             await auth.signOut();
-            hasCheckedAuth.current = false; // Reset so user can try again
+            hasCheckedAuth.current = false;
+            userInitiatedLogin.current = false;
           } catch (signOutError) {
-            // Ignore signOut errors (session might not exist)
             console.log("SignOut error (ignored):", signOutError.message);
           }
           return;
@@ -71,47 +119,53 @@ const StudentLogin = () => {
 
         // Fetch student data
         const studentData = await fetchStudentData(user.uid);
-        console.log("Login check - Student Data:", studentData);
+        console.log("Student Data:", studentData);
 
         if (!studentData) {
           // No student record exists - create one and redirect to form
-          console.log("No student data found - creating new record");
+          console.log("Creating new student record");
           try {
             await updateStudentData(user.uid, {
               email: user.email,
               name: user.displayName || user.email?.split('@')[0] || 'Student',
               formFilled: false,
             });
-            console.log("Student record created successfully");
             navigate("/student-form", { replace: true });
           } catch (error) {
             console.error("Error creating student record:", error);
             setError("Failed to create student account. Please try again.");
-            hasCheckedAuth.current = false; // Reset so user can try again
+            hasCheckedAuth.current = false;
+            userInitiatedLogin.current = false;
           }
         } else {
           // Student record exists - check if form is filled
-          // Use form_filled (snake_case from DB) or formFilled (camelCase)
           const isFormFilled = studentData.form_filled || studentData.formFilled;
           
           if (isFormFilled === true) {
-            // Form is filled, go to dashboard
-            console.log("Form already filled, redirecting to dashboard");
+            console.log("Redirecting to dashboard");
             navigate("/student-dashboard", { replace: true });
           } else {
-            // Form not filled, go to form page
-            console.log("Form not filled, redirecting to form");
+            console.log("Redirecting to form");
             navigate("/student-form", { replace: true });
           }
         }
-      } else {
-        // No user signed in - this is expected on login page
-        console.log("No user signed in - showing login form");
       }
     });
     
     return () => unsubscribe();
   }, [navigate]);
+
+  // Cleanup OAuth flag if it's been more than 5 minutes (abandoned OAuth flow)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (localStorage.getItem('studentOAuthInProgress') === 'true') {
+        console.log("Cleaning up stale OAuth flag");
+        localStorage.removeItem('studentOAuthInProgress');
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   // Helper function to validate allowed usernames
   const isAllowedUsername = (username) => {
@@ -135,21 +189,17 @@ const StudentLogin = () => {
         ? "yaknarashagan2@gmail.com"
         : `${username}@act.edu.in`;
     try {
+      setError(""); // Clear any previous errors
+      userInitiatedLogin.current = true; // Mark as user-initiated
+      
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
-      const user = userCredential.user;
-
-      const studentData = await fetchStudentData(user.uid);
-
-      if (studentData && studentData.formFilled) {
-        navigate("/student-dashboard");
-      } else {
-        navigate("/student-form");
-      }
+      // The onAuthStateChanged listener will handle the redirect
     } catch (err) {
+      userInitiatedLogin.current = false; // Reset on error
       setError("Invalid username or password.");
     }
   };
@@ -170,11 +220,20 @@ const StudentLogin = () => {
 
   const handleGoogleSignIn = async () => {
     try {
+      setError(""); // Clear any previous errors
+      
+      // Set flag in localStorage before OAuth redirect (persists across page reload)
+      localStorage.setItem('studentOAuthInProgress', 'true');
+      userInitiatedLogin.current = true; // Mark as user-initiated
+      
       // Supabase OAuth will redirect to Google and back
       // The onAuthStateChanged listener in useEffect will handle the redirect
       await signInWithPopup(auth, googleProvider);
       // Note: The page will redirect, so code below won't execute
     } catch (err) {
+      // Clean up on error
+      localStorage.removeItem('studentOAuthInProgress');
+      userInitiatedLogin.current = false; // Reset on error
       setError("Error during Google Sign-In: " + err.message);
     }
   };

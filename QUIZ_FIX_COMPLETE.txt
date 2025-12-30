@@ -1,0 +1,130 @@
+# Quiz Not Loading - Root Cause & Complete Fix
+
+## The Problem
+
+The student dashboard cannot find the staff-approved quiz because of a **subject mismatch**:
+
+### What's Happening:
+```
+Staff Saved:
+✅ subject: "Human Resource and Management"  ← WRONG!
+✅ topic: "Human Resource Planning"
+
+Student Searching:
+🔍 subject: "Human Resource Planning"  ← CORRECT!
+🔍 topics: ["Internal Sources of Recruitment", "Manpower Gap Analysis", ...]
+
+Result: NO MATCH ❌
+```
+
+### Why This Happened:
+The task has TWO different subject values:
+1. **task.subject** = "Human Resource and Management" (incorrect, from dropdown/form)
+2. **task.content** = "Human Resource Planning - Internal Sources..." (correct, actual content)
+
+The old code was using `task.subject` to save approved content, but students search using the subject extracted from `task.content`.
+
+---
+
+## The Complete Fix
+
+### 1. Code Fix (Already Applied) ✅
+
+**File: `c:\EDUGEN_AI\src\pages\StaffDashboard.js`**
+
+Changed from:
+```javascript
+let indexSubject = dataToPost.taskData.subject || 'General';  // ❌ Uses wrong field
+```
+
+To:
+```javascript
+// Extract subject from task content (before " - ")
+if (dataToPost.taskData.content && dataToPost.taskData.content.includes(' - ')) {
+    const parts = dataToPost.taskData.content.split(' - ');
+    indexSubject = parts[0].trim();  // ✅ Extracts "Human Resource Planning"
+}
+```
+
+### 2. Database Fix (Required) ⚠️
+
+**You MUST run this SQL in Supabase to fix existing records:**
+
+```sql
+-- Fix the subject mismatch for Human Resource Planning quiz
+UPDATE approved_content
+SET subject = 'Human Resource Planning'
+WHERE subject = 'Human Resource and Management'
+  AND topic = 'Human Resource Planning';
+```
+
+**Steps to run:**
+1. Go to Supabase Dashboard
+2. Click "SQL Editor"
+3. Paste the SQL from `fix_approved_content_subject.sql`
+4. Click "Run"
+
+---
+
+## After the Fix
+
+### Staff Creates New Task:
+```
+Task Content: "Human Resource Planning - Internal Sources..."
+↓
+Extracts: subject = "Human Resource Planning"
+↓
+Saves to approved_content:
+✅ subject: "Human Resource Planning"
+✅ topic: "Human Resource Planning"
+```
+
+### Student Clicks "Take Quiz":
+```
+Task Content: "Human Resource Planning - Internal Sources..."
+↓
+Extracts: subject = "Human Resource Planning"
+↓
+Searches approved_content:
+🔍 subject = "Human Resource Planning" AND topic = "Human Resource Planning"
+↓
+✅ MATCH FOUND! Load quiz
+```
+
+---
+
+## Testing Steps
+
+1. **Run the SQL fix** in Supabase (see above)
+2. **Refresh the student dashboard**
+3. **Click "Take Quiz"** on the "Human Resource Planning" task
+4. **Expected logs:**
+   ```
+   📚 Extracted subject from content: "Human Resource Planning"
+   🔍 Searching for approved quiz: subject="Human Resource Planning", topic="Human Resource Planning"
+   ✅ Found approved quiz for topic "Human Resource Planning" with 5 questions
+   ✅ Loading staff-approved quiz
+   ```
+
+---
+
+## For Future Tasks
+
+**Going forward**, all new tasks will automatically:
+1. Extract subject from task content (not task.subject field)
+2. Save with correct subject-topic matching
+3. Be searchable by students immediately
+
+**No more manual fixes needed!** ✅
+
+---
+
+## Files Modified
+
+1. `c:\EDUGEN_AI\src\pages\StaffDashboard.js` - Extract subject from content
+2. `c:\EDUGEN_AI\src\pages\StudentDashboard.js` - Extract subject from content (already done)
+3. `c:\EDUGEN_AI\src\components\Chatbot.js` - Prevent multiple checks (already done)
+
+## SQL Files Created
+
+1. `c:\EDUGEN_AI\fix_approved_content_subject.sql` - Fix existing records

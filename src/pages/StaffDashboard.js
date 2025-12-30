@@ -42,6 +42,7 @@ import GuideModal from "../components/GuideModal";
 import StudentMonitor from "../components/StudentMonitor";
 import Notification from "../components/Notification";
 import Timetable from "../components/Timetable";
+
 import "../styles/Dashboard.css";
 import "../styles/StaffInteraction.css";
 import "../styles/Chat.css";
@@ -50,6 +51,8 @@ import "../styles/StaffTheme.css";
 import "../staff/StaffDashboardComponents.js";
 import "../staff/StaffDashboardUtils.js";
 import "../staff/StaffDashboardViews.js";
+import { saveTopicDataToAdmin, saveQuizDataToAdmin } from "../utils/adminDataLogger";
+import { saveApprovedContent, fetchApprovedContent } from "../services/approvedContentService";
 
 // --- Import Refactored Parts ---
 import {
@@ -77,6 +80,9 @@ import {
   SettingsContainer,
   AboutContainer,
   TimetableCreatorContainer,
+  RagModelContainer,
+  PreviewModal,
+  QuizAnalyticsContainer,
 } from "../staff/StaffDashboardViews";
 
 // --- Main Component ---
@@ -156,8 +162,203 @@ const StaffDashboard = () => {
   const [selectedFiles, setSelectedFiles] = useState([]); // Support multiple files
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [generatingAnswer, setGeneratingAnswer] = useState(false);
+  
+  // Preview Modal States
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [countdown, setCountdown] = useState(30);
+  const [isPaused, setIsPaused] = useState(false);
+  const countdownRef = useRef(null);
+
+
+  const addNotification = useCallback((message, type = "info") => {
+    setNotifications((prev) => [...prev, { id: Date.now(), message, type }]);
+  }, []);
+
+  const saveTaskToDb = useCallback(async (taskData) => {
+    try {
+        const user = auth.currentUser;
+        const existingTasks = await fetchTasks();
+        const updatedTasks = [...(existingTasks || []), taskData];
+        await saveTasks(updatedTasks);
+        
+        // Update local state to reflect change immediately
+        setTasks(prev => [...prev, taskData]);
+        
+        // Recalculate performance
+        try {
+          const allStudents = await fetchAllStudents();
+          await calculateAndStoreOverallPerformance(allStudents, user.uid, updatedTasks);
+        } catch (progressError) {
+          console.warn("Failed to recalculate overall performance after new task:", progressError);
+        }
+
+        // Clear inputs
+        const taskTopicInput = document.getElementById("task-topic");
+        const taskSubtopicInput = document.getElementById("task-subtopic");
+        const taskQuestionsInput = document.getElementById("task-questions");
+        const taskDifficultyInput = document.getElementById("task-difficulty");
+        
+        if (taskTopicInput) taskTopicInput.value = "";
+        if (taskSubtopicInput) taskSubtopicInput.value = "";
+        if (taskQuestionsInput) taskQuestionsInput.value = "5";
+        if (taskDifficultyInput) taskDifficultyInput.value = "Easy";
+        
+    } catch(err) {
+        console.error("Error in saveTaskToDb:", err);
+        throw err;
+    }
+  }, []);
 
   // --- Logic and Handler Functions ---
+
+
+  const handleAutoPost = useCallback(async () => {
+    if (!previewData) return;
+    
+    // Clear timer and close modal FIRST to prevent duplicate posting
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setShowPreviewModal(false);
+    const dataToPost = previewData; // Store data before clearing
+    setPreviewData(null);
+    setIsPaused(false);
+    
+    console.log("Auto-posting task...", dataToPost);
+    
+    try {
+        const indexSubject = userData?.subject || 'General';
+        const indexTopic = dataToPost.taskData.topic || 'General';
+        
+        // 1. Create Formal Quiz in 'quizzes' table for Analytics
+        let quizId = null;
+        try {
+            const quizResponse = await fetch('http://localhost:10000/api/quiz/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: `Quiz: ${indexTopic}`,
+                    topic: indexTopic,
+                    subtopic: dataToPost.taskData.subtopic,
+                    difficulty: dataToPost.taskData.difficulty,
+                    questionCount: dataToPost.quiz.length,
+                    questions: dataToPost.quiz,
+                    quizType: 'baseline',
+                    staffId: auth.currentUser.uid
+                })
+            });
+            const quizResult = await quizResponse.json();
+            
+            if (quizResult.success && quizResult.quiz) {
+                quizId = quizResult.quiz.id;
+                console.log("✅ Formal quiz created with ID:", quizId);
+                
+                // Publish it immediately
+                await fetch(`http://localhost:10000/api/quiz/publish/${quizId}`, {
+                    method: 'POST'
+                });
+            }
+        } catch (quizError) {
+            console.error("Failed to create formal quiz:", quizError);
+            // Continue - simpler tasks might not need full analytics
+        }
+
+        // 2. Save to approved_content
+        await saveApprovedContent({
+            subject: indexSubject,
+            topic: indexTopic,
+            subtopic: dataToPost.taskData.subtopic,
+            aiAnswer: dataToPost.answer,
+            quizQuestions: dataToPost.quiz,
+            quizConfig: { 
+                ...dataToPost.taskData,
+                quiz_id: quizId // Store the ID here!
+            },
+            difficulty: dataToPost.taskData.difficulty,
+            staffName: userData?.name || "Staff",
+            filesUsed: dataToPost.filesUsed || []
+        });
+
+        // 3. Post the task to tasks table
+        // We include the quizId in the task data too, just in case
+        await saveTaskToDb({
+            ...dataToPost.taskData,
+            quizId: quizId
+        });
+        
+        addNotification("Task posted and content approved automatically!", "success");
+    } catch (error) {
+        console.error("Error in auto-post:", error);
+        addNotification("Failed to auto-post task: " + error.message, "error");
+    }
+  }, [previewData, userData, addNotification, saveTaskToDb]);
+
+  const handlePostNow = async () => {
+    await handleAutoPost();
+  };
+
+  const handleCancelPreview = () => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setShowPreviewModal(false);
+    setPreviewData(null);
+    setIsPaused(false);
+    addNotification("Task posting cancelled.", "info");
+  };
+
+  const handleEditAnswer = (newAnswer) => {
+    setPreviewData(prev => ({ ...prev, answer: newAnswer }));
+    // Reset countdown on edit
+    setCountdown(30);
+  };
+
+  const handleEditQuiz = (index, field, value, optionIndex = null) => {
+    setPreviewData(prev => {
+        const newQuiz = [...prev.quiz];
+        if (field === "option") {
+            const newOptions = [...newQuiz[index].options];
+            newOptions[optionIndex] = value;
+            newQuiz[index] = { ...newQuiz[index], options: newOptions };
+            
+            // If checking correct answer, update it too if it matches
+            if (newQuiz[index].correctAnswer === prev.quiz[index].options[optionIndex]) {
+                 newQuiz[index].correctAnswer = value;
+            }
+        } else {
+            newQuiz[index] = { ...newQuiz[index], [field]: value };
+        }
+        return { ...prev, quiz: newQuiz };
+    });
+    setCountdown(30);
+  };
+
+  const handlePauseResume = () => {
+    setIsPaused(prev => !prev);
+  };
+
+  useEffect(() => {
+    if (showPreviewModal && !isPaused) {
+        countdownRef.current = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(countdownRef.current);
+                    handleAutoPost();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    } else if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+    }
+    return () => {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [showPreviewModal, isPaused, handleAutoPost]);
 
   useEffect(() => {
     if (!selectedStudentForMarking || !selectedAssignmentForMarking) {
@@ -196,9 +397,7 @@ const StaffDashboard = () => {
     };
   }, [selectedStudentForMarking, selectedAssignmentForMarking]);
 
-  const addNotification = useCallback((message, type = "info") => {
-    setNotifications((prev) => [...prev, { id: Date.now(), message, type }]);
-  }, []);
+
 
   const isValidDriveLink = (url) => {
     return /^https:\/\/(drive\.google\.com|docs\.google\.com)/.test(url);
@@ -877,7 +1076,7 @@ const StaffDashboard = () => {
   // Fetch available PDFs/documents from RAG API
   const fetchAvailablePDFs = useCallback(async () => {
     try{
-      const response = await fetch('http://localhost:10000/api/rag/list-pdfs');
+      const response = await fetch('http://localhost:5000/api/rag/list-pdfs');
       const data = await response.json();
       if (data.success) {
         setAvailablePDFs(data.pdfs || []);
@@ -909,15 +1108,46 @@ const StaffDashboard = () => {
     }
 
     setUploadingFiles(true);
+    console.log('[RAG Upload] Starting upload for', files.length, 'file(s)');
+    
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
+        console.log('[RAG Upload] Uploading file:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
         const formData = new FormData();
         formData.append('file', file);
-        const response = await fetch('http://localhost:5000/api/rag/upload-pdf', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await response.json();
+        
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          console.log('[RAG Upload] Request timeout for', file.name);
+          controller.abort();
+        }, 30000); // 30 second timeout
+        
+        let data;
+        try {
+          const response = await fetch('http://localhost:5000/api/rag/upload-pdf', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          console.log('[RAG Upload] Response status for', file.name, ':', response.status);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          data = await response.json();
+          console.log('[RAG Upload] Response data for', file.name, ':', data);
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`Upload timeout for ${file.name} - server took too long to respond`);
+          }
+          throw fetchError;
+        }
+        
         if (!data.success) {
           throw new Error(data.error || 'Upload failed');
         }
@@ -925,15 +1155,18 @@ const StaffDashboard = () => {
       });
 
       const uploadedFiles = await Promise.all(uploadPromises);
+      console.log('[RAG Upload] All files uploaded successfully:', uploadedFiles);
+      
       addNotification(
         `Successfully uploaded ${uploadedFiles.length} file(s)!`,
         'success'
       );
       fetchAvailablePDFs();
     } catch (error) {
-      console.error('Error uploading files:', error);
+      console.error('[RAG Upload] Error uploading files:', error);
       addNotification('Failed to upload files: ' + error.message, 'error');
     } finally {
+      console.log('[RAG Upload] Upload process complete, resetting uploadingFiles state');
       setUploadingFiles(false);
     }
   }, [addNotification, fetchAvailablePDFs]);
@@ -942,6 +1175,34 @@ const StaffDashboard = () => {
   useEffect(() => {
     fetchAvailablePDFs();
   }, [fetchAvailablePDFs]);
+
+  // Delete file handler
+  const handleDeleteFile = useCallback(async (filename) => {
+    if (!window.confirm(`Are you sure you want to delete "${filename}"?`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/rag/delete-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        addNotification(data.message || `File "${filename}" deleted successfully`, 'success');
+        fetchAvailablePDFs(); // Refresh list
+      } else {
+        addNotification(`Failed to delete file: ${data.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      addNotification('Error deleting file', 'error');
+    }
+  }, [addNotification, fetchAvailablePDFs]);
 
   // ===== END RAG MODEL INTEGRATION =====
 
@@ -1149,17 +1410,24 @@ const StaffDashboard = () => {
     setSidebarVisible((prev) => !prev);
   }, []);
 
+
+
   const postTask = useCallback(async () => {
     try {
       const taskTopicInput = document.getElementById("task-topic");
       const taskSubtopicInput = document.getElementById("task-subtopic");
       const taskDifficultyInput = document.getElementById("task-difficulty");
       const taskQuestionsInput = document.getElementById("task-questions");
+      // New inputs
+      const taskQuestionTypeInput = document.getElementById("task-question-type");
+      const taskAdaptiveQuizInput = document.getElementById("task-adaptive-quiz");
 
       const taskTopic = taskTopicInput?.value.trim();
       const taskSubtopic = taskSubtopicInput?.value.trim();
       const taskDifficulty = taskDifficultyInput?.value || "Easy";
       const taskQuestions = parseInt(taskQuestionsInput?.value || "5", 10);
+      const taskQuestionType = taskQuestionTypeInput?.value || "application";
+      const isAdaptive = taskAdaptiveQuizInput?.checked || false;
 
       if (!taskTopic) {
         addNotification("Please enter a topic.", "warning");
@@ -1183,11 +1451,14 @@ const StaffDashboard = () => {
       // ===== RAG ANSWER GENERATION =====
       let ragAnswer = null;
       let filesUsed = [];
+      let ragContext = ''; // Store RAG context for admin
+      let ragChunksFound = 0; // Store number of chunks found
+      const pdfToUse = selectedFiles.length > 0 ? selectedFiles[0] : null;
 
-      if (selectedFiles.length > 0) {
+      if (pdfToUse) {
         setGeneratingAnswer(true);
         try {
-          const response = await fetch('http://localhost:10000/api/rag/generate-answer', {
+          const response = await fetch('http://localhost:5000/api/rag/generate-answer', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1195,7 +1466,7 @@ const StaffDashboard = () => {
             body: JSON.stringify({
               topic: taskTopic,
               subtopic: taskSubtopic || '',
-              pdf_name: selectedFiles[0], // Use first selected file for now
+              pdf_name: pdfToUse,
             }),
           });
 
@@ -1203,10 +1474,31 @@ const StaffDashboard = () => {
           if (data.success) {
             ragAnswer = data.answer;
             filesUsed = selectedFiles;
+            ragChunksFound = data.chunks_found || 0;
+            
+            // Store RAG context for admin (if available in response)
+            // Note: You may need to modify the RAG API to return the context
+            ragContext = data.context || 'Context not available';
+            
             addNotification(
               `AI generated a comprehensive answer from ${selectedFiles.length} file(s)!`,
               'success'
             );
+            
+            // ===== SAVE TO ADMIN DASHBOARD =====
+            saveTopicDataToAdmin({
+              topic: taskTopic,
+              subtopic: taskSubtopic || '',
+              pdfSource: pdfToUse,
+              ragContext: ragContext,
+              aiAnswer: ragAnswer,
+              ragChunksFound: ragChunksFound,
+              staffId: user.uid,
+              taskId: '', // Will be set after task creation
+              difficulty: taskDifficulty,
+              questionCount: taskQuestions,
+            });
+            // ===== END ADMIN LOGGING =====
           } else {
             addNotification(
               `Warning: Could not generate answer: ${data.error}`,
@@ -1225,6 +1517,74 @@ const StaffDashboard = () => {
       }
       // ===== END RAG ANSWER GENERATION =====
 
+      // ===== QUIZ GENERATION =====
+      let generatedQuiz = null;
+      let quizRagContext = ''; // Store quiz RAG context for admin
+      let quizRagChunksFound = 0; // Store quiz RAG chunks
+      
+      if (taskQuestions > 0) {
+        // Notify start of quiz generation if not already notifying for answer
+        if (!generatingAnswer) {
+             addNotification("Generating quiz questions...", "info");
+        }
+        
+        try {
+            const quizResponse = await fetch("http://localhost:10000/api/quiz/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    topic: taskTopic,
+                    subtopics: taskSubtopic ? [taskSubtopic] : [],
+                    difficulty: taskDifficulty.toLowerCase(),
+                    questionCount: taskQuestions,
+                    cognitiveLevel: taskQuestionType,
+                    pdf_name: pdfToUse // Pass PDF for RAG Quiz
+                })
+            });
+            const quizData = await quizResponse.json();
+            
+            if (quizData.success && quizData.questions) {
+                generatedQuiz = {
+                    questions: quizData.questions,
+                    config: {
+                        difficulty: taskDifficulty,
+                        type: taskQuestionType,
+                        isAdaptive: isAdaptive
+                    },
+                    source: quizData.source || "AI"
+                };
+                
+                // Store quiz RAG data for admin
+                quizRagContext = quizData.context || 'Context not available';
+                quizRagChunksFound = quizData.chunks_found || 0;
+                
+                addNotification(`Generated ${quizData.questions.length} quiz questions (${generatedQuiz.source})`, "success");
+                
+                // ===== SAVE QUIZ DATA TO ADMIN DASHBOARD =====
+                saveQuizDataToAdmin({
+                  topic: taskTopic,
+                  subtopic: taskSubtopic || '',
+                  pdfSource: pdfToUse || '',
+                  ragContext: quizRagContext,
+                  questions: quizData.questions,
+                  ragChunksFound: quizRagChunksFound,
+                  difficulty: taskDifficulty,
+                  cognitiveLevel: taskQuestionType,
+                  staffId: user.uid,
+                  taskId: '', // Will be set after task creation
+                });
+                // ===== END QUIZ ADMIN LOGGING =====
+            } else {
+                console.warn("Quiz generation failed gracefully:", quizData.error);
+                addNotification("Could not auto-generate quiz questions: " + (quizData.error || "Unknown error"), "warning");
+            }
+        } catch (quizErr) {
+            console.error("Error generating quiz:", quizErr);
+            addNotification("Failed to generate quiz questions.", "warning");
+        }
+      }
+      // ===== END QUIZ GENERATION =====
+
       const newTask = {
         id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: taskContent,
@@ -1239,32 +1599,38 @@ const StaffDashboard = () => {
         postedAt: new Date().toISOString(),
         date: new Date().toLocaleDateString(),
         completedBy: [],
-        filesUsed: filesUsed, // NEW: Store which files were used
-        ragAnswer: ragAnswer, // NEW: Store the AI-generated answer
+        filesUsed: filesUsed,
+        ragAnswer: ragAnswer,
+        quiz: generatedQuiz, // Store the generated quiz
+        isAdaptive: isAdaptive, // Store adaptive flag
       };
 
+      // --- CHANGED FOR APPROVAL WORKFLOW ---
+      // Instead of saving directly, show preview modal
+      
+      setPreviewData({
+        answer: ragAnswer || "No answer generated",
+        quiz: generatedQuiz ? generatedQuiz.questions : [],
+        taskData: newTask,
+        filesUsed: filesUsed,
+        quizConfig: generatedQuiz ? generatedQuiz.config : null
+      });
+      setShowPreviewModal(true);
+      setCountdown(30);
+
+      /* 
+      // OLD LOGIC (moved to saveTaskToDb/handleAutoPost)
       const existingTasks = await fetchTasks();
       const updatedTasks = [...(existingTasks || []), newTask];
       await saveTasks(updatedTasks);
+      ...
+      */
 
-      // Recalculate performance
-      try {
-        const allStudents = await fetchAllStudents();
-        await calculateAndStoreOverallPerformance(allStudents, user.uid, updatedTasks);
-      } catch (progressError) {
-        console.warn("Failed to recalculate overall performance after new task:", progressError);
-      }
-
-      if (taskTopicInput) taskTopicInput.value = "";
-      if (taskSubtopicInput) taskSubtopicInput.value = "";
-      if (taskQuestionsInput) taskQuestionsInput.value = "5";
-      if (taskDifficultyInput) taskDifficultyInput.value = "Easy";
-      addNotification("Task posted successfully!", "success");
     } catch (err) {
       console.error("Error posting task:", err);
       addNotification("Failed to post task: " + err.message, "error");
     }
-  }, [addNotification, selectedFiles]);
+  }, [addNotification, selectedFiles, generatingAnswer]);
 
   const deleteTask = useCallback(
     async (taskId) => {
@@ -1420,9 +1786,9 @@ const StaffDashboard = () => {
         >
           {isMobile && <div className="header">{mobileHamburger}</div>}
           <div className="notifications-area">
-            {notifications.map((notif) => (
+            {notifications.map((notif, index) => (
               <Notification
-                key={`notif-area-${notif.id}`}
+                key={`notif-${notif.id}-${index}`}
                 message={notif.message}
                 type={notif.type}
                 onClose={() =>
@@ -1443,6 +1809,14 @@ const StaffDashboard = () => {
                 latestActivity={latestActivity}
               />
             )}
+
+            <RagModelContainer
+              activeContainer={activeContainer}
+              availablePDFs={availablePDFs}
+              handleFileUpload={handleFileUpload}
+              handleDeleteFile={handleDeleteFile} // Pass delete handler
+              uploadingFiles={uploadingFiles}
+            />
 
             {isMobile && (
               <MobileChatbotContainer
@@ -1529,7 +1903,7 @@ const StaffDashboard = () => {
               setPerformanceTab={setPerformanceTab}
               results={results}
               loading={loading}
-              filteredStudents={filteredStudents}
+              filteredStudents={studentStats}
               tasks={tasks}
               taskStatusByStudent={taskStatusByStudent}
             />
@@ -1570,6 +1944,13 @@ const StaffDashboard = () => {
             />
 
             <TimetableCreatorContainer activeContainer={activeContainer} />
+
+            <QuizAnalyticsContainer
+              activeContainer={activeContainer}
+              studentStats={studentStats}
+            />
+
+
           </div>
         </div>
 
@@ -1581,6 +1962,18 @@ const StaffDashboard = () => {
             toggleChatbot={toggleChatbot}
           />
         )}
+        
+        <PreviewModal
+          show={showPreviewModal}
+          previewData={previewData}
+          countdown={countdown}
+          isPaused={isPaused}
+          onCancel={handleCancelPreview}
+          onPost={handlePostNow}
+          onPauseResume={handlePauseResume}
+          onEditAnswer={handleEditAnswer}
+          onEditQuiz={handleEditQuiz}
+        />
       </div>
     </ErrorBoundary>
   );

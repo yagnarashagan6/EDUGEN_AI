@@ -4,8 +4,11 @@ import Chatbot from "../components/Chatbot";
 import TaskItem from "../components/TaskItem";
 import StudentMonitor from "../components/StudentMonitor";
 import Timetable from "../components/Timetable";
+import QuizAnalyticsContainer from "../components/QuizAnalyticsContainer";
+
 import { ChatInterface } from "./StaffDashboardComponents"; // Import from our new file
 import { LANGUAGES } from "./StaffDashboardUtils"; // Import from our new file
+import { supabaseAuth as auth } from "../supabase";
 
 // --- DEFAULT CONTENT VIEW (QUICK STATS) ---
 export const DefaultContent = ({
@@ -135,6 +138,289 @@ export const MobileChatbotContainer = ({
   );
 };
 
+// --- RAG MODEL CONTAINER (NEW) ---
+export const RagModelContainer = ({
+  activeContainer,
+  availablePDFs = [],
+  handleFileUpload,
+  handleDeleteFile,
+  uploadingFiles = false,
+}) => {
+  return (
+    <div
+      id="rag-model-container"
+      className={`toggle-container ${
+        activeContainer === "rag-model-container" ? "active" : ""
+      }`}
+    >
+      <div className="container-header">RAG Model & File Management</div>
+      <div className="container-body">
+        <div style={{ width: '100%', padding: '20px', background: '#fff', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', boxSizing: 'border-box' }}>
+          <h3 style={{ color: '#1976d2', marginTop: 0, display: 'flex', alignItems: 'center' }}>
+            <i className="fas fa-database" style={{ marginRight: '12px' }}></i>
+            Knowledge Base Management
+          </h3>
+          <p style={{ color: '#666', lineHeight: '1.5', marginBottom: '25px' }}>
+            Upload textbooks, reference guides, or lecture notes (PDF, DOCX, TXT). The RAG (Retrieval-Augmented Generation) model will index these documents to generate accurate, context-aware answers for student tasks.
+          </p>
+          
+           {/* Upload Section */}
+             <div 
+             className="upload-dropzone"
+             style={{
+                 border: '2px dashed #90caf9',
+                 borderRadius: '12px',
+                 padding: '30px 20px',
+                 textAlign: 'center',
+                 background: '#f8fbff',
+                 cursor: 'pointer',
+                 transition: 'all 0.3s ease',
+                 width: '100%',
+                 boxSizing: 'border-box'
+             }}
+             onDragOver={(e) => {
+               e.preventDefault();
+               e.currentTarget.style.borderColor = '#1976d2';
+               e.currentTarget.style.background = '#e3f2fd';
+             }}
+             onDragLeave={(e) => {
+               e.preventDefault();
+               e.currentTarget.style.borderColor = '#90caf9';
+               e.currentTarget.style.background = '#f8fbff';
+             }}
+             onDrop={(e) => {
+                 e.preventDefault();
+                 e.currentTarget.style.borderColor = '#90caf9';
+                 e.currentTarget.style.background = '#f8fbff';
+                 if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                     handleFileUpload(e.dataTransfer.files);
+                 }
+             }}
+             >
+                <div style={{ width: '64px', height: '64px', background: '#e3f2fd', borderRadius: '50%', margin: '0 auto 16px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fas fa-cloud-upload-alt" style={{ fontSize: '32px', color: '#1976d2' }}></i>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', color: '#333', fontSize: '18px' }}>Drag & Drop files here</h4>
+                <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px' }}>Supported formats: PDF, DOC, DOCX, TXT</p>
+                
+                <input 
+                    type="file" 
+                    id="rag-file-input"
+                    multiple 
+                    accept=".pdf,.doc,.docx,.txt" 
+                    onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                            handleFileUpload(e.target.files);
+                            e.target.value = '';
+                        }
+                    }}
+                    style={{ display: 'none' }}
+                />
+                <button 
+                    onClick={() => document.getElementById('rag-file-input').click()}
+                    style={{
+                        padding: '12px 28px',
+                        background: '#1976d2',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '30px',
+                        fontWeight: '600',
+                        cursor: uploadingFiles ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)',
+                        opacity: uploadingFiles ? 0.7 : 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}
+                    disabled={uploadingFiles}
+                >
+                    {uploadingFiles ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i> Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-folder-open"></i> Browse Files
+                      </>
+                    )}
+                </button>
+             </div>
+        </div>
+
+        <div style={{ width: '100%', marginTop: '20px', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid #1976d2', paddingBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', color: '#1976d2' }}>
+                  <i className="fas fa-book" style={{ marginRight: '10px', color: '#fbc02d' }}></i>
+                  Your Document Library
+                  <span style={{ marginLeft: '12px', background: '#e3f2fd', padding: '4px 12px', borderRadius: '16px', fontSize: '13px', color: '#1976d2', fontWeight: '600' }}>
+                    {availablePDFs.length} {availablePDFs.length === 1 ? 'file' : 'files'}
+                  </span>
+              </h3>
+            </div>
+            
+            {availablePDFs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999', background: '#f9f9f9', borderRadius: '12px', border: '2px dashed #e0e0e0' }}>
+                    <i className="fas fa-file-invoice" style={{ fontSize: '48px', color: '#e0e0e0', marginBottom: '16px' }}></i>
+                    <p style={{ margin: 0, fontSize: '16px', fontWeight: '500', color: '#666' }}>No documents uploaded yet.</p>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '13px' }}>Upload your first document to enable RAG features.</p>
+                </div>
+            ) : (
+                <div style={{ 
+                    background: 'white', 
+                    borderRadius: '12px', 
+                    overflow: 'hidden',
+                    border: '1px solid #e0e0e0',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                }}>
+                    {/* Table Header */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto',
+                        padding: '16px 20px',
+                        background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                        color: 'white',
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        borderBottom: '2px solid #1565c0',
+                        width: '100%',
+                        boxSizing: 'border-box'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <i className="fas fa-file-alt" style={{ marginRight: '8px' }}></i>
+                            File Name
+                        </div>
+                        <div style={{ textAlign: 'center', minWidth: '80px' }}>
+                            Actions
+                        </div>
+                    </div>
+
+                    {/* Table Body */}
+                    <div>
+                        {availablePDFs.map((file, index) => (
+                            <div 
+                                key={index} 
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr auto',
+                                    padding: '16px 20px',
+                                    borderBottom: index < availablePDFs.length - 1 ? '1px solid #f0f0f0' : 'none',
+                                    transition: 'background 0.2s ease',
+                                    cursor: 'default',
+                                    width: '100%',
+                                    boxSizing: 'border-box'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f8fbff'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                                {/* File Info Column */}
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    minWidth: 0
+                                }}>
+                                    {/* File Icon */}
+                                    <div style={{ 
+                                        width: '40px', 
+                                        height: '40px', 
+                                        background: '#ffebee', 
+                                        borderRadius: '8px', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        <i className="fas fa-file-pdf" style={{ color: '#d32f2f', fontSize: '18px' }}></i>
+                                    </div>
+
+                                    {/* File Details */}
+                                    <div style={{ 
+                                        flex: 1,
+                                        minWidth: 0,
+                                        overflow: 'hidden'
+                                    }}>
+                                        <div style={{ 
+                                            fontSize: '15px', 
+                                            color: '#333', 
+                                            fontWeight: '600',
+                                            marginBottom: '4px',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }} title={file.name}>
+                                            {file.name}
+                                        </div>
+                                        <div style={{ 
+                                            fontSize: '12px', 
+                                            color: '#757575',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}>
+                                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                                                <i className="fas fa-hdd" style={{ marginRight: '4px', fontSize: '10px' }}></i>
+                                                {file.size_mb} MB
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Actions Column */}
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    minWidth: '80px'
+                                }}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFile(file.name, file.id);
+                                        }}
+                                        style={{
+                                            background: '#ffebee',
+                                            border: '1px solid #ffcdd2',
+                                            color: '#d32f2f',
+                                            cursor: 'pointer',
+                                            padding: '8px 16px',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '6px',
+                                            transition: 'all 0.2s ease',
+                                            fontSize: '13px',
+                                            fontWeight: '500'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = '#d32f2f';
+                                            e.currentTarget.style.color = 'white';
+                                            e.currentTarget.style.borderColor = '#d32f2f';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = '#ffebee';
+                                            e.currentTarget.style.color = '#d32f2f';
+                                            e.currentTarget.style.borderColor = '#ffcdd2';
+                                        }}
+                                        title="Delete file"
+                                    >
+                                        <i className="fas fa-trash-alt" style={{ fontSize: '13px' }}></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // --- TASKS CONTAINER ---
 export const TasksContainer = ({
   activeContainer,
@@ -158,104 +444,58 @@ export const TasksContainer = ({
     >
       <div className="container-header">Tasks Management</div>
       <div className="container-body">
-        <div className="task-form">
-          <h3>Post a New Task/Topic</h3>
+          <div className="task-form">
+            <h3>Post a New Task/Topic</h3>
 
-          {/* PDF/Document Upload Section */}
-          <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e3f2fd' }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: '600', color: '#1976d2' }}>
-              <i className="fas fa-file-upload" style={{ marginRight: '8px' }}></i>
-              Document Library for AI Answer Generation
-            </h4>
-            
-            {/* File Upload Input */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.txt"
-                multiple
-                onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    handleFileUpload(e.target.files);
-                    e.target.value = ''; // Reset input
-                  }
-                }}
-                style={{ flex: 1, minWidth: '200px' }}
-                disabled={uploadingFiles}
-                id="rag-file-upload"
-              />
-              {uploadingFiles && (
-                <span style={{ color: '#1976d2', fontWeight: '500' }}>
-                  <i className="fas fa-spinner fa-spin" style={{ marginRight: '5px' }}></i>
-                  Uploading...
-                </span>
-              )}
-            </div>
-
-            {/* Available Documents List */}
-            {availablePDFs.length > 0 ? (
-              <>
-                <p style={{ fontSize: '13px', marginBottom: '8px', color: '#666' }}>
-                  <strong>Select document(s) for AI answer generation:</strong>
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', maxHeight: '150px', overflowY: 'auto', padding: '5px' }}>
-                  {availablePDFs.map((pdf) => (
-                    <label
-                      key={pdf.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '8px 10px',
-                        background: selectedFiles.includes(pdf.name) ? '#e3f2fd' : 'white',
-                        border: `1px solid ${selectedFiles.includes(pdf.name) ? '#1976d2' : '#ddd'}`,
-                        borderRadius: '6px',
+           {/* RAG Reference Selection */}
+            <div style={{ marginBottom: "20px", background: "#f8fbff", padding: "15px", borderRadius: "8px", border: "1px solid #e3f2fd" }}>
+              <label style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontWeight: '600', color: '#1565c0', fontSize: '14px' }}>
+                  <i className="fas fa-microchip" style={{ marginRight: '8px' }}></i>
+                  AI Answer Generation Source
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <select
+                    onChange={(e) => {
+                        const selected = e.target.value;
+                        if(selected) {
+                            setSelectedFiles([selected]);
+                        } else {
+                            setSelectedFiles([]);
+                        }
+                    }}
+                    value={selectedFiles.length > 0 ? selectedFiles[0] : ""}
+                    className="goal-input"
+                    style={{ 
+                        width: '100%', 
+                        padding: '12px', 
+                        borderRadius: '8px', 
+                        border: '1px solid #bbdefb',
+                        background: 'white',
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        fontSize: '12px',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedFiles.includes(pdf.name)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedFiles([...selectedFiles, pdf.name]);
-                          } else {
-                            setSelectedFiles(selectedFiles.filter(f => f !== pdf.name));
-                          }
-                        }}
-                        style={{ marginRight: '8px' }}
-                      />
-                      <i className="fas fa-file-pdf" style={{ marginRight: '6px', color: '#d32f2f' }}></i>
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {pdf.name}
-                      </span>
-                      <small style={{ color: '#999', marginLeft: '5px' }}>{pdf.size_mb} MB</small>
-                    </label>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p style={{ fontSize: '12px', color: '#999', fontStyle: 'italic', margin: '8px 0 0 0' }}>
-                No documents uploaded yet. Upload PDF, DOC, DOCX, or TXT files above.
-              </p>
-            )}
-
-            {/* Selected Files Summary */}
-            {selectedFiles.length > 0 && (
-              <div style={{
-                marginTop: '12px',
-                padding: '10px',
-                background: '#e8f5e9',
-                borderRadius: '6px',
-                fontSize: '13px',
-                border: '1px solid #4caf50'
-              }}>
-                <i className="fas fa-check-circle" style={{ color: '#4caf50', marginRight: '6px' }}></i>
-                <strong>{selectedFiles.length} document(s) selected</strong> - AI will generate structured answers from these files when you post the task.
+                        fontSize: '14px'
+                    }}
+                    disabled={availablePDFs.length === 0}
+                >
+                    <option value="">-- Use General AI Knowledge (No Specific Document) --</option>
+                    {availablePDFs.map((pdf, index) => (
+                        <option key={index} value={pdf.name}>
+                            Doc: {pdf.name} ({pdf.size_mb} MB)
+                        </option>
+                    ))}
+                </select>
+                
+                {availablePDFs.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#e65100', marginTop: '4px' }}>
+                        <i className="fas fa-exclamation-circle" style={{ marginRight: '4px' }}></i>
+                        No documents available. Go to "RAG Model" in sidebar to upload files.
+                    </div>
+                ) : (
+                    <div style={{ fontSize: '12px', color: '#546e7a', marginTop: '4px', fontStyle: 'italic' }}>
+                       * If a document is selected, AI will prioritize finding answers within it.
+                    </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
 
           {/* Topic and Subtopic */}
           <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
@@ -300,6 +540,41 @@ export const TasksContainer = ({
               max={20}
               style={{ flex: 1 }}
             />
+          </div>
+
+          {/* Question Type and Adaptive Option */}
+          <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+              <select
+                  id="task-question-type"
+                  className="goal-input"
+                  style={{ flex: 1 }}
+                  aria-label="Question Type"
+                  defaultValue="application"
+              >
+                  <option value="recall">📚 Basic Knowledge (Recall)</option>
+                  <option value="application">🔧 Problem Solving (Application)</option>
+                  <option value="transfer">🎯 Critical Thinking (Transfer)</option>
+              </select>
+          </div>
+
+          <div style={{ marginBottom: "15px", padding: "10px", background: "#f0f4f8", borderRadius: "8px", border: "1px solid #e1e8ed" }}>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: "10px", fontWeight: "600", color: "#1976d2" }}>
+                  <input
+                      type="radio"
+                      id="task-adaptive-quiz"
+                      name="quiz-mode"
+                      value="adaptive"
+                      defaultChecked={false}
+                      style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                  />
+                  <span>
+                      <i className="fas fa-magic" style={{ marginRight: "6px" }}></i>
+                      Enable Adaptive Quiz Mode
+                  </span>
+              </label>
+              <div style={{ fontSize: "12px", color: "#666", marginTop: "4px", marginLeft: "28px" }}>
+                  Generates questions based on student groups (Strength/Weakness) or previous performance.
+              </div>
           </div>
           
           {/* Post Task Button */}
@@ -349,7 +624,140 @@ export const TasksContainer = ({
   );
 };
 
-// --- ASSIGNMENTS CONTAINER ---
+// --- PREVIEW MODAL ---
+export const PreviewModal = ({
+  show,
+  previewData,
+  countdown,
+  isPaused,
+  onCancel,
+  onPost,
+  onPauseResume,
+  onEditAnswer,
+  onEditQuiz,
+}) => {
+  if (!show || !previewData) return null;
+
+  return (
+    <div className="preview-modal-overlay">
+      <div className="preview-modal">
+        <div className="preview-header">
+          <h3>Preview & Edit Before Posting</h3>
+          <div className="countdown-timer">
+            {isPaused ? (
+              <span style={{ color: '#ff9800' }}>Timer Paused</span>
+            ) : (
+              <>
+                Auto-posting in <span className="timer-count">{countdown}</span> seconds...
+              </>
+            )}
+            <button 
+              onClick={onPauseResume}
+              style={{
+                marginLeft: '10px',
+                padding: '5px 12px',
+                borderRadius: '4px',
+                border: 'none',
+                background: isPaused ? '#4CAF50' : '#ff9800',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '600'
+              }}
+            >
+              <i className={`fas fa-${isPaused ? 'play' : 'pause'}`} style={{ marginRight: '5px' }}></i>
+              {isPaused ? 'Resume' : 'Pause'}
+            </button>
+          </div>
+        </div>
+
+        <div className="preview-content">
+          <div className="preview-section">
+            <h4>Generated Answer (Editable)</h4>
+            <textarea
+              className="preview-textarea answer-editor"
+              value={previewData.answer}
+              onChange={(e) => onEditAnswer(e.target.value)}
+              placeholder="Edit the generated answer here..."
+            />
+          </div>
+
+          <div className="preview-section">
+            <h4>Quiz Questions (Editable)</h4>
+            <div className="quiz-preview-list">
+              {previewData.quiz.map((q, index) => (
+                <div key={index} className="quiz-preview-item">
+                  <div className="quiz-question-header">
+                    <span className="question-number">Q{index + 1}</span>
+                    <input
+                      type="text"
+                      className="question-text-input"
+                      value={q.text}
+                      onChange={(e) => onEditQuiz(index, "text", e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="quiz-options-grid">
+                    {q.options.map((opt, optIndex) => (
+                      <div key={optIndex} className="quiz-option-input-wrapper">
+                         <span className="option-label">{String.fromCharCode(65 + optIndex)})</span>
+                         <input
+                           type="text"
+                           className="option-input"
+                           value={opt}
+                           onChange={(e) => onEditQuiz(index, "option", e.target.value, optIndex)}
+                         />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="correct-answer-select">
+                    <label>Correct Answer:</label>
+                    <select
+                      value={q.correctAnswer}
+                      onChange={(e) => onEditQuiz(index, "correctAnswer", e.target.value)}
+                    >
+                      {q.options.map((opt, i) => (
+                        <option key={i} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Display Subtopic */}
+                  {q.subtopic && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '6px 10px',
+                      background: '#e3f2fd',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      color: '#1565c0',
+                      fontWeight: '500'
+                    }}>
+                      <i className="fas fa-tag" style={{ marginRight: '6px' }}></i>
+                      Subtopic: {q.subtopic}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="preview-actions">
+          <button className="preview-btn cancel-btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="preview-btn post-btn" onClick={onPost}>
+            Post Now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 export const AssignmentsContainer = ({
   activeContainer,
   newAssignmentSubject,
@@ -1059,6 +1467,50 @@ export const AssignmentsContainer = ({
 
 // --- RESULTS CONTAINER ---
 export const ResultsContainer = ({ activeContainer, results }) => {
+  const [activeTab, setActiveTab] = React.useState("tasks");
+  const [quizzes, setQuizzes] = React.useState([]);
+  const [selectedQuiz, setSelectedQuiz] = React.useState(null);
+  const [analysisData, setAnalysisData] = React.useState(null);
+  const [loadingQuizzes, setLoadingQuizzes] = React.useState(false);
+  const [analyzing, setAnalyzing] = React.useState(false);
+
+  // Load quizzes when tab changes to 'quizzes'
+  React.useEffect(() => {
+    if (activeTab === "quizzes" && auth.currentUser) {
+       loadQuizzes();
+    }
+  }, [activeTab]);
+
+  const loadQuizzes = async () => {
+    setLoadingQuizzes(true);
+    try {
+      const response = await fetch(`http://localhost:10000/api/quiz/list/${auth.currentUser.uid}`);
+      const data = await response.json();
+      if (data.success) {
+        setQuizzes(data.quizzes);
+      }
+    } catch (error) {
+      console.error("Failed to load quizzes", error);
+    }
+    setLoadingQuizzes(false);
+  };
+
+  const handleAnalyze = async (quizId) => {
+    setAnalyzing(true);
+    try {
+        const quiz = quizzes.find(q => q.id === quizId);
+        setSelectedQuiz(quiz);
+        const response = await fetch(`http://localhost:10000/api/quiz/analyze/${quizId}`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            setAnalysisData(data.analysis); // Agent 2 returns { analysis: [...] }
+        }
+    } catch (error) {
+        console.error("Analysis failed", error);
+    }
+    setAnalyzing(false);
+  };
+
   return (
     <div
       id="results-container"
@@ -1066,73 +1518,190 @@ export const ResultsContainer = ({ activeContainer, results }) => {
         activeContainer === "results-container" ? "active" : ""
       }`}
     >
-      <div className="container-header">Student Results Overview</div>
+      <div className="container-header">
+          <div style={{display: 'flex', gap: 20}}>
+              <span 
+                onClick={() => setActiveTab("tasks")}
+                style={{
+                    cursor: 'pointer', 
+                    opacity: activeTab === 'tasks' ? 1 : 0.6,
+                    borderBottom: activeTab === 'tasks' ? '2px solid white' : 'none',
+                    paddingBottom: 4
+                }}
+              >
+                  Tasks Overview
+              </span>
+              <span 
+                onClick={() => setActiveTab("quizzes")}
+                style={{
+                    cursor: 'pointer', 
+                    opacity: activeTab === 'quizzes' ? 1 : 0.6,
+                    borderBottom: activeTab === 'quizzes' ? '2px solid white' : 'none',
+                    paddingBottom: 4
+                }}
+              >
+                  Quiz Analytics
+              </span>
+          </div>
+      </div>
       <div className="container-body scrollable">
-        {results.length === 0 ? (
-          <p className="empty-message">
-            No student results to display yet. Ensure tasks and student data are
-            loaded.
-          </p>
-        ) : (
-          <ul className="leaderboard">
-            {results
-              .filter(
-                (r) =>
-                  r.name &&
-                  r.name !== "Anonymous" &&
-                  r.name !== "Unknown" &&
-                  r.name !== "Unknown User"
-              )
-              .map((result) => {
-                const percent =
-                  result.totalTasks > 0
-                    ? Math.round(
-                        (result.completedTasks / result.totalTasks) * 100
-                      )
-                    : 0;
-                let percentColor = "#e53935"; // red for 0
-                if (percent === 100) percentColor = "#43a047"; // green
-                else if (percent >= 50) percentColor = "#fb8c00"; // orange
+        {activeTab === "tasks" ? (
+            results.length === 0 ? (
+              <p className="empty-message">No student results to display yet. Ensure tasks and student data are loaded.</p>
+            ) : (
+              <ul className="leaderboard">
+                {results
+                  .filter(
+                    (r) =>
+                      r.name &&
+                      r.name !== "Anonymous" &&
+                      r.name !== "Unknown" &&
+                      r.name !== "Unknown User"
+                  )
+                  .map((result) => {
+                    const percent =
+                      result.totalTasks > 0
+                        ? Math.round(
+                            (result.completedTasks / result.totalTasks) * 100
+                          )
+                        : 0;
+                    let percentColor = "#e53935"; // red for 0
+                    if (percent === 100) percentColor = "#43a047"; // green
+                    else if (percent >= 50) percentColor = "#fb8c00"; // orange
 
-                return (
-                  <li
-                    key={`result-item-${result.id}`}
-                    className="result-item"
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      gap: "4px",
-                      padding: "10px 0",
-                      borderBottom: "1px solid #eee",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, color: "#222" }}>
-                      {result.name}
-                    </span>
-                    <span style={{ fontSize: 15, color: "#555" }}>
-                      {result.completedTasks} / {result.totalTasks} tasks
-                      completed
-                    </span>
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 16,
-                        color: percentColor,
-                        background: "#f4f7fc",
-                        borderRadius: 8,
-                        padding: "0px",
-                        marginTop: 2,
-                        display: "inline-block",
-                      }}
-                    >
-                      Progress: {percent}%
-                    </span>
-                  </li>
-                );
-              })}
-          </ul>
+                    return (
+                      <li
+                        key={`result-item-${result.id}`}
+                        className="result-item"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: "4px",
+                          padding: "10px 0",
+                          borderBottom: "1px solid #eee",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: "#222" }}>
+                          {result.name}
+                        </span>
+                        <span style={{ fontSize: 15, color: "#555" }}>
+                          {result.completedTasks} / {result.totalTasks} tasks
+                          completed
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 16,
+                            color: percentColor,
+                            background: "#f4f7fc",
+                            borderRadius: 8,
+                            padding: "0px",
+                            marginTop: 2,
+                            display: "inline-block",
+                          }}
+                        >
+                          Progress: {percent}%
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            )
+        ) : (
+             /* QUIZ ANALYTICS TAB */
+            <div>
+                 {!selectedQuiz ? (
+                    <div>
+                        <h3>Select a Quiz to Analyze</h3>
+                        {loadingQuizzes ? <p>Loading quizzes...</p> : (
+                            quizzes.length === 0 ? <p>No quizzes found.</p> : (
+                                <div className="tasks-list">
+                                    {quizzes.map(quiz => (
+                                        <div key={quiz.id} className="task-item" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                            <div className="task-content">
+                                                <h4 style={{margin:0}}>{quiz.topic}</h4>
+                                                <p style={{margin:0, fontSize:12, color:'#666'}}>{quiz.subtopic || 'General'} | {quiz.difficulty}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleAnalyze(quiz.id)}
+                                                className="add-goal-btn" 
+                                                style={{width:'auto', padding:'8px 16px', fontSize:12}}
+                                            >
+                                                Analyze
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                        )}
+                    </div>
+                 ) : (
+                    <div>
+                         <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20}}>
+                             <button onClick={() => {setSelectedQuiz(null); setAnalysisData(null);}} className="back-btn small">Back to List</button>
+                             <h3 style={{margin:0}}>Analysis: {selectedQuiz.topic}</h3>
+                         </div>
+                         
+                         {analyzing ? (
+                             <div style={{textAlign:'center', padding:40}}>
+                                 <i className="fas fa-spinner fa-spin" style={{fontSize:40, color:'#1976d2'}}></i>
+                                 <p>Analyzing student performance...</p>
+                                 <p style={{fontSize:12, color:'#666'}}>AI Agent is identifying strengths & weaknesses...</p>
+                             </div>
+                         ) : !analysisData ? (
+                             <p>No data available for this quiz. Or analysis failed.</p>
+                         ) : (
+                            <div className="analysis-table-container">
+                                <table style={{width: '100%', borderCollapse: 'collapse', background:'white', borderRadius:8, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+                                    <thead style={{background:'#f5f5f5', borderBottom:'2px solid #ddd'}}>
+                                        <tr>
+                                            <th style={{padding:15, textAlign:'left'}}>Student Name</th>
+                                            <th style={{padding:15, textAlign:'center'}}>Score</th>
+                                            <th style={{padding:15, textAlign:'left'}}>Strengths</th>
+                                            <th style={{padding:15, textAlign:'left'}}>Weaknesses</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {analysisData.map((student, idx) => (
+                                            <tr key={idx} style={{borderBottom: '1px solid #eee'}}>
+                                                <td style={{padding:15, fontWeight:'600'}}>{student.studentName || 'Unknown'}</td>
+                                                <td style={{padding:15, textAlign:'center'}}>
+                                                    <div style={{
+                                                        background: student.overallScore >= 80 ? '#e8f5e9' : student.overallScore < 50 ? '#ffebee' : '#fff3e0',
+                                                        color: student.overallScore >= 80 ? '#2e7d32' : student.overallScore < 50 ? '#c62828' : '#ef6c00',
+                                                        fontWeight: 'bold',
+                                                        padding: '4px 8px',
+                                                        borderRadius: 4,
+                                                        display:'inline-block'
+                                                    }}>
+                                                        {Math.round(student.overallScore)}%
+                                                    </div>
+                                                </td>
+                                                <td style={{padding:15}}>
+                                                    <div style={{display:'flex', flexWrap:'wrap', gap:5}}>
+                                                        {student.strengths && student.strengths.length > 0 ? student.strengths.map((s, i) => (
+                                                            <span key={i} style={{background:'#e3f2fd', color:'#1565c0', padding:'2px 8px', borderRadius:12, fontSize:11}}>{s}</span>
+                                                        )) : <span style={{color:'#999'}}>-</span>}
+                                                    </div>
+                                                </td>
+                                                <td style={{padding:15}}>
+                                                     <div style={{display:'flex', flexWrap:'wrap', gap:5}}>
+                                                        {student.weaknesses && student.weaknesses.length > 0 ? student.weaknesses.map((s, i) => (
+                                                            <span key={i} style={{background:'#ffebee', color:'#c62828', padding:'2px 8px', borderRadius:12, fontSize:11}}>{s}</span>
+                                                        )) : <span style={{color:'#999'}}>-</span>}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                         )}
+                    </div>
+                 )}
+            </div>
         )}
       </div>
     </div>
@@ -2057,3 +2626,7 @@ export const TimetableCreatorContainer = ({ activeContainer }) => {
     </div>
   );
 };
+
+// Export QuizAnalyticsContainer for use in StaffDashboard
+export { QuizAnalyticsContainer };
+

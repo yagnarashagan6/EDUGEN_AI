@@ -12,13 +12,11 @@ from dotenv import load_dotenv
 import PyPDF2
 from pathlib import Path
 
-# Add the nested 'rag model' directory to Python path
-nested_rag_dir = os.path.join(os.path.dirname(__file__), 'rag model')
-if os.path.exists(nested_rag_dir):
-    sys.path.insert(0, nested_rag_dir)
-
-# Import the existing RAG functions
-from retrieve import get_relevant_context, groq_summarize, parse_llm_output, DB_DIR
+# Lazy import function for RAG (to avoid blocking server startup with model downloads)
+def get_rag_functions():
+    """Lazy import RAG functions to avoid blocking server startup"""
+    from retrieve import get_relevant_context, groq_summarize, parse_llm_output, DB_DIR
+    return get_relevant_context, groq_summarize, parse_llm_output, DB_DIR
 
 load_dotenv()
 
@@ -27,7 +25,7 @@ CORS(app, origins=["http://localhost:3000", "https://edugen-ai-zeta.vercel.app"]
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'pdfs')
-ALLOWED_EXTENSIONS = {'pdf'}
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 
 # Ensure upload folder exists
@@ -55,21 +53,20 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "service": "EduGen RAG API",
-        "db_dir": DB_DIR,
         "upload_folder": UPLOAD_FOLDER
     }), 200
 
 @app.route('/api/rag/list-pdfs', methods=['GET'])
 def list_pdfs():
-    """List all available PDFs in the upload folder"""
+    """List all available documents from local storage"""
     try:
-        pdf_files = []
+        files_list = []
         if os.path.exists(UPLOAD_FOLDER):
             for filename in os.listdir(UPLOAD_FOLDER):
-                if filename.endswith('.pdf'):
+                if '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
                     file_path = os.path.join(UPLOAD_FOLDER, filename)
                     file_size = os.path.getsize(file_path)
-                    pdf_files.append({
+                    files_list.append({
                         "name": filename,
                         "size": file_size,
                         "size_mb": round(file_size / (1024 * 1024), 2)
@@ -77,8 +74,9 @@ def list_pdfs():
         
         return jsonify({
             "success": True,
-            "pdfs": pdf_files,
-            "count": len(pdf_files)
+            "pdfs": files_list,
+            "count": len(files_list),
+            "storage": "local"
         }), 200
     except Exception as e:
         return jsonify({
@@ -88,7 +86,8 @@ def list_pdfs():
 
 @app.route('/api/rag/upload-pdf', methods=['POST'])
 def upload_pdf():
-    """Upload a PDF file for RAG processing"""
+    """Upload a file to local storage for RAG processing"""
+    print("[RAG API] ===== UPLOAD REQUEST RECEIVED =====")
     try:
         # Check if file is in request
         if 'file' not in request.files:
@@ -100,7 +99,7 @@ def upload_pdf():
             return jsonify({"success": False, "error": "No file selected"}), 400
         
         if not allowed_file(file.filename):
-            return jsonify({"success": False, "error": "Only PDF files are allowed"}), 400
+            return jsonify({"success": False, "error": "Only PDF, DOC, DOCX, and TXT files are allowed"}), 400
         
         # Check file size
         file.seek(0, 2)  # Seek to end
@@ -113,18 +112,58 @@ def upload_pdf():
                 "error": f"File too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024)}MB"
             }), 400
         
-        # Save file
+        # Save file locally for RAG processing
         filename = secure_filename(file.filename)
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(file_path)
+        local_file_path = os.path.join(UPLOAD_FOLDER, filename)
+        print(f"[RAG API] Saving file locally: {local_file_path}")
+        file.save(local_file_path)
+        print(f"[RAG API] File saved successfully: {filename}")
         
         return jsonify({
             "success": True,
             "filename": filename,
-            "message": "PDF uploaded successfully. You can now use it for answer generation.",
-            "size_mb": round(file_size / (1024 * 1024), 2)
+            "size_mb": round(file_size / (1024 * 1024), 2),
+            "storage": "local",
+            "message": "File uploaded successfully"
         }), 200
         
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/api/rag/delete-pdf', methods=['POST'])
+def delete_pdf():
+    """Delete a file from local storage"""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        
+        if not filename:
+            return jsonify({"success": False, "error": "Filename is required"}), 400
+        
+        # Delete from local storage
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                return jsonify({
+                    "success": True,
+                    "message": f"File '{filename}' deleted successfully"
+                }), 200
+            except Exception as error:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to delete file: {str(error)}"
+                }), 500
+        else:
+            return jsonify({
+                "success": False,
+                "error": "File not found"
+            }), 404
+            
     except Exception as e:
         return jsonify({
             "success": False,
@@ -166,15 +205,25 @@ def generate_answer():
         
         print(f"[RAG API] Generating answer for: {query} from {pdf_name}")
         
+        # Lazy import RAG functions
+        get_relevant_context, groq_summarize, parse_llm_output, DB_DIR = get_rag_functions()
+        
         # Get relevant context from RAG
         results = get_relevant_context(query, subject_filter=pdf_name)
         
         if not results or len(results) == 0:
-            return jsonify({
-                "success": False,
-                "error": "No relevant information found in the PDF for this topic"
-            }), 404
-        
+            print(f"[RAG API] No relevant information found in PDF. Switching to General AI Answer generation.")
+            context_text = "No specific context found in the uploaded document. Please generate a comprehensive answer based on your general academic knowledge."
+            sources = ["General AI Knowledge (Topic not found in PDF)"]
+        else:
+            # Build context from retrieved documents
+            chunks = []
+            for doc in results[:10]:  # Use more chunks for comprehensive answer
+                txt = doc.page_content.replace("\n", " ").strip()
+                chunks.append(txt)
+            context_text = "\n\n".join(chunks)
+            sources = [pdf_name]
+
         # Use Groq to generate a comprehensive answer
         groq_api_key = os.getenv("GROQ_API_KEY")
         
@@ -184,8 +233,10 @@ def generate_answer():
                 "error": "GROQ_API_KEY not configured"
             }), 500
         
+        print(f"[RAG API] Using Groq API Key: {groq_api_key[:8]}...")
+        
         # Enhanced prompt for 16-mark answer
-        enhanced_prompt = f"""Based on the provided context, create a comprehensive, well-structured answer for the topic: "{query}". 
+        enhanced_prompt = f"""Create a comprehensive, well-structured answer for the topic: "{query}". 
         
 This answer is for a 16-mark exam question, so it should be detailed and thorough.
 
@@ -207,13 +258,6 @@ Format the answer with proper markdown formatting:
 - Include clear headings with ### for sections
 
 Make it comprehensive enough to score full marks (16/16) in an exam."""
-
-        # Build context from retrieved documents
-        chunks = []
-        for doc in results[:10]:  # Use more chunks for comprehensive answer
-            txt = doc.page_content.replace("\n", " ").strip()
-            chunks.append(txt)
-        context_text = "\n\n".join(chunks)
         
         # Call Groq API
         try:
@@ -242,23 +286,23 @@ Use the provided context to create accurate, informative answers."""
             generated_answer = response.choices[0].message.content.strip()
             
             # Parse answer and sources
-            answer_text, sources = parse_llm_output(generated_answer)
+            answer_text, extracted_sources = parse_llm_output(generated_answer)
             
             if not answer_text:
                 answer_text = generated_answer
             
             # Add source metadata
-            if not sources:
-                sources = [pdf_name]
+            final_sources = extracted_sources if extracted_sources else sources
             
             return jsonify({
                 "success": True,
                 "answer": answer_text,
-                "sources": sources,
+                "sources": final_sources,
                 "topic": topic,
                 "subtopic": subtopic,
                 "pdf_used": pdf_name,
-                "chunks_found": len(results)
+                "chunks_found": len(results),
+                "context": context_text  # Add context for admin dashboard
             }), 200
             
         except Exception as groq_error:
@@ -287,6 +331,9 @@ def quick_answer():
         
         if not query or not pdf_name:
             return jsonify({"success": False, "error": "Query and PDF name are required"}), 400
+        
+        # Lazy import RAG functions
+        get_relevant_context, groq_summarize, parse_llm_output, DB_DIR = get_rag_functions()
         
         # Get relevant context
         results = get_relevant_context(query, subject_filter=pdf_name)
@@ -319,6 +366,137 @@ def quick_answer():
             "error": str(e)
         }), 500
 
+@app.route('/api/rag/generate-quiz', methods=['POST'])
+def generate_quiz():
+    """
+    Generate MCQs from PDF using RAG
+    Expects: { topic, subtopic (opt), pdf_name, difficulty, question_count, cognitive_level }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+            
+        topic = data.get('topic', '').strip()
+        subtopic = data.get('subtopic', '').strip()
+        pdf_name = data.get('pdf_name', '').strip()
+        difficulty = data.get('difficulty', 'medium')
+        question_count = int(data.get('question_count', 5))
+        cognitive_level = data.get('cognitive_level', 'application')
+        
+        if not topic or not pdf_name:
+            return jsonify({"success": False, "error": "Topic and PDF name are required"}), 400
+            
+        # Construct query
+        query = f"Generate {question_count} {difficulty} {cognitive_level} multiple choice questions about {topic}"
+        if subtopic:
+            query += f" specifically regarding {subtopic}"
+            
+        print(f"[RAG API] Generating quiz for: {query} from {pdf_name}")
+        
+        # Check if PDF exists
+        pdf_path = os.path.join(UPLOAD_FOLDER, pdf_name)
+        print(f"[RAG API] Looking for PDF at: {pdf_path}")
+        print(f"[RAG API] PDF exists: {os.path.exists(pdf_path)}")
+        
+        if not os.path.exists(pdf_path):
+            available_files = os.listdir(UPLOAD_FOLDER) if os.path.exists(UPLOAD_FOLDER) else []
+            print(f"[RAG API] Available PDFs: {available_files}")
+            return jsonify({
+                "success": False, 
+                "error": f"PDF file '{pdf_name}' not found. Available files: {available_files}"
+            }), 404
+        
+        # Lazy import
+        get_relevant_context, _, parse_llm_output, _ = get_rag_functions()
+        
+        # Get context
+        print(f"[RAG API] Retrieving context from vector DB for: {pdf_name}")
+        results = get_relevant_context(topic if not subtopic else f"{topic} {subtopic}", subject_filter=pdf_name)
+        
+        if not results:
+             print(f"[RAG API] No context found in vector DB for quiz. PDF may not be indexed yet.")
+             print(f"[RAG API] Tip: The PDF needs to be processed and indexed in the vector database first.")
+             return jsonify({
+                 "success": False, 
+                 "error": "No relevant content found in PDF. The PDF may not be indexed in the vector database yet."
+             }), 404
+             
+        # Build context
+        chunks = []
+        for doc in results[:8]:
+            chunks.append(doc.page_content.replace("\n", " ").strip())
+        context_text = "\n\n".join(chunks)
+        
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+             return jsonify({"success": False, "error": "GROQ_API_KEY missing"}), 500
+
+        print(f"[RAG API] Using Groq API Key: {groq_api_key[:8]}...")
+        
+        from groq import Groq
+        client = Groq(api_key=groq_api_key)
+        model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+        prompt = f"""You are an expert assessment generator. Create exactly {question_count} multiple choice questions (MCQs) for the topic "{topic}" (Subtopic: "{subtopic}") based on the provided text context.
+
+Context from document ({pdf_name}):
+{context_text}
+
+Requirements:
+1. Difficulty: {difficulty}
+2. Cognitive Level: {cognitive_level}
+3. Generate exactly {question_count} valid JSON objects.
+4. Each question must have "text", "options" (array of 4 strings, labeled A, B, C, D), "correctAnswer", and "subtopic".
+5. IMPORTANT: Instead of a generic explanation, you MUST provide the specific "subtopic" that the question maps to. This is CRITICAL for analytics.
+6. Return ONLY a JSON array. No markdown, no intro text.
+
+Example format:
+[
+  {{
+    "text": "Question?",
+    "options": ["A) Opt1", "B) Opt2", "C) Opt3", "D) Opt4"],
+    "correctAnswer": "B) Opt2",
+    "subtopic": "Specific Subtopic Name"
+  }}
+]
+"""
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a JSON-only response bot. You output valid JSON arrays of quiz questions."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.5,
+            max_tokens=3000
+        )
+        
+        content = response.choices[0].message.content.strip()
+        # Clean markdown
+        content = content.replace("```json", "").replace("```", "").strip()
+        
+        import json
+        try:
+            questions = json.loads(content)
+            if not isinstance(questions, list):
+                raise ValueError("Response is not a list")
+            return jsonify({
+                "success": True,
+                "questions": questions,
+                "source": pdf_name,
+                "context": context_text,  # Add context for admin dashboard
+                "chunks_found": len(results)  # Add chunks count for admin dashboard
+            }), 200
+        except Exception as json_err:
+            print(f"JSON Parse Error: {json_err}, Content: {content[:100]}...")
+            return jsonify({"success": False, "error": "Failed to parse AI response"}), 500
+
+    except Exception as e:
+        print(f"[RAG API] Error generating quiz: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.getenv('RAG_API_PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    print(f"[RAG API] Starting server on port {port} (debug mode: OFF)")
+    app.run(host='0.0.0.0', port=port, debug=False)
+

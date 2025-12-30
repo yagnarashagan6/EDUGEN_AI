@@ -2100,6 +2100,355 @@ export const calculateAndStoreOverallPerformance = async (
   }
 };
 
+// ============================================
+// QUIZ ANALYTICS FUNCTIONS
+// ============================================
 
+/**
+ * Calculate quiz analytics (strengths, weaknesses, average) from quiz data
+ * @param {Object} quizData - Quiz data with questions and answers
+ * @returns {Object} Analytics object with strengths, weaknesses, and average
+ */
+export const calculateQuizAnalytics = (quizData) => {
+  try {
+    const { questions, answers, subtopic: defaultSubtopic } = quizData;
+    
+    // Group performance by subtopic
+    const subtopicPerformance = {};
+    
+    questions.forEach((question, index) => {
+      const answer = answers[index];
+      const subtopic = question.subtopic || defaultSubtopic || 'General';
+      
+      if (!subtopicPerformance[subtopic]) {
+        subtopicPerformance[subtopic] = { correct: 0, total: 0 };
+      }
+      
+      subtopicPerformance[subtopic].total++;
+      if (answer && answer.isCorrect) {
+        subtopicPerformance[subtopic].correct++;
+      }
+    });
+    
+    // Calculate strengths (>=75%), weaknesses (<50%), and average
+    const strengths = [];
+    const weaknesses = [];
+    let totalPercentage = 0;
+    let subtopicCount = 0;
+    
+    Object.entries(subtopicPerformance).forEach(([subtopic, data]) => {
+      const percentage = (data.correct / data.total) * 100;
+      totalPercentage += percentage;
+      subtopicCount++;
+      
+      const subtopicInfo = {
+        subtopic,
+        percentage: parseFloat(percentage.toFixed(1)),
+        score: `${data.correct}/${data.total}`,
+        correct: data.correct,
+        total: data.total
+      };
+      
+      if (percentage >= 75) {
+        strengths.push(subtopicInfo);
+      } else if (percentage < 50) {
+        weaknesses.push(subtopicInfo);
+      }
+    });
+    
+    const average = subtopicCount > 0 
+      ? parseFloat((totalPercentage / subtopicCount).toFixed(1))
+      : 0;
+    
+    return {
+      strengths,
+      weaknesses,
+      average,
+      subtopicPerformance
+    };
+  } catch (error) {
+    console.error("Error calculating quiz analytics:", error);
+    return {
+      strengths: [],
+      weaknesses: [],
+      average: 0,
+      subtopicPerformance: {}
+    };
+  }
+};
 
+/**
+ * Save quiz results to database with analytics
+ * @param {Object} quizData - Quiz completion data
+ * @returns {Promise<Object>} Saved quiz attempt data
+ */
+export const saveQuizResults = async (quizData) => {
+  try {
+    const currentUser = supabaseAuth.currentUser;
+    if (!currentUser) {
+      throw new Error("No authenticated user");
+    }
+
+    // Calculate analytics
+    const analytics = calculateQuizAnalytics(quizData);
+    
+    // Prepare quiz attempt record
+    const quizAttempt = {
+      student_id: quizData.student_id || currentUser.uid,
+      student_name: quizData.student_name,
+      topic: quizData.topic,
+      subtopic: quizData.subtopic || null,
+      score: quizData.score,
+      total_questions: quizData.total_questions,
+      percentage: quizData.percentage,
+      answers: quizData.answers, // JSONB array of answer objects
+      questions: quizData.questions, // JSONB array of question objects
+      strengths: analytics.strengths, // JSONB array
+      weaknesses: analytics.weaknesses, // JSONB array
+      average: analytics.average,
+      submitted_at: quizData.completed_at || new Date().toISOString(),
+      created_at: new Date().toISOString()
+    };
+
+    // Insert into quiz_attempts table
+    const { data, error } = await supabase
+      .from('quiz_attempts')
+      .insert([quizAttempt])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error saving quiz results:", error);
+      throw normalizeError(error);
+    }
+
+    console.log("✅ Quiz results saved successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error in saveQuizResults:", error);
+    throw normalizeError(error);
+  }
+};
+
+/**
+ * Fetch quiz analytics for a specific student
+ * @param {string} studentId - Student ID
+ * @returns {Promise<Object>} Aggregated quiz analytics
+ */
+export const fetchQuizAnalytics = async (studentId) => {
+  try {
+    if (!studentId) {
+      throw new Error("Student ID is required");
+    }
+
+    // Fetch all quiz attempts for the student
+    const { data: attempts, error } = await supabase
+      .from('quiz_attempts')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      throw normalizeError(error);
+    }
+
+    if (!attempts || attempts.length === 0) {
+      return {
+        totalQuizzes: 0,
+        average: 0,
+        strengths: [],
+        weaknesses: [],
+        history: [],
+        overallPercentage: 0
+      };
+    }
+
+    // Aggregate strengths and weaknesses across all quizzes
+    const allStrengths = {};
+    const allWeaknesses = {};
+    let totalPercentage = 0;
+
+    attempts.forEach(attempt => {
+      totalPercentage += attempt.percentage || 0;
+      
+      // Aggregate strengths
+      if (attempt.strengths && Array.isArray(attempt.strengths)) {
+        attempt.strengths.forEach(strength => {
+          const key = strength.subtopic;
+          if (!allStrengths[key]) {
+            allStrengths[key] = {
+              subtopic: key,
+              count: 0,
+              totalPercentage: 0,
+              scores: []
+            };
+          }
+          allStrengths[key].count++;
+          allStrengths[key].totalPercentage += strength.percentage;
+          allStrengths[key].scores.push(strength.score);
+        });
+      }
+      
+      // Aggregate weaknesses
+      if (attempt.weaknesses && Array.isArray(attempt.weaknesses)) {
+        attempt.weaknesses.forEach(weakness => {
+          const key = weakness.subtopic;
+          if (!allWeaknesses[key]) {
+            allWeaknesses[key] = {
+              subtopic: key,
+              count: 0,
+              totalPercentage: 0,
+              scores: []
+            };
+          }
+          allWeaknesses[key].count++;
+          allWeaknesses[key].totalPercentage += weakness.percentage;
+          allWeaknesses[key].scores.push(weakness.score);
+        });
+      }
+    });
+
+    // Calculate average strengths and weaknesses
+    const strengths = Object.values(allStrengths).map(s => ({
+      subtopic: s.subtopic,
+      percentage: parseFloat((s.totalPercentage / s.count).toFixed(1)),
+      occurrences: s.count,
+      scores: s.scores
+    })).sort((a, b) => b.percentage - a.percentage);
+
+    const weaknesses = Object.values(allWeaknesses).map(w => ({
+      subtopic: w.subtopic,
+      percentage: parseFloat((w.totalPercentage / w.count).toFixed(1)),
+      occurrences: w.count,
+      scores: w.scores
+    })).sort((a, b) => a.percentage - b.percentage);
+
+    const overallAverage = attempts.length > 0
+      ? parseFloat((totalPercentage / attempts.length).toFixed(1))
+      : 0;
+
+    // Format history
+    const history = attempts.map(attempt => ({
+      id: attempt.id,
+      topic: attempt.topic,
+      subtopic: attempt.subtopic,
+      score: attempt.score,
+      total_questions: attempt.total_questions,
+      percentage: attempt.percentage,
+      completed_at: attempt.submitted_at,
+      strengths: attempt.strengths,
+      weaknesses: attempt.weaknesses,
+      average: attempt.average
+    }));
+
+    return {
+      totalQuizzes: attempts.length,
+      average: overallAverage,
+      strengths,
+      weaknesses,
+      history,
+      overallPercentage: overallAverage
+    };
+  } catch (error) {
+    console.error("Error fetching quiz analytics:", error);
+    throw normalizeError(error);
+  }
+};
+
+/**
+ * Fetch quiz history for a student
+ * @param {string} studentId - Student ID
+ * @param {number} limit - Maximum number of quizzes to fetch
+ * @returns {Promise<Array>} Array of quiz attempts
+ */
+export const fetchQuizHistory = async (studentId, limit = 20) => {
+  try {
+    if (!studentId) {
+      throw new Error("Student ID is required");
+    }
+
+    const { data, error } = await supabase
+      .from('quiz_attempts')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('submitted_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw normalizeError(error);
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching quiz history:", error);
+    return [];
+  }
+};
+
+/**
+ * Fetch all students' quiz analytics (for staff dashboard)
+ * @returns {Promise<Array>} Array of student quiz analytics
+ */
+export const fetchAllStudentsQuizAnalytics = async () => {
+  try {
+    // Get all students
+    const students = await fetchAllStudents();
+    
+    // Fetch analytics for each student
+    const analyticsPromises = students.map(async (student) => {
+      const analytics = await fetchQuizAnalytics(student.id);
+      return {
+        student_id: student.id,
+        student_name: student.name,
+        ...analytics
+      };
+    });
+
+    const allAnalytics = await Promise.all(analyticsPromises);
+    
+    // Filter out students with no quizzes
+    return allAnalytics.filter(a => a.totalQuizzes > 0);
+  } catch (error) {
+    console.error("Error fetching all students quiz analytics:", error);
+    return [];
+  }
+};
+
+/**
+ * Subscribe to real-time quiz attempts updates
+ * @param {string} studentId - Student ID (optional, for specific student)
+ * @param {Function} callback - Callback function to handle updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToQuizAttempts = (studentId, callback) => {
+  const filter = studentId ? `student_id=eq.${studentId}` : undefined;
+  
+  const channel = supabase
+    .channel('quiz-attempts-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'quiz_attempts',
+        filter
+      },
+      async (payload) => {
+        // Refetch analytics when there's a change
+        if (studentId) {
+          const analytics = await fetchQuizAnalytics(studentId);
+          callback(analytics);
+        } else {
+          const allAnalytics = await fetchAllStudentsQuizAnalytics();
+          callback(allAnalytics);
+        }
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
 
