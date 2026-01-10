@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../supabase";
 import studentIcon from "../assets/student.png";
 import staffIcon from "../assets/staff.png";
 import facebookIcon from "../assets/facebook.png";
@@ -9,6 +10,38 @@ import "../styles/LandingPage.css";
 
 const LandingPage = () => {
   const navigate = useNavigate();
+
+  // Handle OAuth callback if tokens are in URL hash
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      // Check if there's an access_token in the URL hash (OAuth callback)
+      const hashParams = window.location.hash;
+      if (hashParams && hashParams.includes('access_token')) {
+        console.log('OAuth callback detected on landing page');
+        
+        // Let Supabase handle the session from URL
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (session && !error) {
+          console.log('Session found, redirecting to appropriate dashboard');
+          // Check localStorage for OAuth type
+          const studentOAuth = localStorage.getItem('studentOAuthInProgress');
+          const staffOAuth = localStorage.getItem('staffOAuthInProgress');
+          
+          if (studentOAuth === 'true') {
+            navigate('/student-login', { replace: true });
+          } else if (staffOAuth === 'true') {
+            navigate('/staff-login', { replace: true });
+          } else {
+            // Default to student login if we can't determine
+            navigate('/student-login', { replace: true });
+          }
+        }
+      }
+    };
+    
+    handleOAuthCallback();
+  }, [navigate]);
 
   const redirectTo = (userType) => {
     if (userType === "student") {

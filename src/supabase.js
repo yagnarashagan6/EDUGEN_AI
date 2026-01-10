@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = "https://xqfzjyijyotynhgbluxd.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZnpqeWlqeW90eW5oZ2JsdXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMDA3MzIsImV4cCI6MjA3NzY3NjczMn0.pi8qNb_z-s0HOuQ7-gBoShVEKRG5uGcns67vftP7CyI";
+const supabaseUrl = "https://atvczvzygjsqrelrwtic.supabase.co";
+const supabaseAnonKey = "sb_publishable_9_1I8G64_9dscsA6rAL9Ig_V-sG3fEW";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -137,10 +137,23 @@ export const createUserWithEmailAndPassword = async (
 
 // Sign in with Google OAuth
 export const signInWithPopup = async (authInstance, provider) => {
+  // Determine the correct redirect URL based on environment
+  const baseUrl = window.location.origin;
+  const currentPath = window.location.pathname;
+  
+  // For student login, redirect back to student-login page
+  // For staff login, redirect back to staff-login page
+  let redirectPath = '/student-login'; // default
+  if (currentPath.includes('staff')) {
+    redirectPath = '/staff-login';
+  } else if (currentPath.includes('student')) {
+    redirectPath = '/student-login';
+  }
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin + window.location.pathname,
+      redirectTo: baseUrl + redirectPath,
       queryParams: {
         access_type: "offline",
         prompt: "consent",
