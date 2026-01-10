@@ -672,7 +672,25 @@ export const NewsContainer = ({
   news,
   hasMoreNews,
   handleLoadMore,
+  newsLastRefreshed,
+  newsRefreshedBy,
 }) => {
+  // Format the last refreshed time
+  const formatLastRefreshed = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  };
+
   return (
     <div
       id="news-container"
@@ -701,6 +719,7 @@ export const NewsContainer = ({
             onClick={handleNewsRefresh}
             disabled={newsLoading}
             className="news-refresh-btn"
+            title="Click to refresh news for all students"
           >
             {newsLoading ? (
               <>
@@ -721,6 +740,29 @@ export const NewsContainer = ({
             )}
           </button>
         </div>
+
+        {/* Show last refreshed info */}
+        {newsLastRefreshed && !newsLoading && (
+          <div className="news-refresh-info" style={{
+            padding: "8px 12px",
+            backgroundColor: "#f0f7ff",
+            borderRadius: "6px",
+            marginBottom: "12px",
+            fontSize: "12px",
+            color: "#666",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            <i className="fas fa-clock" style={{ color: "#0438af" }}></i>
+            <span>
+              Last updated: {formatLastRefreshed(newsLastRefreshed)}
+              {newsRefreshedBy && newsRefreshedBy !== "anonymous" && newsRefreshedBy !== "system" && (
+                <span style={{ marginLeft: "4px" }}>by {newsRefreshedBy}</span>
+              )}
+            </span>
+          </div>
+        )}
 
         {newsLoading ? (
           <div className="news-loading">

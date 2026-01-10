@@ -70,7 +70,132 @@ const apiLimiter = rateLimit({
 app.use("/api/chat", apiLimiter);
 app.use("/api/generate-quiz", apiLimiter);
 
-// News endpoint - no rate limiting to allow frequent updates
+// =============== NEWS CACHING HELPER FUNCTIONS ===============
+// Fetch fresh news from GNews API
+const fetchFreshNews = async (category = "general", country = "us,in", max = 10, page = 1) => {
+  const apiKey = "23ab6517111b7f89ae1b385dde66dee5";
+  const countries = country.split(",");
+  let allArticles = [];
+
+  for (const countryCode of countries) {
+    try {
+      const apiUrl = `https://gnews.io/api/v4/top-headlines?category=${category}&lang=en&country=${countryCode}&max=${max}&page=${page}&apikey=${apiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "User-Agent": "EduGen-AI/1.0",
+        },
+        timeout: 10000,
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `Failed to fetch news for ${countryCode}:`,
+          response.status,
+          response.statusText
+        );
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (
+        data.articles &&
+        Array.isArray(data.articles) &&
+        data.articles.length > 0
+      ) {
+        const processedArticles = data.articles.map((article) => ({
+          ...article,
+          country: countryCode,
+          image:
+            article.image && article.image !== "null" && article.image !== ""
+              ? article.image
+              : `https://picsum.photos/400/220?random=${Math.floor(
+                Math.random() * 1000
+              )}`,
+        }));
+        allArticles = [...allArticles, ...processedArticles];
+      }
+    } catch (countryError) {
+      console.warn(
+        `Error fetching news from ${countryCode}:`,
+        countryError.message
+      );
+      continue;
+    }
+  }
+
+  // Remove duplicates based on title and URL
+  const uniqueArticles = allArticles.filter(
+    (article, index, self) =>
+      index ===
+      self.findIndex(
+        (a) => a.title === article.title || a.url === article.url
+      )
+  );
+
+  // Sort by publication date (newest first)
+  uniqueArticles.sort(
+    (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
+  );
+
+  return uniqueArticles;
+};
+
+// Get cached news from Supabase
+const getCachedNews = async (category) => {
+  if (!supabase || !cachingEnabled) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('news_cache')
+      .select('*')
+      .eq('category', category)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.warn('Error fetching cached news:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.warn('Error in getCachedNews:', err.message);
+    return null;
+  }
+};
+
+// Save news to Supabase cache
+const saveCachedNews = async (category, articles, refreshedBy = 'system') => {
+  if (!supabase || !cachingEnabled) return false;
+
+  try {
+    const { error } = await supabase
+      .from('news_cache')
+      .upsert({
+        category,
+        articles: JSON.stringify(articles),
+        total_articles: articles.length,
+        last_refreshed_at: new Date().toISOString(),
+        refreshed_by: refreshedBy,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'category' });
+
+    if (error) {
+      console.warn('Error saving news cache:', error.message);
+      return false;
+    }
+
+    console.log(`✅ News cache updated for category: ${category} by ${refreshedBy}`);
+    return true;
+  } catch (err) {
+    console.warn('Error in saveCachedNews:', err.message);
+    return false;
+  }
+};
+
+// News endpoint - serves cached news, only refreshes on explicit request
 app.get("/api/news", async (req, res) => {
   try {
     const {
@@ -78,93 +203,102 @@ app.get("/api/news", async (req, res) => {
       page = 1,
       country = "us,in",
       max = 10,
+      forceRefresh = "false",
+      refreshedBy = "anonymous"
     } = req.query;
-    const apiKey = "23ab6517111b7f89ae1b385dde66dee5"; // Your new GNews API key
+
+    const shouldForceRefresh = forceRefresh === "true";
 
     console.log(
-      `Fetching news: category=${category}, page=${page}, country=${country}, max=${max}`
+      `News request: category=${category}, forceRefresh=${shouldForceRefresh}, refreshedBy=${refreshedBy}`
     );
 
-    const countries = country.split(",");
-    let allArticles = [];
-
-    for (const countryCode of countries) {
-      try {
-        const apiUrl = `https://gnews.io/api/v4/top-headlines?category=${category}&lang=en&country=${countryCode}&max=${max}&page=${page}&apikey=${apiKey}`;
-
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "User-Agent": "EduGen-AI/1.0",
-          },
-          timeout: 10000,
-        });
-
-        if (!response.ok) {
-          console.warn(
-            `Failed to fetch news for ${countryCode}:`,
-            response.status,
-            response.statusText
-          );
-          continue;
+    // Try to get cached news first (unless force refresh)
+    if (!shouldForceRefresh && cachingEnabled) {
+      const cachedData = await getCachedNews(category);
+      
+      if (cachedData && cachedData.articles) {
+        let articles = cachedData.articles;
+        // Parse if it's a string
+        if (typeof articles === 'string') {
+          try {
+            articles = JSON.parse(articles);
+          } catch (e) {
+            articles = [];
+          }
         }
 
-        const data = await response.json();
-
-        if (
-          data.articles &&
-          Array.isArray(data.articles) &&
-          data.articles.length > 0
-        ) {
-          const processedArticles = data.articles.map((article) => ({
-            ...article,
-            country: countryCode,
-            // Ensure image URL is valid
-            image:
-              article.image && article.image !== "null" && article.image !== ""
-                ? article.image
-                : `https://picsum.photos/400/220?random=${Math.floor(
-                  Math.random() * 1000
-                )}`,
-          }));
-          allArticles = [...allArticles, ...processedArticles];
+        if (articles.length > 0) {
+          console.log(`✅ Serving cached news for ${category}: ${articles.length} articles (last refreshed: ${cachedData.last_refreshed_at})`);
+          return res.json({
+            articles: articles,
+            totalArticles: articles.length,
+            success: true,
+            cached: true,
+            lastRefreshedAt: cachedData.last_refreshed_at,
+            refreshedBy: cachedData.refreshed_by
+          });
         }
-      } catch (countryError) {
-        console.warn(
-          `Error fetching news from ${countryCode}:`,
-          countryError.message
-        );
-        continue;
       }
     }
 
-    // Remove duplicates based on title and URL
-    const uniqueArticles = allArticles.filter(
-      (article, index, self) =>
-        index ===
-        self.findIndex(
-          (a) => a.title === article.title || a.url === article.url
-        )
-    );
+    // Fetch fresh news if no cache or force refresh
+    console.log(`Fetching fresh news for category: ${category}`);
+    const uniqueArticles = await fetchFreshNews(category, country, max, page);
 
-    // Sort by publication date (newest first)
-    uniqueArticles.sort(
-      (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
-    );
+    // Save to cache for all students
+    if (cachingEnabled && uniqueArticles.length > 0) {
+      await saveCachedNews(category, uniqueArticles, refreshedBy);
+    }
 
     console.log(
-      `Successfully fetched ${uniqueArticles.length} unique articles`
+      `Successfully fetched ${uniqueArticles.length} unique articles (fresh)`
     );
 
     res.json({
       articles: uniqueArticles,
       totalArticles: uniqueArticles.length,
       success: true,
+      cached: false,
+      lastRefreshedAt: new Date().toISOString(),
+      refreshedBy: refreshedBy
     });
   } catch (error) {
     console.error("Error fetching news:", error.message);
     res.status(500).json({
       error: "Failed to fetch news",
+      message: error.message,
+      success: false,
+    });
+  }
+});
+
+// Endpoint to force refresh news for all students
+app.post("/api/news/refresh", async (req, res) => {
+  try {
+    const { category = "general", refreshedBy = "anonymous" } = req.body;
+
+    console.log(`Force refreshing news for category: ${category} by ${refreshedBy}`);
+
+    const uniqueArticles = await fetchFreshNews(category, "us,in", 10, 1);
+
+    if (cachingEnabled && uniqueArticles.length > 0) {
+      await saveCachedNews(category, uniqueArticles, refreshedBy);
+    }
+
+    res.json({
+      articles: uniqueArticles,
+      totalArticles: uniqueArticles.length,
+      success: true,
+      cached: false,
+      lastRefreshedAt: new Date().toISOString(),
+      refreshedBy: refreshedBy,
+      message: `News refreshed successfully for all students`
+    });
+  } catch (error) {
+    console.error("Error refreshing news:", error.message);
+    res.status(500).json({
+      error: "Failed to refresh news",
       message: error.message,
       success: false,
     });

@@ -646,6 +646,49 @@ CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_approved_content_updated_at BEFORE UPDATE ON approved_content
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+
+-- ============================================
+-- NEWS CACHE TABLE
+-- ============================================
+-- This table stores cached news articles shared across all students
+-- News is only refreshed when a user explicitly clicks refresh
+
+CREATE TABLE IF NOT EXISTS news_cache (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  category TEXT NOT NULL DEFAULT 'general',
+  articles JSONB NOT NULL DEFAULT '[]'::jsonb,
+  total_articles INTEGER DEFAULT 0,
+  last_refreshed_at TIMESTAMPTZ DEFAULT NOW(),
+  refreshed_by TEXT, -- Email or name of user who refreshed
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(category)
+);
+
+-- Create index for faster lookups by category
+CREATE INDEX IF NOT EXISTS idx_news_cache_category ON news_cache(category);
+
+-- Enable RLS on news_cache
+ALTER TABLE news_cache ENABLE ROW LEVEL SECURITY;
+
+-- Allow all authenticated users to read news cache
+CREATE POLICY "Anyone can read news cache"
+  ON news_cache FOR SELECT
+  USING (true);
+
+-- Allow authenticated users to update news cache (when refreshing)
+CREATE POLICY "Authenticated users can update news cache"
+  ON news_cache FOR UPDATE
+  USING (true);
+
+-- Allow inserting new cache entries
+CREATE POLICY "Anyone can insert news cache"
+  ON news_cache FOR INSERT
+  WITH CHECK (true);
+
+-- Trigger for updated_at
+CREATE TRIGGER update_news_cache_updated_at BEFORE UPDATE ON news_cache
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================

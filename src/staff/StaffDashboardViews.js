@@ -2202,6 +2202,8 @@ export const YoutubeControllerContainer = ({
   setShowConfigureSection,
   showAddChannelSection,
   setShowAddChannelSection,
+  showImportantVideosSection,
+  setShowImportantVideosSection,
   youtubeSettings,
   setYoutubeSettings,
   deleteChannel,
@@ -2216,6 +2218,16 @@ export const YoutubeControllerContainer = ({
   addNewChannel,
   saveYoutubeSettings,
   youtubeSettingsLoading,
+  newVideoUrl,
+  setNewVideoUrl,
+  newVideoTitle,
+  setNewVideoTitle,
+  newVideoDescription,
+  setNewVideoDescription,
+  newVideoSubject,
+  setNewVideoSubject,
+  addImportantVideo,
+  deleteImportantVideo,
 }) => {
   return (
     <div
@@ -2231,6 +2243,7 @@ export const YoutubeControllerContainer = ({
             onClick={() => {
               setShowConfigureSection(true);
               setShowAddChannelSection(false);
+              setShowImportantVideosSection(false);
             }}
             className={`yt-settings-toggle-btn ${
               showConfigureSection ? "active" : ""
@@ -2243,6 +2256,7 @@ export const YoutubeControllerContainer = ({
             onClick={() => {
               setShowConfigureSection(false);
               setShowAddChannelSection(true);
+              setShowImportantVideosSection(false);
             }}
             className={`yt-settings-toggle-btn ${
               showAddChannelSection ? "active" : ""
@@ -2250,6 +2264,19 @@ export const YoutubeControllerContainer = ({
           >
             <i className="fas fa-plus-circle"></i>
             Add Channel
+          </button>
+          <button
+            onClick={() => {
+              setShowConfigureSection(false);
+              setShowAddChannelSection(false);
+              setShowImportantVideosSection(true);
+            }}
+            className={`yt-settings-toggle-btn ${
+              showImportantVideosSection ? "active" : ""
+            }`}
+          >
+            <i className="fas fa-star"></i>
+            Important Videos
           </button>
         </div>
 
@@ -2405,6 +2432,129 @@ export const YoutubeControllerContainer = ({
             <button onClick={addNewChannel} className="yt-button primary">
               <i className="fas fa-plus"></i> Add Channel
             </button>
+          </div>
+        )}
+
+        {showImportantVideosSection && (
+          <div className="yt-section-content">
+            <div className="yt-important-videos-section">
+              <h4 className="yt-section-subtitle">
+                <i className="fas fa-star"></i>
+                Add Important Video for Students
+              </h4>
+              <p className="yt-section-description">
+                Add YouTube videos that students should watch. These will appear in the "Important" tab of their EduTube.
+              </p>
+              
+              <div className="yt-form-group">
+                <label htmlFor="new-video-url">
+                  <i className="fab fa-youtube"></i>
+                  YouTube Video URL <span className="yt-required">*</span>
+                </label>
+                <input
+                  id="new-video-url"
+                  type="text"
+                  placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                  value={newVideoUrl}
+                  onChange={(e) => setNewVideoUrl(e.target.value)}
+                  className="yt-input"
+                />
+              </div>
+              
+              <div className="yt-form-group">
+                <label htmlFor="new-video-title">
+                  <i className="fas fa-heading"></i>
+                  Video Title <span className="yt-optional">(Optional)</span>
+                </label>
+                <input
+                  id="new-video-title"
+                  type="text"
+                  placeholder="e.g., Introduction to Calculus"
+                  value={newVideoTitle}
+                  onChange={(e) => setNewVideoTitle(e.target.value)}
+                  className="yt-input"
+                />
+              </div>
+              
+              <div className="yt-form-group">
+                <label htmlFor="new-video-subject">
+                  <i className="fas fa-book"></i>
+                  Subject (Optional)
+                </label>
+                <input
+                  id="new-video-subject"
+                  type="text"
+                  placeholder="e.g., Mathematics, Physics"
+                  value={newVideoSubject}
+                  onChange={(e) => setNewVideoSubject(e.target.value)}
+                  className="yt-input"
+                />
+              </div>
+              
+              <div className="yt-form-group">
+                <label htmlFor="new-video-description">
+                  <i className="fas fa-align-left"></i>
+                  Description (Optional)
+                </label>
+                <textarea
+                  id="new-video-description"
+                  placeholder="Why should students watch this video?"
+                  value={newVideoDescription}
+                  onChange={(e) => setNewVideoDescription(e.target.value)}
+                  className="yt-textarea"
+                  rows="3"
+                />
+              </div>
+              
+              <button onClick={addImportantVideo} className="yt-button primary">
+                <i className="fas fa-plus"></i> Add Important Video
+              </button>
+            </div>
+
+            {/* List of existing important videos */}
+            {youtubeSettings.importantVideos && youtubeSettings.importantVideos.length > 0 && (
+              <div className="yt-important-videos-list">
+                <h4 className="yt-section-subtitle">
+                  <i className="fas fa-list"></i>
+                  Current Important Videos ({youtubeSettings.importantVideos.length})
+                </h4>
+                <div className="yt-important-videos-grid">
+                  {youtubeSettings.importantVideos.map((video) => (
+                    <div key={video.id} className="yt-important-video-item">
+                      <div className="yt-important-video-thumbnail">
+                        <img 
+                          src={video.thumbnail || `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                          alt={video.title}
+                        />
+                      </div>
+                      <div className="yt-important-video-info">
+                        <h5 className="yt-important-video-title">{video.title}</h5>
+                        {video.subject && (
+                          <span className="yt-important-video-subject">
+                            <i className="fas fa-book"></i> {video.subject}
+                          </span>
+                        )}
+                        {video.description && (
+                          <p className="yt-important-video-desc">{video.description}</p>
+                        )}
+                        <span className="yt-important-video-date">
+                          <i className="fas fa-clock"></i>
+                          Added {new Date(video.addedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteImportantVideo(video.id)}
+                        className="yt-important-video-delete"
+                        title="Remove video"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

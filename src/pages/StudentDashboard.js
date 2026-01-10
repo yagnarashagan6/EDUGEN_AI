@@ -135,6 +135,9 @@ const StudentDashboard = () => {
   const [newsPage, setNewsPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("general");
   const [hasMoreNews, setHasMoreNews] = useState(true);
+  const [newsLastRefreshed, setNewsLastRefreshed] = useState(null);
+  const [newsRefreshedBy, setNewsRefreshedBy] = useState(null);
+  const newsInitializedRef = useRef(false); // Track if news has been loaded once
 
   const loginTimeRef = useRef(null);
   const [totalTimeSpentInMs, setTotalTimeSpentInMs] = useState(0);
@@ -270,11 +273,12 @@ const StudentDashboard = () => {
     []
   ); // Removed userData from deps
 
-  // Fetch news function
+  // Fetch news function - uses cached news unless force refresh
   const fetchNews = async (
     category = "general",
     page = 1,
-    loadMore = false
+    loadMore = false,
+    forceRefresh = false
   ) => {
     setNewsLoading(true);
     if (!loadMore) {
@@ -287,8 +291,11 @@ const StudentDashboard = () => {
           ? "https://edugen-backend-zbjr.onrender.com"
           : "http://localhost:10000";
 
+      // Get current user's name for tracking who refreshed
+      const refreshedBy = userData?.name || userData?.email || "anonymous";
+
       const response = await fetch(
-        `${backendUrl}/api/news?category=${category}&page=${page}&country=us,in&max=10`,
+        `${backendUrl}/api/news?category=${category}&page=${page}&country=us,in&max=10&forceRefresh=${forceRefresh}&refreshedBy=${encodeURIComponent(refreshedBy)}`,
         {
           method: "GET",
           headers: {
@@ -372,6 +379,17 @@ const StudentDashboard = () => {
           setNews(uniqueArticles);
         }
         setHasMoreNews(uniqueArticles.length >= 8);
+
+        // Update last refreshed info
+        if (data.lastRefreshedAt) {
+          setNewsLastRefreshed(data.lastRefreshedAt);
+        }
+        if (data.refreshedBy) {
+          setNewsRefreshedBy(data.refreshedBy);
+        }
+        
+        // Mark as initialized so we don't auto-fetch again
+        newsInitializedRef.current = true;
       } else {
         if (!loadMore) setNews([]);
         setHasMoreNews(false);
@@ -391,22 +409,24 @@ const StudentDashboard = () => {
     setHasMoreNews(true);
     setNewsError(null);
     setNews([]);
-    fetchNews(category, 1, false);
+    // When changing category, fetch cached news (not force refresh)
+    fetchNews(category, 1, false, false);
   };
 
   const handleNewsRefresh = () => {
+    // Force refresh news for ALL students when refresh button is clicked
     setNewsPage(1);
     setHasMoreNews(true);
     setNewsError(null);
     setNews([]);
-    fetchNews(selectedCategory, 1, false);
+    fetchNews(selectedCategory, 1, false, true); // forceRefresh = true
   };
 
   const handleLoadMore = () => {
     if (hasMoreNews && !newsLoading) {
       const nextPage = newsPage + 1;
       setNewsPage(nextPage);
-      fetchNews(selectedCategory, nextPage, true);
+      fetchNews(selectedCategory, nextPage, true, false);
     }
   };
 
@@ -1714,19 +1734,21 @@ const StudentDashboard = () => {
     }
   };
 
+  // News container effect - only fetch cached news once when first opened
   useEffect(() => {
-    if (
-      activeContainer === "news-container" &&
-      (selectedCategory !== "general" || news.length === 0)
-    ) {
-      setSelectedCategory("general");
-      setNewsPage(1);
-      setHasMoreNews(true);
-      setNewsError(null);
-      setNews([]);
-      fetchNews("general", 1, false);
+    if (activeContainer === "news-container") {
+      // Only fetch news if we haven't initialized yet OR if news array is empty
+      if (!newsInitializedRef.current || news.length === 0) {
+        setSelectedCategory("general");
+        setNewsPage(1);
+        setHasMoreNews(true);
+        setNewsError(null);
+        // Fetch cached news (not force refresh) - this will serve the same news to all students
+        fetchNews("general", 1, false, false);
+      }
+      // If news is already loaded, don't refetch - just show existing cached data
     }
-  }, [activeContainer]); // fetchNews removed from deps
+  }, [activeContainer]); // Only depends on activeContainer
 
   // --- RENDER ---
 
@@ -1862,6 +1884,8 @@ const StudentDashboard = () => {
               news={news}
               hasMoreNews={hasMoreNews}
               handleLoadMore={handleLoadMore}
+              newsLastRefreshed={newsLastRefreshed}
+              newsRefreshedBy={newsRefreshedBy}
             />
 
             <YoutubeContainer activeContainer={activeContainer} />

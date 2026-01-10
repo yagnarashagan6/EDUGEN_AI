@@ -1,90 +1,35 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { subscribeToSettings } from "../supabase";
+import { subscribeToSettings, fetchSettings } from "../supabase";
 import "../styles/Youtube.css";
+
+// --- CHANNEL CARD COMPONENT ---
+const ChannelCard = ({ channel, isSelected, onSelect }) => (
+  <div 
+    className={`yt-channel-card ${isSelected ? 'selected' : ''}`}
+    onClick={() => onSelect(channel.id)}
+  >
+    <div className="yt-channel-card-icon">
+      <i className="fab fa-youtube"></i>
+    </div>
+    <div className="yt-channel-card-info">
+      <h4 className="yt-channel-card-name">{channel.name}</h4>
+      <span className="yt-channel-card-category">{channel.category}</span>
+    </div>
+    <div className="yt-channel-card-check">
+      {isSelected && <i className="fas fa-check-circle"></i>}
+    </div>
+  </div>
+);
 
 // --- INLINE VIDEO PLAYER COMPONENT ---
 const InlineVideoPlayer = ({
   videoId,
   onClose,
-  language,
-  setLanguage,
-  selectedCategory,
-  setSelectedCategory,
-  selectedChannelIds,
-  setSelectedChannelIds,
-  channels,
-  categoryList,
-  filteredChannels,
-  LANGUAGES,
 }) => {
   if (!videoId) return null;
 
   return (
     <div className="yt-inline-player">
-      {/* Filters above video */}
-      <div className="yt-inline-filters">
-        <div className="yt-filter-item">
-          <label>
-            <i className="fas fa-globe"></i> Language
-          </label>
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="yt-filter-item">
-          <label>
-            <i className="fas fa-folder"></i> Category
-          </label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setSelectedChannelIds([]);
-            }}
-          >
-            {categoryList.map((c) => (
-              <option key={c} value={c}>
-                {c === "all" ? "All Categories" : c}
-              </option>
-            ))}
-          </select>
-        </div>
-        {filteredChannels.length > 0 && (
-          <div className="yt-filter-item yt-channels-section">
-            <label>
-              <i className="fas fa-tv"></i> Channels
-            </label>
-            <div className="yt-channel-pills">
-              {filteredChannels.map((channel) => (
-                <label key={channel.id} className="yt-channel-pill">
-                  <input
-                    type="checkbox"
-                    value={channel.id}
-                    checked={selectedChannelIds.includes(channel.id)}
-                    onChange={(e) => {
-                      const { value, checked } = e.target;
-                      setSelectedChannelIds((prev) =>
-                        checked
-                          ? [...prev, value]
-                          : prev.filter((id) => id !== value)
-                      );
-                    }}
-                  />
-                  <span>{channel.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Video */}
       <div className="yt-inline-video-wrapper">
         <iframe
@@ -99,7 +44,7 @@ const InlineVideoPlayer = ({
       {/* Close button below video */}
       <div className="yt-inline-close-container">
         <button onClick={onClose} className="yt-inline-close-btn">
-          <i className="fas fa-times"></i> Close
+          <i className="fas fa-times"></i> Close Video
         </button>
       </div>
     </div>
@@ -110,8 +55,10 @@ const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
   <div className="yt-video-card">
     <div className="yt-card-thumbnail" onClick={() => onPlay(video.id)}>
       <img src={video.thumbnail} alt={video.title} loading="lazy" />
-      <div className="yt-card-play-icon">
-        <i className="fab fa-youtube"></i>
+      <div className="yt-card-play-overlay">
+        <div className="yt-card-play-icon">
+          <i className="fas fa-play"></i>
+        </div>
       </div>
       <span className="yt-card-duration">{video.duration}</span>
     </div>
@@ -119,7 +66,10 @@ const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
       <h3 className="yt-card-title" title={video.title}>
         {video.title}
       </h3>
-      <p className="yt-card-channel">{video.channel}</p>
+      <p className="yt-card-channel">
+        <i className="fas fa-user-circle"></i>
+        {video.channel}
+      </p>
       <div className="yt-card-actions">
         <button
           onClick={() => onAddFavorite(video)}
@@ -127,8 +77,8 @@ const VideoCard = ({ video, onPlay, onAddFavorite, isFavorite }) => (
           disabled={isFavorite}
           title={isFavorite ? "Already in favorites" : "Add to favorites"}
         >
-          <i className={`fas ${isFavorite ? "fa-check" : "fa-star"}`}></i>
-          <span>{isFavorite ? "Saved" : "Add to Favorites"}</span>
+          <i className={`fas ${isFavorite ? "fa-check" : "fa-heart"}`}></i>
+          <span>{isFavorite ? "Saved" : "Save"}</span>
         </button>
       </div>
     </div>
@@ -149,6 +99,7 @@ export default function EduTube() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [error, setError] = useState("");
   const [playingVideoId, setPlayingVideoId] = useState(null);
+  const [importantVideos, setImportantVideos] = useState([]);
 
   // LocalStorage backed state
   const [favorites, setFavorites] = useState(() => {
@@ -171,7 +122,7 @@ export default function EduTube() {
   // Refs and UI state
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef(null);
-  const [activeView, setActiveView] = useState("search"); // 'search' or 'favorites'
+  const [activeView, setActiveView] = useState("search"); // 'search', 'favorites', or 'important'
 
   const API_KEY = process.env.REACT_APP_YT_API_KEY;
 
@@ -186,13 +137,31 @@ export default function EduTube() {
   }, [favorites]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToSettings("youtube", (data) => {
+    // Function to apply settings data
+    const applySettings = (data) => {
+      console.log("YouTube settings loaded:", data);
       if (data) {
         setLanguage(data.defaultLanguage || "ta");
         setSelectedCategory(data.defaultCategory || "all");
         setSelectedChannelIds(data.defaultChannelIds || []);
         setChannels(data.channels || []);
+        setImportantVideos(data.importantVideos || []);
+        console.log("Channels set:", data.channels);
+        console.log("Important videos set:", data.importantVideos);
       }
+      setSettingsLoaded(true);
+    };
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToSettings("youtube", applySettings);
+
+    // Also fetch directly as a backup
+    fetchSettings("youtube").then((data) => {
+      if (data && !settingsLoaded) {
+        applySettings(data);
+      }
+    }).catch(err => {
+      console.error("Error fetching YouTube settings:", err);
       setSettingsLoaded(true);
     });
 
@@ -401,6 +370,13 @@ export default function EduTube() {
             <span>Explore</span>
           </button>
           <button
+            className={activeView === "important" ? "active" : ""}
+            onClick={() => setActiveView("important")}
+          >
+            <i className="fas fa-star"></i>
+            <span>Important{importantVideos.length > 0 ? ` (${importantVideos.length})` : ''}</span>
+          </button>
+          <button
             className={activeView === "favorites" ? "active" : ""}
             onClick={() => setActiveView("favorites")}
           >
@@ -410,8 +386,10 @@ export default function EduTube() {
         </nav>
       </header>
 
-      {/* Search Box - Always visible at top */}
-      <div className="yt-search-wrapper">
+      {/* Scrollable Content Wrapper */}
+      <div className="yt-content-wrapper">
+        {/* Search Box - Always visible at top */}
+        <div className="yt-search-wrapper">
         <form className="yt-search-form" onSubmit={handleSearch}>
           <div className="yt-search-input-group">
             <i className="fas fa-search"></i>
@@ -459,84 +437,156 @@ export default function EduTube() {
         <InlineVideoPlayer
           videoId={playingVideoId}
           onClose={() => setPlayingVideoId(null)}
-          language={language}
-          setLanguage={setLanguage}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          selectedChannelIds={selectedChannelIds}
-          setSelectedChannelIds={setSelectedChannelIds}
-          channels={channels}
-          categoryList={categoryList}
-          filteredChannels={filteredChannels}
-          LANGUAGES={LANGUAGES}
         />
       )}
 
       {activeView === "search" && (
         <div className="yt-search-view">
-          {/* Filters - only show when not playing video */}
-          {!playingVideoId && (
-            <div className="yt-filters">
-              <div className="yt-filter-item">
-                <label>
-                  <i className="fas fa-globe"></i> Language
-                </label>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+          {/* Channel & Category Selection - Dropdown Style */}
+          {!playingVideoId && channels.length > 0 && (
+            <div className="yt-channel-selection-bar">
+              <div className="yt-selection-header">
+                <i className="fas fa-tv"></i>
+                <span>Select Channels to Search</span>
+                <span className="yt-channel-count">({channels.length} channels available)</span>
               </div>
-              <div className="yt-filter-item">
-                <label>
-                  <i className="fas fa-folder"></i> Category
-                </label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setSelectedChannelIds([]);
-                  }}
-                >
-                  {categoryList.map((c) => (
-                    <option key={c} value={c}>
-                      {c === "all" ? "All Categories" : c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {filteredChannels.length > 0 && (
-                <div className="yt-filter-item yt-channels-section">
+              
+              <div className="yt-selection-controls">
+                {/* Category Dropdown */}
+                <div className="yt-filter-group">
                   <label>
-                    <i className="fas fa-tv"></i> Channels
+                    <i className="fas fa-folder"></i>
+                    Category
                   </label>
-                  <div className="yt-channel-pills">
-                    {filteredChannels.map((channel) => (
-                      <label key={channel.id} className="yt-channel-pill">
-                        <input
-                          type="checkbox"
-                          value={channel.id}
-                          checked={selectedChannelIds.includes(channel.id)}
-                          onChange={(e) => {
-                            const { value, checked } = e.target;
-                            setSelectedChannelIds((prev) =>
-                              checked
-                                ? [...prev, value]
-                                : prev.filter((id) => id !== value)
-                            );
-                          }}
-                        />
-                        <span>{channel.name}</span>
-                      </label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setSelectedChannelIds([]);
+                    }}
+                    className="yt-category-select"
+                  >
+                    <option value="all">All Categories ({channels.length})</option>
+                    {categoryList.filter(c => c !== 'all').map((category) => (
+                      <option key={category} value={category}>
+                        {category} ({channels.filter(c => c.category === category).length})
+                      </option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Channel Multi-Select Dropdown */}
+                <div className="yt-filter-group yt-channel-select-group">
+                  <label>
+                    <i className="fab fa-youtube"></i>
+                    Channels
+                  </label>
+                  <div className="yt-channel-dropdown">
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const channelId = e.target.value;
+                        if (channelId && !selectedChannelIds.includes(channelId)) {
+                          setSelectedChannelIds(prev => [...prev, channelId]);
+                        }
+                      }}
+                      className="yt-channel-select"
+                    >
+                      <option value="">
+                        {selectedChannelIds.length > 0 
+                          ? `${selectedChannelIds.length} channel(s) selected` 
+                          : 'Select channels...'}
+                      </option>
+                      {filteredChannels
+                        .filter(c => !selectedChannelIds.includes(c.id))
+                        .map((channel) => (
+                          <option key={channel.id} value={channel.id}>
+                            {channel.name} ({channel.category})
+                          </option>
+                        ))}
+                    </select>
                   </div>
                 </div>
+
+                {/* Language Dropdown */}
+                <div className="yt-filter-group">
+                  <label>
+                    <i className="fas fa-globe"></i>
+                    Language
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                  >
+                    {LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="yt-quick-actions">
+                  <button 
+                    type="button"
+                    className="yt-quick-action-btn"
+                    onClick={() => setSelectedChannelIds(filteredChannels.map(c => c.id))}
+                    title="Select all channels"
+                  >
+                    <i className="fas fa-check-double"></i>
+                    All
+                  </button>
+                  <button 
+                    type="button"
+                    className="yt-quick-action-btn"
+                    onClick={() => setSelectedChannelIds([])}
+                    title="Clear selection"
+                    disabled={selectedChannelIds.length === 0}
+                  >
+                    <i className="fas fa-times"></i>
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Selected Channels Tags */}
+              {selectedChannelIds.length > 0 && (
+                <div className="yt-selected-channels-tags">
+                  <span className="yt-tags-label">Searching in:</span>
+                  {selectedChannelIds.map(id => {
+                    const channel = channels.find(c => c.id === id);
+                    return channel ? (
+                      <span key={id} className="yt-channel-tag">
+                        <i className="fab fa-youtube"></i>
+                        {channel.name}
+                        <button 
+                          type="button"
+                          onClick={() => setSelectedChannelIds(prev => prev.filter(cid => cid !== id))}
+                          className="yt-tag-remove"
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      </span>
+                    ) : null;
+                  })}
+                </div>
               )}
+            </div>
+          )}
+
+          {/* No Channels Message */}
+          {!playingVideoId && channels.length === 0 && (
+            <div className="yt-no-channels-message">
+              <div className="yt-no-channels-icon">
+                <i className="fas fa-tv"></i>
+              </div>
+              <h3>No Channels Available</h3>
+              <p>Your staff hasn't added any YouTube channels yet.</p>
+              <p className="yt-no-channels-hint">
+                <i className="fas fa-info-circle"></i>
+                Please contact your staff to add educational channels.
+              </p>
             </div>
           )}
 
@@ -544,40 +594,63 @@ export default function EduTube() {
           <div className="yt-results-area">
             {loading && (
               <div className="yt-loader">
-                <i className="fas fa-spinner fa-spin"></i>
-                <span>Searching for videos...</span>
+                <div className="yt-loader-spinner"></div>
+                <span>Searching educational videos...</span>
               </div>
             )}
             {error && (
               <div className="yt-error-message">
-                <i className="fas fa-exclamation-circle"></i> {error}
+                <i className="fas fa-exclamation-triangle"></i>
+                <span>{error}</span>
               </div>
             )}
             {!loading && results.length > 0 && (
-              <div className="yt-results-grid">
-                {results.map((video) => (
-                  <VideoCard
-                    key={video.id}
-                    video={video}
-                    onPlay={setPlayingVideoId}
-                    onAddFavorite={addFavorite}
-                    isFavorite={allFavorites.some((fav) => fav.id === video.id)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="yt-results-header">
+                  <h3>
+                    <i className="fas fa-video"></i>
+                    Found {results.length} videos for "{topic}"
+                  </h3>
+                </div>
+                <div className="yt-results-grid">
+                  {results.map((video) => (
+                    <VideoCard
+                      key={video.id}
+                      video={video}
+                      onPlay={setPlayingVideoId}
+                      onAddFavorite={addFavorite}
+                      isFavorite={allFavorites.some((fav) => fav.id === video.id)}
+                    />
+                  ))}
+                </div>
+              </>
             )}
             {!loading && results.length === 0 && topic && !error && (
               <div className="yt-no-results">
-                <i className="fas fa-search"></i>
-                <p>
-                  No videos found for "{topic}". Try a different search term.
-                </p>
+                <div className="yt-no-results-icon">
+                  <i className="fas fa-search"></i>
+                </div>
+                <h3>No videos found</h3>
+                <p>Try a different search term or select different channels</p>
               </div>
             )}
             {!loading && results.length === 0 && !topic && !error && (
-              <div className="yt-no-results">
-                <i className="fas fa-rocket"></i>
-                <p>Start by searching for educational content above.</p>
+              <div className="yt-welcome-state">
+                <div className="yt-welcome-icon">
+                  <i className="fas fa-play-circle"></i>
+                </div>
+                <h3>Ready to Learn?</h3>
+                <p>Search for educational content from curated channels above</p>
+                <div className="yt-welcome-tips">
+                  <div className="yt-tip">
+                    <i className="fas fa-lightbulb"></i>
+                    <span>Select channels to narrow your search</span>
+                  </div>
+                  <div className="yt-tip">
+                    <i className="fas fa-heart"></i>
+                    <span>Save videos for later viewing</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -588,16 +661,18 @@ export default function EduTube() {
         <div className="yt-favorites-view">
           {allFavorites.length === 0 ? (
             <div className="yt-no-results">
-              <i className="fas fa-heart"></i>
-              <p>
-                No saved videos yet. Start exploring and save your favorites!
-              </p>
+              <div className="yt-no-results-icon">
+                <i className="fas fa-heart"></i>
+              </div>
+              <h3>No saved videos yet</h3>
+              <p>Start exploring and save your favorite videos!</p>
             </div>
           ) : (
             favoriteCategories.map((category) => (
               <div key={category} className="yt-favorite-section">
                 <h2 className="yt-section-title">
-                  <i className="fas fa-bookmark"></i> {category}
+                  <i className="fas fa-folder-open"></i> {category}
+                  <span className="yt-section-count">{favorites[category].length} videos</span>
                 </h2>
                 <div className="yt-results-grid">
                   {favorites[category].map((video) => (
@@ -611,8 +686,10 @@ export default function EduTube() {
                           alt={video.title}
                           loading="lazy"
                         />
-                        <div className="yt-card-play-icon">
-                          <i className="fab fa-youtube"></i>
+                        <div className="yt-card-play-overlay">
+                          <div className="yt-card-play-icon">
+                            <i className="fas fa-play"></i>
+                          </div>
                         </div>
                         <span className="yt-card-duration">
                           {video.duration}
@@ -622,7 +699,10 @@ export default function EduTube() {
                         <h3 className="yt-card-title" title={video.title}>
                           {video.title}
                         </h3>
-                        <p className="yt-card-channel">{video.channel}</p>
+                        <p className="yt-card-channel">
+                          <i className="fas fa-user-circle"></i>
+                          {video.channel}
+                        </p>
                         <div className="yt-card-actions">
                           <button
                             onClick={() => removeFavorite(video)}
@@ -641,6 +721,85 @@ export default function EduTube() {
           )}
         </div>
       )}
+
+      {activeView === "important" && (
+        <div className="yt-important-view">
+          {importantVideos.length === 0 ? (
+            <div className="yt-no-results">
+              <div className="yt-no-results-icon">
+                <i className="fas fa-star"></i>
+              </div>
+              <h3>No important videos yet</h3>
+              <p>Your teacher hasn't added any important videos yet. Check back later!</p>
+            </div>
+          ) : (
+            <div className="yt-important-section">
+              <div className="yt-important-header">
+                <i className="fas fa-star"></i>
+                <h2>Important Videos from Your Teacher</h2>
+                <span className="yt-important-count">{importantVideos.length} video{importantVideos.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="yt-important-grid">
+                {importantVideos.map((video, index) => (
+                  <div className="yt-important-card" key={video.id || index}>
+                    <div 
+                      className="yt-important-thumbnail"
+                      onClick={() => setPlayingVideoId(video.videoId)}
+                    >
+                      <img
+                        src={video.thumbnail || `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                        alt={video.title}
+                        loading="lazy"
+                      />
+                      <div className="yt-card-play-overlay">
+                        <div className="yt-card-play-icon">
+                          <i className="fas fa-play"></i>
+                        </div>
+                      </div>
+                      <div className="yt-important-badge">
+                        <i className="fas fa-star"></i>
+                        Important
+                      </div>
+                    </div>
+                    <div className="yt-important-info">
+                      <h3 className="yt-important-title" title={video.title}>
+                        {video.title}
+                      </h3>
+                      {video.description && (
+                        <p className="yt-important-description">{video.description}</p>
+                      )}
+                      <div className="yt-important-meta">
+                        {video.subject && (
+                          <span className="yt-important-subject">
+                            <i className="fas fa-book"></i>
+                            {video.subject}
+                          </span>
+                        )}
+                        {video.addedAt && (
+                          <span className="yt-important-date">
+                            <i className="fas fa-clock"></i>
+                            Added {new Date(video.addedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <a 
+                        href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="yt-important-external-link"
+                      >
+                        <i className="fab fa-youtube"></i>
+                        Watch on YouTube
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      </div>
     </div>
   );
 }

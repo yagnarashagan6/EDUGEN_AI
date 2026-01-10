@@ -144,6 +144,7 @@ const StaffDashboard = () => {
     defaultCategory: "all",
     defaultChannelIds: [],
     channels: CHANNELS,
+    importantVideos: [],
   });
   const [youtubeSettingsLoading, setYoutubeSettingsLoading] = useState(false);
   const [newChannelId, setNewChannelId] = useState("");
@@ -152,6 +153,11 @@ const StaffDashboard = () => {
   const [newChannelCategory, setNewChannelCategory] = useState("");
   const [showConfigureSection, setShowConfigureSection] = useState(true);
   const [showAddChannelSection, setShowAddChannelSection] = useState(false);
+  const [showImportantVideosSection, setShowImportantVideosSection] = useState(false);
+  const [newVideoUrl, setNewVideoUrl] = useState("");
+  const [newVideoTitle, setNewVideoTitle] = useState("");
+  const [newVideoDescription, setNewVideoDescription] = useState("");
+  const [newVideoSubject, setNewVideoSubject] = useState("");
   const [currentIcon, setCurrentIcon] = React.useState(0);
   const [iconDirection, setIconDirection] = React.useState(1);
   const [currentSubmission, setCurrentSubmission] = useState(null);
@@ -817,6 +823,7 @@ const StaffDashboard = () => {
           defaultCategory: settings.defaultCategory || "all",
           defaultChannelIds: settings.defaultChannelIds || [],
           channels: settings.channels || CHANNELS,
+          importantVideos: settings.importantVideos || [],
         });
       }
     } catch (error) {
@@ -896,6 +903,77 @@ const StaffDashboard = () => {
       const updatedSettings = { ...youtubeSettings, channels: updatedChannels };
       await saveYoutubeSettings(updatedSettings);
       addNotification("Channel deleted successfully", "success");
+    },
+    [youtubeSettings, saveYoutubeSettings, addNotification]
+  );
+
+  // Helper function to extract YouTube video ID from URL
+  const extractVideoId = (url) => {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+      /^([a-zA-Z0-9_-]{11})$/
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  };
+
+  const addImportantVideo = useCallback(async () => {
+    if (!newVideoUrl.trim()) {
+      addNotification("Please provide a YouTube video URL", "error");
+      return;
+    }
+    
+    const videoId = extractVideoId(newVideoUrl.trim());
+    if (!videoId) {
+      addNotification("Invalid YouTube URL. Please provide a valid YouTube video link.", "error");
+      return;
+    }
+
+    if (youtubeSettings.importantVideos?.some((v) => v.videoId === videoId)) {
+      addNotification("This video is already in the important videos list", "error");
+      return;
+    }
+
+    const newVideo = {
+      id: Date.now().toString(),
+      videoId: videoId,
+      title: newVideoTitle.trim() || `Video ${videoId}`,
+      description: newVideoDescription.trim() || "",
+      subject: newVideoSubject.trim() || "",
+      thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+      addedAt: new Date().toISOString(),
+      addedBy: auth.currentUser?.uid,
+    };
+
+    const updatedVideos = [...(youtubeSettings.importantVideos || []), newVideo];
+    const updatedSettings = { ...youtubeSettings, importantVideos: updatedVideos };
+    await saveYoutubeSettings(updatedSettings);
+    setNewVideoUrl("");
+    setNewVideoTitle("");
+    setNewVideoDescription("");
+    setNewVideoSubject("");
+    addNotification("Important video added successfully", "success");
+  }, [
+    newVideoUrl,
+    newVideoTitle,
+    newVideoDescription,
+    newVideoSubject,
+    youtubeSettings,
+    saveYoutubeSettings,
+    addNotification,
+  ]);
+
+  const deleteImportantVideo = useCallback(
+    async (videoId) => {
+      const updatedVideos = (youtubeSettings.importantVideos || []).filter(
+        (v) => v.id !== videoId
+      );
+      const updatedSettings = { ...youtubeSettings, importantVideos: updatedVideos };
+      await saveYoutubeSettings(updatedSettings);
+      addNotification("Video removed from important list", "success");
     },
     [youtubeSettings, saveYoutubeSettings, addNotification]
   );
@@ -1914,6 +1992,8 @@ const StaffDashboard = () => {
               setShowConfigureSection={setShowConfigureSection}
               showAddChannelSection={showAddChannelSection}
               setShowAddChannelSection={setShowAddChannelSection}
+              showImportantVideosSection={showImportantVideosSection}
+              setShowImportantVideosSection={setShowImportantVideosSection}
               youtubeSettings={youtubeSettings}
               setYoutubeSettings={setYoutubeSettings}
               deleteChannel={deleteChannel}
@@ -1928,6 +2008,16 @@ const StaffDashboard = () => {
               addNewChannel={addNewChannel}
               saveYoutubeSettings={saveYoutubeSettings}
               youtubeSettingsLoading={youtubeSettingsLoading}
+              newVideoUrl={newVideoUrl}
+              setNewVideoUrl={setNewVideoUrl}
+              newVideoTitle={newVideoTitle}
+              setNewVideoTitle={setNewVideoTitle}
+              newVideoDescription={newVideoDescription}
+              setNewVideoDescription={setNewVideoDescription}
+              newVideoSubject={newVideoSubject}
+              setNewVideoSubject={setNewVideoSubject}
+              addImportantVideo={addImportantVideo}
+              deleteImportantVideo={deleteImportantVideo}
             />
 
             <SettingsContainer

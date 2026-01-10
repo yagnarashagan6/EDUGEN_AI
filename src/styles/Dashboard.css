@@ -1151,6 +1151,54 @@
   padding: 0px;
 }
 
+#youtube-container .container-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#youtube-container .container-body .yt-search-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
+#youtube-container .container-body .yt-search-view,
+#youtube-container .container-body .yt-favorites-view {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#youtube-container .container-body .yt-header {
+  flex-shrink: 0;
+}
+
+/* YouTube container mobile responsiveness */
+@media (max-width: 768px) {
+  #youtube-container .container-body {
+    height: calc(100vh - 100px);
+    max-height: calc(100vh - 100px);
+  }
+}
+
+@media (max-width: 480px) {
+  #youtube-container .container-body {
+    height: calc(100vh - 80px);
+    max-height: calc(100vh - 80px);
+  }
+}
+
 /* RAG Model Container Specific Styles */
 #rag-model-container {
   width: 100%;
